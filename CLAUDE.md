@@ -92,7 +92,7 @@ Diff preview before push, only legal paths; tracked-file guard with an allow-lis
 **Done when:** only legal paths appear in the deploy diff; **the guard demonstrably refuses a deliberately staged tracked `temp_data/` file as an automated self-test, not a manual check** — this is `/validate` check 15 and it closes the one clear gap in the reference; `npm run build` failure blocks the push; a full harvest → approve → deploy cycle runs end to end against a SEED.md producer.
 
 ### Gate 8 — Coverage build-out
-Publish the target producer set across the confirmed seed GI regions, each carrying complete data and a documented ownership determination **at publish time, never backfilled after**.
+Publish 150–300 producers across the four seed GI regions — **Adelaide Hills, McLaren Vale, Yarra Valley and Mornington Peninsula** — each carrying complete data and a documented ownership determination **at publish time, never backfilled after**. Region-deep, not nationally thin: a region page that reads as complete is worth more than four that read as stubs. `regions.ts` still carries the full GI register from Wave 2; these four are simply the ones that get producers first.
 **Done when:** each target region is populated to the point its region page reads as complete; every published producer carries an `ownership_source` and a full provenance block at publish time; zero producers published with a non-null `parent_company`; the full `/validate` suite passes against the expanded set; region/subregion/variety pages regenerate with no manual intervention beyond the normal approve action.
 
 ### Gate 9 — Comparison pages + internal-linking graph

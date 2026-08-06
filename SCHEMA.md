@@ -119,7 +119,7 @@ Slug = filename (`jauma-wines.mdx`), kebab-case, unique across `_staging` + `_pu
 | `primary_region` | region slug | ✓ | Canonical route and breadcrumb anchor. Must be a member of `regions`. |
 | `subregions` | array of subregion slugs | – | Blewitt Springs, Piccadilly Valley, Whitlands, Moppity and similar. Each must belong to a region listed in `regions`. |
 | `cellar_door` | enum | ✓ | One of `CELLAR_DOOR_STATES` (§1.2). |
-| `cellar_door_hours` | string \| null | – | Freeform display string, e.g. `"Fri–Sun 11am–5pm"`. Drafted from `facts.hours`, never fabricated. Omitted entirely when `cellar_door: none`. |
+| `cellar_door_hours` | string \| null | – | **Freeform display string**, e.g. `"Fri–Sun 11am–5pm, and by appointment midweek"`. Deliberately not a per-day structured object: most producers here are appointment-only or irregular ("first Sunday of the month, harvest permitting"), and a seven-day grid forces a null-heavy shape that misrepresents them. Drafted from `facts.hours`, never fabricated. Omitted entirely when `cellar_door: none`. |
 | `cost` | string \| null | – | Freeform pricing display string, e.g. `"Tastings $15, waived on a six-bottle purchase"`. Drafted from `facts.pricing`, never fabricated. |
 | `tasting_fee` | object | – | `{ fee_aud: number \| null, waived_on_purchase: boolean \| null }`. Structured numbers alongside the freeform `cost` string, never replacing it. Cross-validated against `cost` (§2a). Omitted entirely when there is no published tasting fee — never invented. |
 | `minimum_age` | number \| null | – | Positive integer. Licensed premises. |
@@ -305,7 +305,7 @@ Because the rule is strict, `ownership_source` documents the *absence* of a corp
 2. The producer's own published ownership statement (an "about" or "our story" page that names who owns the business);
 3. A named independent trade source (wine media, regional association register, importer or distributor listing) stating ownership.
 
-*(Open for sign-off — see the Wave 0 close-out.)*
+**Any one of the three is sufficient**, provided it is specific about who owns the business and is recorded with a date. A source that merely fails to mention a parent is not evidence of absence — it must positively state ownership. Where the three conflict, the registry lookup wins and the conflict is noted in `confidence_notes`.
 
 ### 4.3 `data/ownership.json`
 
