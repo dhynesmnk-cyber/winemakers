@@ -1,0 +1,495 @@
+{
+  "updated": "2026-08-07",
+  "version": 1,
+  "about": [
+    "The ownership deny-list. SCHEMA.md §4.3. Hand-maintained, never generated.",
+    "Independence is an ownership fact and is never inferred from prose (SCHEMA.md §4). This file is one of the two inputs to the determination; the other is the ownership signals the Harvester extracts. Neither decides alone.",
+    "The rule is STRICT (SCHEMA.md §4.1): any corporate ownership blocks publication, including minority stakes and multi-label family groups. parent_company: null is the only publishable value.",
+    "Checks run on name, domain and ABN before a draft enters the queue. Every record carries a source and a date. No label appears under two parents."
+  ],
+  "inclusion_rule": [
+    "A label belongs in this file when it trades under its own name and a reader would reasonably take it for an independent business, but it is owned by someone else.",
+    "Ranges within a single family company are NOT listed. Tyrrell's, Taylors and Angove each run several ranges under one company; a reader is never going to encounter 'Rufus Stone' as a standalone producer to be harvested. Listing them would over-block without catching anything.",
+    "What is listed is the case that actually deceives: Lake's Folly, Giant Steps, Chapel Hill, Pewsey Vale. Each has its own site, its own history and its own regional identity, and each has a parent."
+  ],
+  "verdict_field": [
+    "PROPOSED IN WAVE 2, NEEDS SIGN-OFF BEFORE GATE 4 RELIES ON IT. SCHEMA.md §4.3 does not specify it.",
+    "reject = the attribution is documented and the deny-list hit blocks the draft outright.",
+    "check = the attribution is credible but not confirmed against a registry. The hit routes the draft to human review and never auto-publishes (SCHEMA.md §4.5). It does not reject.",
+    "The distinction exists because a false positive here silently blocks a genuinely independent producer, and nobody ever finds out. Retailer-exclusive labels are the hardest to attribute and carry check until a registry lookup upgrades them."
+  ],
+  "abn_rule": [
+    "ABNs are recorded ONLY from a lookup or from the operator's own published trading terms, with the source and the date. An ABN is never guessed, never inferred from a company name, and never carried across from a related entity.",
+    "One ABN is currently recorded. That is not a gap to be filled by estimation — it is the honest state of the register, and it is filled in as lookups are done.",
+    "SCHEMA.md §4.3's example record omits an abns field while its prose requires ABN checks. The field is added here; see FLAGGED-CONFLICTS in the Wave 2 handover."
+  ],
+  "known_gaps": [
+    "MINORITY HOLDINGS ARE THE THINNEST PART OF THIS FILE and the strict rule needs them most. A 20% outside investor blocks publication and is almost never on a producer's website. Only outright and controlling stakes are seeded below.",
+    "Coles Liquor's exclusive-label list is unpopulated. The domains still match; the label names do not.",
+    "Endeavour Group announced a Pinnacle restructure and winery sales in May 2026. Its record will move. Re-verify before Gate 4.",
+    "Négociant and virtual-brand coverage is untested — SEED.md carries no négociant fixture."
+  ],
+  "categories": {
+    "corporate_portfolio": "A company holding multiple label businesses. SCHEMA.md §4.4 reject category.",
+    "family_group": "A family holding company whose labels trade separately under their own names. Blocked by SCHEMA.md §4.1 even where the group itself is unowned — this is the rule's most contested consequence and the methodology page must state it.",
+    "investor_owned": "A single label owned outright or controlled by an outside investor, often foreign. Reads as independent; is not.",
+    "retailer_private_label": "A label created or acquired by a retailer to sell through its own shops. SCHEMA.md §4.4 names this and virtual brands as the highest-volume false positive.",
+    "retailer": "A pure retailer. Not a producer at all.",
+    "restaurant": "A restaurant or hospitality group. Not a producer.",
+    "virtual_brand": "A label with no winery, no vineyard and no operator behind the name, built to look like a small producer."
+  },
+  "owners": [
+    {
+      "parent": "Treasury Wine Estates",
+      "category": "corporate_portfolio",
+      "verdict": "reject",
+      "labels": [
+        "19 Crimes",
+        "Annie's Lane",
+        "Coldstream Hills",
+        "Devil's Lair",
+        "Fifth Leg",
+        "Heemskerk",
+        "Ingoldby",
+        "Jamieson's Run",
+        "Killawarra",
+        "Leo Buring",
+        "Lindeman's",
+        "Penfolds",
+        "Pepperjack",
+        "Rawson's Retreat",
+        "Rosemount Estate",
+        "Saltram",
+        "Seppelt",
+        "Squealing Pig",
+        "St Huberts",
+        "T'Gallant",
+        "Wolf Blass",
+        "Wynns Coonawarra Estate",
+        "Yellowglen",
+        "Beringer",
+        "Blossom Hill",
+        "Castello di Gabbiano",
+        "Daou",
+        "Etude",
+        "Matua",
+        "Stags' Leap Winery",
+        "Sterling Vineyards"
+      ],
+      "domains": [
+        "tweglobal.com",
+        "treasurywineestates.com",
+        "penfolds.com",
+        "wolfblass.com",
+        "lindemans.com",
+        "wynns.com.au",
+        "seppelt.com.au",
+        "saltramwines.com.au",
+        "coldstreamhills.com.au",
+        "devilslair.com",
+        "sthuberts.com.au",
+        "tgallant.com.au",
+        "pepperjack.com.au",
+        "19crimes.com",
+        "leoburing.com.au",
+        "annieslane.com.au",
+        "yellowglen.com.au",
+        "beringer.com"
+      ],
+      "aliases": [
+        "TWE",
+        "Treasury Wine Estates Limited",
+        "Treasury Wine Estates Vintners Limited",
+        "Beringer Blass Wine Estates",
+        "Foster's Wine Estates",
+        "Southcorp Wines"
+      ],
+      "abns": [
+        {
+          "abn": "55 004 094 599",
+          "entity": "Wolf Blass",
+          "source": "https://www.wolfblass.com/en-au/",
+          "quote": "Your contract of sale will be with Wolf Blass ABN 55 004 094 599",
+          "verified": "2026-08-07"
+        }
+      ],
+      "source": "https://en.wikipedia.org/wiki/Treasury_Wine_Estates",
+      "updated": "2026-08-07",
+      "note": "SEED.md row 1 and the reason this file exists. The Wolf Blass site names no parent company anywhere — not in the footer, not in the copyright line. Its only corporate trace is the ABN in the terms of sale. A tone-based test passes that site comfortably. Gate 4 requires the rejection to work three ways independently: by name, by domain wolfblass.com, and by the ABN above."
+    },
+    {
+      "parent": "Vinarchy",
+      "category": "corporate_portfolio",
+      "verdict": "reject",
+      "labels": [
+        "Hardys",
+        "Banrock Station",
+        "Houghton",
+        "Petaluma",
+        "Croser",
+        "St Hallett",
+        "Grant Burge",
+        "Leasingham",
+        "Brookland Valley",
+        "Amberley",
+        "Moondah Brook",
+        "Yarra Burn",
+        "Tintara",
+        "Bay of Fires",
+        "House of Arras",
+        "Knappstein",
+        "Goundrey",
+        "Berri Estates",
+        "Renmano",
+        "Reynella",
+        "Rolf Binder",
+        "Stanley",
+        "Tatachilla",
+        "Omni",
+        "Jacob's Creek",
+        "Orlando",
+        "St Hugo",
+        "Jam Shed",
+        "Wyndham Estate",
+        "Richmond Grove",
+        "Brancott Estate",
+        "Stoneleigh",
+        "Church Road",
+        "Mud House",
+        "Campo Viejo",
+        "Ysios",
+        "Tarsus",
+        "Azpilicueta",
+        "Kumala",
+        "Flagstone",
+        "Fish Hoek",
+        "Echo Falls",
+        "Anakena",
+        "Da Luca",
+        "Geyser Peak",
+        "Atlas Peak"
+      ],
+      "domains": [
+        "vinarchy.com",
+        "accoladewines.com",
+        "hardys.com.au",
+        "hardyswines.com",
+        "banrockstation.com",
+        "petaluma.com.au",
+        "sthallett.com.au",
+        "grantburgewines.com.au",
+        "houghton-wines.com.au",
+        "houseofarras.com.au",
+        "bayoffireswines.com.au",
+        "knappstein.com.au",
+        "brooklandvalley.com.au",
+        "jacobscreek.com",
+        "sthugo.com",
+        "orlandowines.com",
+        "wyndhamestate.com"
+      ],
+      "aliases": [
+        "Accolade Wines",
+        "Australian Wine Holdco Limited",
+        "AWL",
+        "Constellation Wines Australia",
+        "BRL Hardy",
+        "Hardy Wine Company",
+        "Pernod Ricard Winemakers",
+        "Orlando Wyndham Group"
+      ],
+      "abns": [],
+      "source": "https://en.wikipedia.org/wiki/Vinarchy",
+      "updated": "2026-08-07",
+      "note": "Formed April 2025 when Australian Wine Holdco combined Accolade Wines with Pernod Ricard's wine portfolio. Headquartered at Old Reynella, South Australia. Both former parent names are aliases because published trade sources and producer sites will name either for years yet. The label Tatachilla shares a name with a McLaren Vale locality carried in regions.ts; name matching must not fire on the place."
+    },
+    {
+      "parent": "Casella Family Brands",
+      "category": "corporate_portfolio",
+      "verdict": "reject",
+      "labels": [
+        "[yellow tail]",
+        "Yellow Tail",
+        "Peter Lehmann",
+        "Brand's Laira",
+        "Morris of Rutherglen",
+        "Baileys of Glenrowan",
+        "Casella Family Wines",
+        "Atmata"
+      ],
+      "domains": [
+        "casellafamilybrands.com",
+        "yellowtailwine.com",
+        "peterlehmannwines.com",
+        "morriswines.com",
+        "baileysofglenrowan.com.au",
+        "brandslaira.com.au"
+      ],
+      "aliases": ["Casella Wines", "Casella Wines Pty Limited"],
+      "abns": [],
+      "source": "https://www.casellafamilybrands.com/about/our-story",
+      "updated": "2026-08-07",
+      "note": "Family-owned and still a large multi-label portfolio. Peter Lehmann, Morris of Rutherglen and Baileys of Glenrowan each carry a long independent history and their own sites; all three are owned."
+    },
+    {
+      "parent": "Australian Vintage Ltd",
+      "category": "corporate_portfolio",
+      "verdict": "reject",
+      "labels": [
+        "McGuigan",
+        "Tempus Two",
+        "Nepenthe",
+        "Barossa Valley Wine Company",
+        "Passion Pop"
+      ],
+      "domains": [
+        "avlwines.com.au",
+        "mcguiganwines.com.au",
+        "tempustwo.com.au",
+        "nepenthe.com.au"
+      ],
+      "aliases": ["Australian Vintage Limited", "AVL", "McGuigan Simeon Wines"],
+      "abns": [],
+      "source": "https://avlwines.com.au/",
+      "updated": "2026-08-07",
+      "note": "Nepenthe is an Adelaide Hills label and Adelaide Hills is a Gate 8 coverage region. Expect to encounter it."
+    },
+    {
+      "parent": "Endeavour Group",
+      "category": "retailer_private_label",
+      "verdict": "check",
+      "labels": [
+        "Chapel Hill",
+        "Isabel Estate",
+        "Bowler's Run",
+        "Riverside Landing",
+        "Chancellor & Co",
+        "Baily & Baily",
+        "Cat Amongst the Pigeons",
+        "The Butchers Friend",
+        "Hidden Ridge",
+        "Portraits of Clare",
+        "Paradox"
+      ],
+      "domains": [
+        "endeavourgroup.com.au",
+        "pinnacledrinks.com.au",
+        "danmurphys.com.au",
+        "bws.com.au",
+        "chapelhillwine.com.au"
+      ],
+      "aliases": [
+        "Pinnacle Drinks",
+        "Endeavour Drinks",
+        "Endeavour Drinks Group",
+        "Woolworths Liquor Group",
+        "Dan Murphy's",
+        "BWS",
+        "ALH Group"
+      ],
+      "abns": [],
+      "source": "https://wbmonline.com.au/woolies-buys-chapel-hill-intends-to-participate-in-the-production-site-of-australian-wine/",
+      "updated": "2026-08-07",
+      "note": "SCHEMA.md §4.4's named category, and the one that will cost the most reviewer time. Chapel Hill is the entry that matters here: a fifty-year-old McLaren Vale winery with its own cellar door, in a Gate 8 coverage region, owned by a supermarket group since late 2019. Nothing on the ground reads as retailer-owned. Carries check rather than reject because the low-price label attributions come from trade reporting rather than a registry, and Endeavour announced a Pinnacle restructure and winery sales in May 2026 that will move several of them."
+    },
+    {
+      "parent": "Coles Group",
+      "category": "retailer_private_label",
+      "verdict": "check",
+      "labels": [],
+      "domains": [
+        "colesgroup.com.au",
+        "coles.com.au",
+        "liquorland.com.au",
+        "firstchoiceliquor.com.au",
+        "vintagecellars.com.au"
+      ],
+      "aliases": [
+        "Coles Liquor",
+        "Liquorland",
+        "First Choice Liquor",
+        "Vintage Cellars",
+        "Coles Group Limited"
+      ],
+      "abns": [],
+      "source": "https://www.colesgroup.com.au/",
+      "updated": "2026-08-07",
+      "note": "Deliberately seeded with domains and no labels. The exclusive-label list is not populated because it has not been verified, and a guessed label name in a deny-list blocks a real business. The domains still catch the obvious case."
+    },
+    {
+      "parent": "Hill-Smith Family Estates",
+      "category": "family_group",
+      "verdict": "reject",
+      "labels": [
+        "Yalumba",
+        "Jansz Tasmania",
+        "Dalrymple Vineyards",
+        "Pewsey Vale Vineyard",
+        "Heggies Vineyard",
+        "Oxford Landing",
+        "Running With Bulls",
+        "Smith & Hooper",
+        "Ringbolt",
+        "Mesh",
+        "Rogers & Rufus",
+        "Hill-Smith Estate",
+        "Winesmiths",
+        "Nautilus Estate",
+        "Opawa",
+        "Twin Islands"
+      ],
+      "domains": [
+        "yalumba.com",
+        "hillsmithfamilyestates.com",
+        "jansz.com.au",
+        "dalrymplevineyards.com.au",
+        "pewseyvale.com",
+        "heggiesvineyard.com",
+        "oxfordlanding.com",
+        "nautilusestate.com"
+      ],
+      "aliases": [
+        "Samuel Smith & Son",
+        "Hill-Smith Family Vignerons",
+        "Negociants Australia",
+        "Yalumba Wine Company"
+      ],
+      "abns": [],
+      "source": "https://www.yalumba.com/the-family/",
+      "updated": "2026-08-07",
+      "note": "The worked example of SCHEMA.md §4.1's hardest consequence. The group is itself unowned — six generations of one family, no outside shareholder — and the trade calls every label in it independent. The strict rule blocks all sixteen. The methodology page must say this in plain words rather than let a reader discover it by noticing Pewsey Vale is missing."
+    },
+    {
+      "parent": "Brown Family Wine Group",
+      "category": "family_group",
+      "verdict": "reject",
+      "labels": [
+        "Brown Brothers",
+        "Devil's Corner",
+        "Tamar Ridge",
+        "Pirie",
+        "Innocent Bystander"
+      ],
+      "domains": [
+        "brownfamilywinegroup.com.au",
+        "brownbrothers.com.au",
+        "devilscorner.com.au",
+        "tamarridge.com.au",
+        "innocentbystander.com.au"
+      ],
+      "aliases": ["Brown Brothers Milawa Vineyard"],
+      "abns": [],
+      "source": "https://www.brownfamilywinegroup.com.au/",
+      "updated": "2026-08-07",
+      "note": "All Saints Estate is run by members of the same family through a separate business and is NOT listed here. Do not conflate the two on a surname match — this is exactly the failure mode name matching produces."
+    },
+    {
+      "parent": "Fogarty Wine Group",
+      "category": "family_group",
+      "verdict": "reject",
+      "labels": [
+        "Lake's Folly",
+        "Dalwhinnie",
+        "Evans & Tate",
+        "Deep Woods Estate",
+        "Millbrook Winery",
+        "Smithbrook",
+        "Lowestoft",
+        "Thalia",
+        "Strelley Farm Estate",
+        "Sandy Bay Estate",
+        "Tasmanian Vintners"
+      ],
+      "domains": [
+        "fogarty.wine",
+        "fogartyhall.wine",
+        "lakesfolly.com.au",
+        "dalwhinnie.wine",
+        "evansandtate.wine",
+        "deepwoods.wine",
+        "millbrookwinery.com.au",
+        "smithbrook.com.au",
+        "lowestoft.wine"
+      ],
+      "aliases": ["Fogarty Hall Fine Wine Estates", "Fogarty Group"],
+      "abns": [],
+      "source": "https://www.fogarty.wine/pages/about-us",
+      "updated": "2026-08-07",
+      "note": "Eleven labels across six regions, each acquired as a going concern and each still trading under its own name and history. Lake's Folly is the sharpest case: a 1963 Hunter estate that reads as independent from every angle except the register."
+    },
+    {
+      "parent": "Rathbone Wine Group",
+      "category": "family_group",
+      "verdict": "reject",
+      "labels": ["Yering Station", "Mount Langi Ghiran", "Xanadu Wines"],
+      "domains": [
+        "rathbonewinegroup.com",
+        "yering.com",
+        "langi.com.au",
+        "xanaduwines.com"
+      ],
+      "aliases": ["Rathbone Family Group"],
+      "abns": [],
+      "source": "https://www.rathbonewinegroup.com/",
+      "updated": "2026-08-07",
+      "note": "Yering Station sits in the Yarra Valley, a Gate 8 coverage region."
+    },
+    {
+      "parent": "Jackson Family Wines",
+      "category": "corporate_portfolio",
+      "verdict": "reject",
+      "labels": [
+        "Giant Steps",
+        "Yangarra Estate Vineyard",
+        "Hickinbotham Clarendon Vineyard"
+      ],
+      "domains": [
+        "jacksonfamilywines.com",
+        "giantstepswine.com.au",
+        "yangarra.com",
+        "hickinbothamwines.com.au"
+      ],
+      "aliases": ["Kendall-Jackson", "Jackson Family Estates"],
+      "abns": [],
+      "source": "https://www.thedrinksbusiness.com/2020/08/jackson-family-wines-buys-giant-steps/",
+      "updated": "2026-08-07",
+      "note": "A California family company holding three Australian estates: Yangarra since 2001, Hickinbotham since 2012, Giant Steps since August 2020. All three present as small, single-region, winemaker-led operations, and two of them sit in Gate 8 coverage regions. This is the exact shape SCHEMA.md §4 says prose cannot detect."
+    },
+    {
+      "parent": "Moët Hennessy",
+      "category": "corporate_portfolio",
+      "verdict": "reject",
+      "labels": ["Chandon Australia", "Domaine Chandon Australia"],
+      "domains": ["chandon.com.au", "moethennessy.com", "lvmh.com"],
+      "aliases": ["LVMH", "Moët Hennessy Louis Vuitton", "Domaine Chandon"],
+      "abns": [],
+      "source": "https://www.chandon.com.au/",
+      "updated": "2026-08-07",
+      "note": "Yarra Valley, a Gate 8 coverage region."
+    },
+    {
+      "parent": "Heytesbury Pty Ltd",
+      "category": "investor_owned",
+      "verdict": "check",
+      "labels": ["Vasse Felix", "Heytesbury"],
+      "domains": ["vassefelix.com.au"],
+      "aliases": ["Heytesbury Wine Group", "Holmes à Court family", "Holmes a Court"],
+      "abns": [],
+      "source": "https://www.vassefelix.com.au/heytesbury-wine-group",
+      "updated": "2026-08-07",
+      "note": "Owned by the Holmes à Court family through Heytesbury since 1987, and published on the producer's own site. Carries check rather than reject because a single label held by a family holding company is the boundary of SCHEMA.md §4.1 rather than its centre, and the call belongs to a reviewer with the methodology page open, not to a matcher."
+    },
+    {
+      "parent": "Peter Kight",
+      "category": "investor_owned",
+      "verdict": "check",
+      "labels": ["Torbreck", "Torbreck Vintners"],
+      "domains": ["torbreck.com"],
+      "aliases": ["Pete Kight", "Quivira Vineyards"],
+      "abns": [],
+      "source": "https://en.wikipedia.org/wiki/Torbreck",
+      "updated": "2026-08-07",
+      "note": "Acquired 2008 by the American owner of Quivira in Sonoma. An outside individual investor rather than a portfolio company, which is precisely the case the strict rule was chosen to catch and precisely the case a reviewer should sign off on rather than a matcher."
+    }
+  ]
+}
