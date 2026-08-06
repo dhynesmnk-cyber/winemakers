@@ -94,7 +94,13 @@ The pipeline only ever sets `published_by_producer`. `observed_on_visit` exists 
 
 Certification and ownership need provenance more than tasting fees do. Deliberately *not* on the list: `name`, `location`, `category` (self-evident or editorial), the practice and logistics booleans (covered by the producer-level `verified` date).
 
-### 1.13 `STATES`
+### 1.13 `OWNERSHIP_EVIDENCE_METHODS`
+
+`registry` · `producer_statement` · `trade_source`
+
+Which of §4.2's three routes established the ownership determination. Recorded on every entry so the evidence base is auditable in aggregate — "how many producers rest on the producer's own word?" is a question the methodology page should be able to answer, and it cannot be reconstructed from a bare source URL.
+
+### 1.14 `STATES`
 
 `VIC` · `NSW` · `QLD` · `SA` · `WA` · `TAS` · `NT` · `ACT`
 
@@ -110,7 +116,7 @@ Slug = filename (`jauma-wines.mdx`), kebab-case, unique across `_staging` + `_pu
 |---|---|---|---|
 | `name` | string | ✓ | The producer's actual trading name. |
 | `parent_company` | string \| null | ✓ | **`null` = independent. Any non-null value blocks publication.** The key is always present — an absent key is an undetermined producer, which is not publishable. See §4. |
-| `ownership_source` | object | ✓ | `{ source: string, date: date }`. No producer publishes without an ownership determination and a source. Documents a *negative* (see §4.2). |
+| `ownership_source` | object | ✓ | `{ source: string, method: enum, date: date }`. `method` is one of `OWNERSHIP_EVIDENCE_METHODS` (§1.14) and records *which* of the three routes in §4.2 was used. No producer publishes without an ownership determination and a source. Documents a *negative* (see §4.2). |
 | `category` | enum | ✓ | One of `CATEGORIES` (§1.1). Never a near-synonym. |
 | `founded_year` | number \| null | – | Four-digit year. Null when not published. |
 | `website` | string (url) | ✓ | The producer's own site. |
@@ -198,6 +204,7 @@ CREATE TABLE producers (
   parent_company TEXT,            -- always NULL on published rows; column kept so
                                   -- the invariant is queryable, not merely asserted
   ownership_source TEXT NOT NULL,
+  ownership_source_method TEXT NOT NULL,
   ownership_source_date TEXT NOT NULL,
   category TEXT NOT NULL,
   founded_year INTEGER,
@@ -301,9 +308,9 @@ This is stricter than the trade's ordinary use of "independent": it excludes a m
 
 Because the rule is strict, `ownership_source` documents the *absence* of a corporate parent, which is harder evidence than documenting a presence. One of the following, recorded with a date:
 
-1. An ASIC or ABN lookup identifying the operating entity and showing no corporate parent;
-2. The producer's own published ownership statement (an "about" or "our story" page that names who owns the business);
-3. A named independent trade source (wine media, regional association register, importer or distributor listing) stating ownership.
+1. An ASIC or ABN lookup identifying the operating entity and showing no corporate parent — `registry`;
+2. The producer's own published ownership statement, an "about" or "our story" page that names who owns the business — `producer_statement`;
+3. A named independent trade source (wine media, regional association register, importer or distributor listing) stating ownership — `trade_source`.
 
 **Any one of the three is sufficient**, provided it is specific about who owns the business and is recorded with a date. A source that merely fails to mention a parent is not evidence of absence — it must positively state ownership. Where the three conflict, the registry lookup wins and the conflict is noted in `confidence_notes`.
 
@@ -416,6 +423,7 @@ name: Example Wines
 parent_company: null
 ownership_source:
   source: https://example.com/about
+  method: producer_statement
   date: 2026-08-06
 category: garagiste
 founded_year: 2014
