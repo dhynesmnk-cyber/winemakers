@@ -1,0 +1,155 @@
+/*
+ * tokens.css — the dual-mode colour token machinery. DESIGN.md §2.
+ *
+ * Wave 2 delivers this as a standalone partial. Gate 1 owns
+ * `site/src/styles/global.css` and folds this in, either with `@import` ahead of
+ * its own rules or by pasting the blocks in this order. Nothing here defines a
+ * shared class, a reset or an @font-face; those are global.css's and Gate 1's.
+ *
+ * ── Six tokens. Two modes. Nothing else. ─────────────────────────────────────
+ *
+ * `--vine` is the one accent: links, focus rings, active state, the single
+ * button style. It has a budget. More than roughly 5% of a screen in `--vine`
+ * is overuse. It is a link underline and a focus ring far more often than a
+ * fill, and there are no filled accent backgrounds on the public site.
+ *
+ * `--claret` IS NOT A BRAND COLOUR AND MUST NEVER BE USED AS ONE. Error and
+ * warning tone only. It is named for a wine because this is a wine site's
+ * palette, and that is exactly what makes it dangerous: there is a permanent
+ * pull to paint a heading, a rule, a masthead or a hover state in it, and every
+ * one of those uses turns the site into a wine merchant. If a screen shows
+ * `--claret` and nothing is wrong, it is a bug.
+ *
+ * ── The values are STARTER VALUES and are not yet verified on a screen ───────
+ *
+ * The arithmetic below clears DESIGN.md §2's 4.5:1 floor against both `--paper`
+ * and `--paper-raised` in both modes; the arithmetic is not the test. Nobody has
+ * looked at these on a real display, in a room, against the grain overlay, at
+ * 13px mono, or beside a photograph. DESIGN.md §2 requires that to happen before
+ * Gate 1 closes, and requires the result to be recorded here as a dated note
+ * whether the values are confirmed or amended.
+ *
+ * Amendments are annotated in place with a date and a reason, never deleted. The
+ * reference's amendment history is legible precisely because it kept its
+ * superseded hexes visible, which is how anyone reading it now knows its light
+ * `--ink-faded` shipped at 3.92:1 against its own paper. Keep that legibility.
+ *
+ * Measured 2026-08-07 (WCAG 2.x relative luminance, computed, not eyeballed):
+ *
+ *   LIGHT      on --paper #efeae0   on --paper-raised #e6e0d3
+ *   --ink        12.43 : 1            11.33 : 1
+ *   --ink-faded   5.13 : 1             4.68 : 1
+ *   --vine        5.23 : 1             4.77 : 1
+ *   --claret      6.20 : 1             5.66 : 1
+ *
+ *   DARK       on --paper #171512   on --paper-raised #1f1c18
+ *   --ink        13.85 : 1            12.89 : 1
+ *   --ink-faded   6.61 : 1             6.16 : 1
+ *   --vine        7.90 : 1             7.36 : 1
+ *   --claret      5.33 : 1             4.96 : 1
+ *
+ * These reproduce DESIGN.md §2's table exactly, which is the first time that
+ * table has been checked by anything other than the person who wrote it.
+ *
+ * Light `--ink-faded` at 4.68:1 on `--paper-raised` clears the floor by 0.18.
+ * That is thin. Appendix and caption text sits on `--paper-raised`, so if the
+ * visual check moves anything, expect it to be this one, and deepen it rather
+ * than let it drift under. Deepen for light, lighten for dark: the two modes
+ * carry the same hue at two lightnesses, derived from one another. Never paste
+ * one mode's hex into the other.
+ *
+ * ── Source order is the mechanism ────────────────────────────────────────────
+ *
+ * Four declarations per token, in this order. Blocks 3 and 4 come after block 2
+ * so an explicit choice always beats the operating system. The
+ * `:not([data-theme="light"])` in block 2 is what lets an explicit light choice
+ * survive a dark OS. Do not "simplify" this into two blocks. The duplication is
+ * the feature.
+ */
+
+/* 1 — light, the default register */
+:root {
+  color-scheme: light dark;
+
+  --paper: #efeae0;
+  --paper-raised: #e6e0d3;
+  --ink: #292723;
+  --ink-faded: #676154;
+  --vine: #496845;
+  --claret: #8e3b33;
+
+  /* DESIGN.md §4. Tuned per mode: `overlay` against warm off-white behaves
+     nothing like `overlay` against near-black. Verify visually before locking. */
+  --grain-opacity: 0.035;
+
+  /* TRD.md §2.5's dated gsap exception, scoped to in-page scroll-linked effects.
+     DESIGN.md owns whether any given effect exists at all, and no content may
+     depend on gsap to be readable (/validate check 16). */
+  --ease-graceful: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --motion-line-stagger: 0.06s;
+  --motion-parallax-max: 24px;
+}
+
+/* 2 — dark, from the operating system, unless an explicit light choice is stored */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #171512;
+    --paper-raised: #1f1c18;
+    --ink: #e6e0d2;
+    --ink-faded: #a49b88;
+    --vine: #8fb583;
+    --claret: #c9736a;
+
+    --grain-opacity: 0.03;
+  }
+}
+
+/* 3 — dark, chosen explicitly. Wins over the OS by source order. */
+:root[data-theme="dark"] {
+  --paper: #171512;
+  --paper-raised: #1f1c18;
+  --ink: #e6e0d2;
+  --ink-faded: #a49b88;
+  --vine: #8fb583;
+  --claret: #c9736a;
+
+  --grain-opacity: 0.03;
+}
+
+/* 4 — light, chosen explicitly. Wins over a dark OS by source order. */
+:root[data-theme="light"] {
+  --paper: #efeae0;
+  --paper-raised: #e6e0d3;
+  --ink: #292723;
+  --ink-faded: #676154;
+  --vine: #496845;
+  --claret: #8e3b33;
+
+  --grain-opacity: 0.035;
+}
+
+/*
+ * Tailwind v4 aliases. Any colour or type utility that ever gets used follows
+ * the tokens rather than freezing a literal. Tailwind v4 takes its theme from
+ * this block; there is no tailwind.config.js and there is not going to be one.
+ *
+ * The three faces are self-hosted woff2 from `site/public/fonts/`, declared with
+ * `font-display: swap` in global.css. Gate 1 owns those @font-face rules and the
+ * files. No Google Fonts link, no @import from a CDN, no runtime font fetching.
+ *
+ * There is no sans-serif on the public site. Never Inter, never system-ui, never
+ * any grotesque. IBM Plex Mono is the utility face; it is a monospace, and it is
+ * not a substitute for a sans.
+ */
+@theme {
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-ink: var(--ink);
+  --color-ink-faded: var(--ink-faded);
+  --color-vine: var(--vine);
+  --color-claret: var(--claret);
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Newsreader", Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
