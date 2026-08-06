@@ -42,6 +42,7 @@ TRD.md ................... technical requirements, fixed stack, out of scope
 UX.md .................... behavioural specification
 DESIGN.md ................ visual specification
 SEED.md .................. Gate 5 fixture producers, one per failure mode
+HANDOVER.md .............. session state — where the build got to, what is next
 README.md ................ this file
 .env.example ............. environment contract, one block per concern
 
