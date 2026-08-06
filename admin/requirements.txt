@@ -1,0 +1,38 @@
+# Pinned exactly, without carets, as TRD.md §2.1 pins them. This is a
+# known-good set; a drive-by upgrade is a dependency change and falls under
+# CLAUDE.md rule 2.
+#
+# Everything the pipeline needs beyond this list comes from the standard
+# library: sqlite3, pathlib, subprocess, json, re, hmac/hashlib, smtplib,
+# socket, difflib. There is no ORM, no HTTP vendor SDK apart from Anthropic,
+# no python-dotenv and no python-multipart (TRD.md §2.2).
+
+# Frontmatter. The one place YAML round-tripping has to be exact.
+PyYAML==6.0
+
+# --- Gate 3 onwards. Listed now so the set is stable and `pip install -r`
+# --- installs the same thing in the Fly container as it does locally.
+
+# Admin app: server-rendered HTML, hand-written JS, no bundler.
+fastapi==0.115.0
+uvicorn==0.32.0
+jinja2==3.1.2
+
+# The single outbound HTTP client for everything: harvest fetches, geocoding,
+# the Netlify build poll, the IndexNow ping.
+httpx==0.27.2
+trafilatura==1.12.2
+
+# JS-render fallback. USER-TRIGGERED PER URL ONLY, never automatic. The version
+# is pinned to the Docker base image tag (TRD.md §2.4) — moving one moves the
+# other.
+playwright==1.48.0
+
+# Candidate producer photographs.
+Pillow==10.4.0
+
+# The one vendor SDK in the build, justified by its typed error classes
+# (RateLimitError, APIStatusError, APIConnectionError), which are what the
+# transport retry tier discriminates on. Instantiated with max_retries=0 so the
+# single mandated retry is ours and is visible in the log pane.
+anthropic==0.39.0
