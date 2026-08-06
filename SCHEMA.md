@@ -116,7 +116,7 @@ Slug = filename (`jauma-wines.mdx`), kebab-case, unique across `_staging` + `_pu
 |---|---|---|---|
 | `name` | string | ✓ | The producer's actual trading name. |
 | `parent_company` | string \| null | ✓ | **`null` = independent. Any non-null value blocks publication.** The key is always present — an absent key is an undetermined producer, which is not publishable. See §4. |
-| `ownership_source` | object | ✓ | `{ source: string, method: enum, date: date }`. `method` is one of `OWNERSHIP_EVIDENCE_METHODS` (§1.14) and records *which* of the three routes in §4.2 was used. No producer publishes without an ownership determination and a source. Documents a *negative* (see §4.2). |
+| `ownership_source` | object | ✓ | `{ source: string, method: enum, date: date }`. `method` is one of `OWNERSHIP_EVIDENCE_METHODS` (§1.13 — *corrected 2026-08-07, previously cited as §1.14, which is `STATES`*) and records *which* of the three routes in §4.2 was used. No producer publishes without an ownership determination and a source. Documents a *negative* (see §4.2). |
 | `category` | enum | ✓ | One of `CATEGORIES` (§1.1). Never a near-synonym. |
 | `founded_year` | number \| null | – | Four-digit year. Null when not published. |
 | `website` | string (url) | ✓ | The producer's own site. |
@@ -321,15 +321,29 @@ Hand-maintained. Shape:
 ```json
 {
   "parent": "Treasury Wine Estates",
+  "category": "corporate_portfolio",
+  "verdict": "reject",
   "labels": ["…"],
   "domains": ["…"],
   "aliases": ["…"],
+  "abns": [
+    { "abn": "55 004 094 599", "entity": "Wolf Blass",
+      "source": "https://…", "verified": "2026-08-07" }
+  ],
   "source": "https://…",
   "updated": "2026-08-06"
 }
 ```
 
 Deny-list checks run on **name, domain and ABN** before a draft enters the queue. No label may appear under two parents. Every record carries a source and a date.
+
+**Amended 2026-08-07, Wave 2.** The example above previously omitted `abns`, `category` and `verdict`. The first was an outright omission — this section's own prose requires ABN checks and Gate 4's done-condition requires rejection by ABN to work independently, so the field had to exist. The other two were added and signed off on the same date:
+
+- **`abns`** is a list of objects, not bare strings, so an ABN carries its provenance. An ABN is recorded only from a registry lookup or the operator's own published trading terms, and **never guessed** — a wrong ABN in a deny-list rejects an innocent business by a number nobody thinks to question.
+- **`category`** is drawn from the file's own `categories` map and records *why* a record is here, so the review pane can say so and so §4.4's categories are auditable in aggregate.
+- **`verdict`** is `reject` or `check`. `reject` blocks the draft outright. **`check` routes it to human review and never auto-publishes**, which §4.5 already provides for. The distinction exists because a false positive here silently blocks a genuinely independent producer and nobody ever finds out; attributions resting on trade reporting rather than a registry carry `check` until a lookup upgrades them.
+
+The file also carries a `checked_and_not_listed` section. **Absence from `ownership.json` means unchecked, not cleared.** It is not a whitelist and must never be read as one.
 
 ### 4.4 Explicit reject categories
 

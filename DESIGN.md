@@ -257,8 +257,9 @@ Every SCHEMA.md §1 vocabulary is accounted for here.
 | §1.9 `WINE_STYLE_KEYS` (7) | **7 glyphs** | |
 | §1.10 `VARIETY_KEYS` | **1 shared glyph** (the bunch), names in words | A glyph per grape is undrawable and would become a badge system. |
 | §1.11 `CONFIDENCE_TIERS` (4) | **Words only** | A tier rendered as a shield, tick or medal is a trust seal. Mono text, in the provenance line (§7). |
-| §1.12 `VERIFIABLE_FIELDS` | n/a | Metadata, not displayed as a set. |
-| §1.13 `STATES` (8) | **Words only** | Never flags, never a map. |
+| §1.12 `VERIFIABLE_FIELDS` | n/a | Metadata, not displayed as a set. Also **not glossed** — it is a list of field names, not a vocabulary of values, so `/validate` check 11 skips it. |
+| §1.13 `OWNERSHIP_EVIDENCE_METHODS` (3) | **Words only** | *Row added 2026-08-07. It was missing, which made the claim above it untrue and would have made check 11 report three false orphans.* Never a seal, tick or verification badge — DESIGN.md §7's methodology note bans exactly that art. Mono text, in the provenance line (§7). |
+| §1.14 `STATES` (8) | **Words only** | Never flags, never a map. *Renumbered 2026-08-07, previously listed as §1.13.* |
 
 ### The inventory — 44 glyphs
 
