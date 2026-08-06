@@ -1,0 +1,127 @@
+---
+/**
+ * ProducerEntry.astro — one row in a producer list. DESIGN.md §5.
+ *
+ * NO CARDS. This is a typographic entry, like a line in a table of contents:
+ * name in the display face, a mono dateline, a one-line summary in italic, and
+ * a present-only fact row. Separated from its neighbours by a hairline and
+ * nothing else.
+ *
+ * No boxes, no fills, no shadows, no hover-lift, no border, no background.
+ * This is the single rule most likely to be violated by muscle memory, and the
+ * one that most determines whether the site passes DESIGN.md §10.
+ *
+ * ONE narrow exception, inherited from the reference: where a producer has a
+ * published photograph, a small unbordered, unrotated thumbnail may sit beside
+ * the text — no mount, no shadow, no change to the hairline rhythm. It exists
+ * solely to give the list→detail photo transition a shared element. Producers
+ * with no image show nothing extra. This is not a general reintroduction of
+ * thumbnails.
+ */
+import FactRow from "./FactRow.astro";
+import { CATEGORY_LABELS, STATE_NAMES } from "../config.ts";
+import { regionName } from "../data/regions.ts";
+
+interface Props {
+  slug: string;
+  data: Record<string, any>;
+}
+
+const { slug, data } = Astro.props;
+
+// Dateline: suburb, state, primary region, category. Words, not codes.
+const datelineParts = [
+  data.location?.suburb,
+  STATE_NAMES[data.location?.state as keyof typeof STATE_NAMES],
+  regionName(data.primary_region),
+].filter(Boolean);
+
+const category = CATEGORY_LABELS[data.category as keyof typeof CATEGORY_LABELS];
+const href = `/producer/${slug}/`;
+---
+
+<li class="entry">
+  <article>
+    <div class="entry__body">
+      <h2 class="entry__name">
+        <a href={href}>{data.name}</a>
+      </h2>
+
+      <p class="entry__dateline mono mono-caps">
+        {datelineParts.join(" · ")}{category ? ` · ${category}` : ""}
+      </p>
+
+      <p class="entry__summary">{data.summary}</p>
+
+      <FactRow data={data} context="list_entry" compact />
+    </div>
+
+    {
+      data.image && (
+        <a href={href} class="entry__thumb" tabindex="-1" aria-hidden="true">
+          <img
+            src={data.image}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            transition:name={`plate-${slug}`}
+          />
+        </a>
+      )
+    }
+  </article>
+</li>
+
+<style>
+  .entry {
+    padding: clamp(1.5rem, 3vw, 2.25rem) 0;
+  }
+
+  .entry article {
+    display: flex;
+    align-items: flex-start;
+    gap: clamp(1rem, 2.5vw, 1.75rem);
+  }
+
+  .entry__body {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .entry__name {
+    font-size: clamp(1.5rem, 2.6vw, 2.125rem);
+    margin-bottom: 0.4rem;
+  }
+
+  .entry__name a {
+    text-decoration-color: transparent;
+  }
+
+  .entry__name a:hover,
+  .entry__name a:focus-visible {
+    text-decoration-color: var(--vine);
+  }
+
+  .entry__dateline {
+    color: var(--ink-faded);
+    margin: 0 0 0.6rem;
+  }
+
+  .entry__summary {
+    font-style: italic;
+    margin: 0 0 0.8rem;
+    max-width: 60ch;
+  }
+
+  /* No mount, no shadow, no rotation, no radius. */
+  .entry__thumb {
+    flex: none;
+    width: clamp(56px, 8vw, 72px);
+    text-decoration: none;
+  }
+
+  .entry__thumb img {
+    width: 100%;
+    height: auto;
+  }
+</style>

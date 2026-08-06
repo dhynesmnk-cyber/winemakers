@@ -1,0 +1,118 @@
+---
+/**
+ * BaseLayout.astro — every public page. DESIGN.md §2, §4, §5.
+ *
+ * Carries the dual-mode token machinery, the grain overlay, the page frame,
+ * the logo, the corner menu and the footer.
+ */
+import "../styles/global.css";
+
+import CornerMenu from "../components/CornerMenu.astro";
+import Footer from "../components/Footer.astro";
+import GrainOverlay from "../components/GrainOverlay.astro";
+import SiteLogo from "../components/SiteLogo.astro";
+import { SITE_NAME, SITE_URL, THEME_STORAGE_KEY } from "../config.ts";
+
+interface Props {
+  title: string;
+  /** ≤160 chars. On a producer page this is the frontmatter `summary`. */
+  description: string;
+  /** `large` on the index only — the one centred block on the site. */
+  logoSize?: "large" | "default";
+}
+
+const { title, description, logoSize = "default" } = Astro.props;
+
+// Interpunct, not an em dash: the editorial guardrails apply to anything a
+// reader sees, and a browser tab and a share card both count.
+const pageTitle = title === SITE_NAME ? title : `${title} · ${SITE_NAME}`;
+const canonical = new URL(Astro.url.pathname, SITE_URL).href;
+---
+
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    {/*
+      THE FOUC-AVOIDING HEAD SCRIPT — DESIGN.md §2.
+
+      This is the FIRST thing in <head>, before any stylesheet. It reads the
+      stored preference and, only if it is exactly "light" or "dark", stamps
+      `data-theme` on the root element. It runs before first paint; anything
+      later flashes the wrong mode.
+
+      Wrapped in try/catch: a browser with storage disabled must degrade to the
+      operating-system preference silently, not throw. With no JS at all,
+      nothing runs and `prefers-color-scheme` governs, which is correct.
+    */}
+    <script is:inline define:vars={{ THEME_STORAGE_KEY }}>
+      try {
+        const stored = localStorage.getItem(THEME_STORAGE_KEY);
+        if (stored === "light" || stored === "dark") {
+          document.documentElement.setAttribute("data-theme", stored);
+        }
+      } catch {
+        /* Storage disabled. Fall through to prefers-color-scheme. */
+      }
+    </script>
+
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    {/*
+      Zero runtime font fetching: no Google Fonts link, no @import from a CDN.
+      The two faces above the fold are preloaded; the rest load on demand.
+    */}
+    <link
+      rel="preload"
+      href="/fonts/fraunces-variable.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/newsreader-variable.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+
+    <slot name="head" />
+  </head>
+
+  <body>
+    <GrainOverlay />
+
+    <div class="page-frame">
+      <header class="site-header">
+        <SiteLogo size={logoSize} />
+      </header>
+
+      <main id="main">
+        <slot />
+      </main>
+
+      <CornerMenu />
+      <Footer />
+    </div>
+
+    <style>
+      .site-header {
+        margin-bottom: clamp(2.5rem, 6vw, 5rem);
+      }
+
+      main {
+        flex: 1 1 auto;
+      }
+    </style>
+  </body>
+</html>

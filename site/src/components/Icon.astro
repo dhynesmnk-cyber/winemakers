@@ -1,0 +1,63 @@
+---
+/**
+ * Icon.astro — the one shared glyph renderer. DESIGN.md §6.
+ *
+ * Reads paths from `src/icons/paths.ts`. There is no icon package, no icon
+ * font and no runtime sprite fetch; every glyph is hand-authored inline.
+ *
+ * Icons are for FACT DISPLAY ONLY. The site is otherwise icon-free: section
+ * openers, filter toggles, the button style and the corner-menu button itself
+ * stay plain text.
+ *
+ * An icon is never a badge, seal, shield, medal or ribbon, and never the only
+ * carrier of meaning. It gives a word a mark to sit beside; it never replaces
+ * the word and it never encodes a rank, a score or a level of trust.
+ */
+import {
+  ICON_LINECAP,
+  ICON_LINEJOIN,
+  ICON_SIZES,
+  ICON_STROKE_WIDTH,
+  ICON_VIEWBOX,
+  iconPaths,
+  type IconContext,
+  type IconKey,
+} from "../icons/paths.ts";
+
+interface Props {
+  name: IconKey;
+  /** Pulls its pixel size from DESIGN.md §6's context table. */
+  context?: IconContext;
+  /**
+   * The accessible name. Omit ONLY where the glyph sits beside its own visible
+   * label, in which case the glyph is decorative and is hidden from assistive
+   * technology rather than read out twice.
+   */
+  label?: string;
+  class?: string;
+}
+
+const { name, context = "fact_row", label, class: className } = Astro.props;
+
+const size = ICON_SIZES[context];
+const paths = iconPaths(name);
+const decorative = label === undefined;
+---
+
+<svg
+  class:list={["icon", className]}
+  width={size}
+  height={size}
+  viewBox={ICON_VIEWBOX}
+  fill="none"
+  stroke="currentColor"
+  stroke-width={ICON_STROKE_WIDTH}
+  stroke-linecap={ICON_LINECAP}
+  stroke-linejoin={ICON_LINEJOIN}
+  role={decorative ? undefined : "img"}
+  aria-hidden={decorative ? "true" : undefined}
+  aria-label={decorative ? undefined : label}
+>
+  {!decorative && <title>{label}</title>}
+  {paths.map((d) => <path d={d} />)}
+</svg>

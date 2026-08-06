@@ -1,0 +1,32 @@
+---
+/**
+ * GrainOverlay.astro — DESIGN.md §4.
+ *
+ * A full-page noise overlay on every public page. This is what separates
+ * "editorial" from "dashboard": subtle enough that you only notice it when it
+ * is gone.
+ *
+ * Inline SVG feTurbulence fractal noise. No image request, no external asset,
+ * no canvas, no JavaScript. `position: fixed`, `pointer-events: none`, and
+ * `mix-blend-mode: overlay`, with the opacity driven by --grain-opacity so the
+ * two modes are tuned INDEPENDENTLY — `overlay` against warm off-white behaves
+ * nothing like `overlay` against near-black, and one value does not carry.
+ *
+ * Presence on every public page is a §9 quality-floor item.
+ */
+---
+
+<div class="grain-overlay" aria-hidden="true">
+  <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <filter id="grain-noise">
+      <feTurbulence
+        type="fractalNoise"
+        baseFrequency="0.82"
+        numOctaves="3"
+        stitchTiles="stitch"
+      />
+      <feColorMatrix type="saturate" values="0" />
+    </filter>
+    <rect width="100%" height="100%" filter="url(#grain-noise)" />
+  </svg>
+</div>

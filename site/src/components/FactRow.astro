@@ -1,0 +1,155 @@
+---
+/**
+ * FactRow.astro — the present-only glyph row. DESIGN.md §5, §6, §7.
+ *
+ * PRESENT-ONLY DISPLAY, and it is the rule this component exists to enforce.
+ * A producer's entry shows what is known about that producer and omits what is
+ * not. No greyed-out absent features, no em-dash placeholders in a fixed grid,
+ * no "not specified" rows. A field guide does not record what was not there.
+ *
+ * In particular: PRACTICES RENDER ONLY THE TRUE ONES. There is no row reading
+ * "not unfined". An absent practice is absence of evidence and this page does
+ * not assert it either way (UX.md §2.3).
+ *
+ * Full context renders glyph + label text. Compact context renders glyph only,
+ * with an accessible name. Where two glyphs cannot be told apart at compact
+ * size — the still-wine glasses are the known case — the compact context
+ * renders the LABEL instead of the glyph. An ambiguous glyph is worse than no
+ * glyph.
+ */
+import Icon from "./Icon.astro";
+import {
+  CERTIFICATION_LABELS,
+  FRUIT_SOURCE_LABELS,
+  PRACTICE_LABELS,
+  PRODUCTION_BAND_LABELS,
+  VESSEL_LABELS,
+  WINE_STYLE_LABELS,
+} from "../config.ts";
+import {
+  practiceIcon,
+  rendersLabelInsteadOfGlyph,
+  styleIcon,
+  vesselIcon,
+  type IconContext,
+  type IconKey,
+} from "../icons/paths.ts";
+
+interface Props {
+  data: Record<string, any>;
+  context?: IconContext;
+  /** Full context shows labels beside glyphs; compact shows glyphs alone. */
+  compact?: boolean;
+  /** Practices and varieties link to their taxonomy pages at Gate 6. */
+  linked?: boolean;
+}
+
+const {
+  data,
+  context = "fact_row",
+  compact = false,
+  linked = false,
+} = Astro.props;
+
+type Fact = { icon: IconKey; label: string; href?: string };
+
+const facts: Fact[] = [];
+
+// Practices — true ones only.
+for (const [key, on] of Object.entries(data.practices ?? {})) {
+  if (on === true) {
+    facts.push({
+      icon: practiceIcon(key) as IconKey,
+      label: PRACTICE_LABELS[key as keyof typeof PRACTICE_LABELS],
+      href: linked ? `/practice/${key.replaceAll("_", "-")}/` : undefined,
+    });
+  }
+}
+
+// Certification — state and certifier together or not at all. `certified`
+// without a named certifier never renders here because it never publishes
+// (`/validate` check 9), but the guard is cheap and the failure mode is a
+// labelling claim about a real business.
+for (const subject of ["organic", "biodynamic"] as const) {
+  const state = data[subject];
+  if (!state || state === "none") continue;
+  const certifier = data[`${subject}_certifier`];
+  if (state === "certified" && !certifier) continue;
+  const subjectWord = subject === "organic" ? "organic" : "biodynamic";
+  facts.push({
+    icon: subject as IconKey,
+    label:
+      state === "certified"
+        ? `Certified ${subjectWord} (${certifier})`
+        : `${CERTIFICATION_LABELS[state as keyof typeof CERTIFICATION_LABELS]} ${subjectWord}`,
+  });
+}
+
+// Fruit source — one shared glyph, the value in words. `purchased` is neutral.
+if (data.fruit_source) {
+  facts.push({
+    icon: "fruit_source",
+    label: FRUIT_SOURCE_LABELS[data.fruit_source as keyof typeof FRUIT_SOURCE_LABELS],
+  });
+}
+
+// Production band — one shared glyph, the value in words. Never a bar, meter
+// or gauge; that is a dashboard.
+if (data.production_band && data.production_band !== "unknown") {
+  facts.push({
+    icon: "production",
+    label:
+      PRODUCTION_BAND_LABELS[
+        data.production_band as keyof typeof PRODUCTION_BAND_LABELS
+      ],
+  });
+}
+
+// Wine styles.
+for (const style of data.wine_styles ?? []) {
+  facts.push({
+    icon: styleIcon(style) as IconKey,
+    label: WINE_STYLE_LABELS[style as keyof typeof WINE_STYLE_LABELS],
+  });
+}
+
+// Vessels.
+for (const vessel of data.vessels ?? []) {
+  facts.push({
+    icon: vesselIcon(vessel) as IconKey,
+    label: VESSEL_LABELS[vessel as keyof typeof VESSEL_LABELS],
+  });
+}
+---
+
+{
+  facts.length > 0 && (
+    <ul class="fact-row">
+      {facts.map((fact) => {
+        // The known compact-size ambiguity: render the words, not the glyph.
+        const labelOnly = compact && rendersLabelInsteadOfGlyph(fact.icon, context);
+        const inner = (
+          <>
+            {!labelOnly && (
+              <Icon
+                name={fact.icon}
+                context={context}
+                label={compact ? fact.label : undefined}
+              />
+            )}
+            {compact && !labelOnly ? (
+              <span class="sr-only">{fact.label}</span>
+            ) : (
+              <span>{fact.label}</span>
+            )}
+          </>
+        );
+        return (
+          <li class="fact">
+            {fact.href ? <a href={fact.href}>{inner}</a> : inner}
+          </li>
+        );
+      })}
+    </ul>
+  )
+}

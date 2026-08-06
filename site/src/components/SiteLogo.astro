@@ -1,0 +1,124 @@
+---
+/**
+ * SiteLogo.astro — the persistent home-link lockup. DESIGN.md §5c.
+ *
+ * Rendered by the base layout on EVERY page, above that page's own opening
+ * content, in flow and never floating. A real <a href="/">: this is navigation,
+ * not decoration. (The §6a margin motifs are decoration and are never linked.)
+ *
+ * TWO SIZES, NO OTHERS.
+ *   large   — index only. A frontispiece: mark above, wordmark below, centred
+ *             as a block. THE ONE CENTRED LAYOUT ON THE SITE.
+ *   default — every other page. Left-aligned, deliberately smaller, so it reads
+ *             as a home button rather than repeating a masthead above each
+ *             page's own heading.
+ *
+ * The wordmark is LIVE TEXT set in Fraunces, never an image.
+ *
+ * DELIBERATE DEPARTURE FROM THE REFERENCE. Its large logo played a sequence
+ * where the wordmark rose in, held, then faded out permanently, leaving a
+ * mark-only masthead — and because its at-rest style was `opacity: 0`, a
+ * reduced-motion visitor never saw the site's name at all. Not carried over.
+ * Here the on-load motion is a plain fade-and-rise whose AT-REST STATE IS THE
+ * FINAL, FULLY VISIBLE STATE, so reduced motion and no-JS both show the
+ * finished masthead.
+ *
+ * The mark is the mascot, recoloured by the same CSS-mask technique as the
+ * §6a fauna. The artwork has not been commissioned yet, so the mark is omitted
+ * rather than stubbed: DESIGN.md §7's zero-image default requires the page to
+ * look complete and intentional without it.
+ */
+import { SITE_NAME, SITE_TAGLINE } from "../config.ts";
+import { MASCOT, ANIMAL_SRC, hasAnimal } from "../icons/animals.ts";
+
+interface Props {
+  size?: "large" | "default";
+}
+
+const { size = "default" } = Astro.props;
+const markAvailable = hasAnimal(MASCOT);
+---
+
+<a href="/" class:list={["site-logo", `site-logo--${size}`]}>
+  {
+    markAvailable && (
+      <span
+        class="site-logo__mark margin-animal"
+        aria-hidden="true"
+        style={`-webkit-mask-image:url(${ANIMAL_SRC[MASCOT]});mask-image:url(${ANIMAL_SRC[MASCOT]})`}
+      />
+    )
+  }
+  {/*
+    On the index the wordmark is the page's own first-level heading: the
+    masthead is the homepage's title, not decoration above it. On every other
+    page the logo is a home button and the page's <h1> is its own subject, so
+    the wordmark is a plain span and does not compete for the outline.
+  */}
+  {
+    size === "large" ? (
+      <h1 class="site-logo__wordmark">{SITE_NAME}</h1>
+    ) : (
+      <span class="site-logo__wordmark">{SITE_NAME}</span>
+    )
+  }
+  {size === "large" && <span class="site-logo__tagline mono">{SITE_TAGLINE}</span>}
+</a>
+
+<style>
+  .site-logo {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .site-logo__wordmark {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-variation-settings: "SOFT" 40;
+    line-height: 1;
+    display: block;
+  }
+
+  /* Default: a home button, left-aligned, inline. */
+  .site-logo--default {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .site-logo--default .site-logo__wordmark {
+    font-size: clamp(1.75rem, 4vw, 3rem);
+  }
+
+  .site-logo--default .site-logo__mark {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  /* Large: the frontispiece. Index only, and the one centred block on the site. */
+  .site-logo--large {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.25rem;
+    padding-top: clamp(2rem, 8vh, 6rem);
+  }
+
+  .site-logo--large .site-logo__mark {
+    width: clamp(6rem, 26vh, 11rem);
+    height: clamp(6rem, 26vh, 11rem);
+    display: block;
+  }
+
+  .site-logo--large .site-logo__wordmark {
+    font-size: clamp(2.75rem, 8vw, 5.5rem);
+    letter-spacing: -0.02em;
+  }
+
+  .site-logo__tagline {
+    color: var(--ink-faded);
+    text-transform: uppercase;
+  }
+</style>

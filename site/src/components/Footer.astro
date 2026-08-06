@@ -1,0 +1,112 @@
+---
+/**
+ * Footer.astro — DESIGN.md §5d.
+ *
+ * The last in-flow element of `.page-frame`, on every public page.
+ *
+ * A single hairline top rule. No card, no box, no background distinct from
+ * --paper. No sitemap-style link columns, no newsletter capture, no social
+ * embeds, no "as seen in" row.
+ *
+ * The three contact links each carry a 20px glyph PLUS A VISIBLE MONO LABEL,
+ * never icon-only.
+ *
+ * THE COLOPHON IS THE POINT OF THIS COMPONENT. It states the site's position
+ * plainly — free to use, no advertising, no sponsored listings, no affiliate
+ * links — and it belongs where a printer's colophon goes. It is not a marketing
+ * claim; it is the fact that distinguishes the site, and DESIGN.md §10's
+ * nothing-to-sell check is the reason it is here rather than on an About page.
+ *
+ * Methodology is linked from here AND from the corner menu on every page
+ * (CLAUDE.md Gate 10). It is never buried under one of them alone.
+ */
+import Icon from "./Icon.astro";
+import { SITE_CONTACT_EMAIL } from "../config.ts";
+---
+
+<footer class="site-footer hairline-top">
+  <ul class="site-footer__contact">
+    <li>
+      <a href={`mailto:${SITE_CONTACT_EMAIL}`}>
+        <Icon name="email" context="footer" />
+        <span>Email</span>
+      </a>
+    </li>
+    <li>
+      <a href="/" rel="me">
+        <Icon name="bluesky" context="footer" />
+        <span>Bluesky</span>
+      </a>
+    </li>
+    <li>
+      <a href="/rss.xml">
+        <Icon name="rss" context="footer" />
+        <span>RSS</span>
+      </a>
+    </li>
+  </ul>
+
+  <ul class="site-footer__links mono mono-caps">
+    <li><a href="/methodology/">Methodology</a></li>
+    <li><a href="/glossary/">Glossary</a></li>
+    <li><a href="/blog/">Journal</a></li>
+    <li><a href="/sitemap.xml">Sitemap</a></li>
+  </ul>
+
+  <p class="site-footer__colophon mono">
+    Free to use. No advertising, no sponsored listings, no affiliate links. This
+    directory takes no money from the businesses it documents.
+  </p>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: auto;
+    padding-top: clamp(2.5rem, 6vw, 4rem);
+  }
+
+  .site-footer__contact,
+  .site-footer__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.75rem;
+    list-style: none;
+    margin: 0 0 1.5rem;
+    padding: 0;
+  }
+
+  .site-footer__contact a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-faded);
+  }
+
+  .site-footer__contact a:hover,
+  .site-footer__contact a:focus-visible {
+    color: var(--vine);
+  }
+
+  .site-footer__links {
+    color: var(--ink-faded);
+  }
+
+  .site-footer__links li {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .site-footer__colophon {
+    color: var(--ink-faded);
+    max-width: 60ch;
+    margin: 0;
+    text-transform: none;
+    letter-spacing: 0.02em;
+  }
+</style>

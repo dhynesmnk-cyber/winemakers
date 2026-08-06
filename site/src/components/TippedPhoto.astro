@@ -1,0 +1,53 @@
+---
+/**
+ * TippedPhoto.astro — the single optional producer photograph. DESIGN.md §4.
+ *
+ * Treated as a plate tipped into a survey volume: inset, never full-bleed, on a
+ * --paper-raised mount with a hairline edge and a deeper foot, sitting FLAT.
+ *
+ * The reference removed its deterministic tilt and IT IS NOT COMING BACK. No
+ * rotation, no shadow, no lift, no zoom on hover.
+ *
+ * Placed MID-ARTICLE, never at the top, and never above the producer's name.
+ *
+ * SCHEMA.md §2 makes `image_source` and `image_caption` co-required with
+ * `image`, and zod enforces it, so both are required props here rather than
+ * optional. A photograph on this site always carries visible attribution: it is
+ * someone else's work and the reader is told whose (UX.md §2.3).
+ */
+interface Props {
+  src: string;
+  /**
+   * Register: `LOT I. — THE HOME BLOCK, LOOKING WEST.` Uppercase mono, a
+   * roman-numeral lot, a named parcel, and a bearing where one is knowable.
+   * Drafted from published source facts like everything else; a bearing nobody
+   * published is not invented.
+   */
+  caption: string;
+  /** Where the photograph came from. Always shown, always a link. */
+  source: string;
+  /** Empty only where the caption already describes the image fully. */
+  alt?: string;
+  /** DESIGN.md §9 item 7: shared with the list thumbnail for the transition. */
+  transitionName?: string;
+}
+
+const { src, caption, source, alt = "", transitionName } = Astro.props;
+---
+
+<figure class="tipped-photo">
+  <div class="tipped-photo__mount">
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      transition:name={transitionName}
+    />
+  </div>
+  <figcaption class="tipped-photo__caption mono mono-caps">
+    {caption}
+    {" "}
+    <a href={source} rel="noopener">Image source</a>
+  </figcaption>
+</figure>

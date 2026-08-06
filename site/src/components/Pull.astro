@@ -1,0 +1,26 @@
+---
+/**
+ * Pull.astro — a pull-quote, usable from an MDX producer body. DESIGN.md §7.
+ *
+ * Display face, italic, in flow. No quote-mark art, no decorative glyph, no
+ * box. A single hairline on the left is the only chrome.
+ *
+ * UX.md §2.3: pull quotes are marked in the MDX at the point they belong; they
+ * are never duplicated text lifted from a paragraph above.
+ *
+ * The honesty rule applies here as it does everywhere: a Pull may carry a
+ * producer's own published words, attributed, or a plain statement of fact from
+ * the entry. It never carries a tasting note and never implies a visit.
+ */
+interface Props {
+  /** Who said it and where, when the quote is someone's words. */
+  attribution?: string;
+}
+
+const { attribution } = Astro.props;
+---
+
+<blockquote class="pull">
+  <slot />
+  {attribution && <cite class="pull__attribution">{attribution}</cite>}
+</blockquote>

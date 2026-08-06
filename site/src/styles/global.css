@@ -1,0 +1,661 @@
+/*
+ * global.css — Gate 1 owns this file. DESIGN.md is the spec it implements.
+ *
+ * Order matters. Tailwind first, then the tokens partial (which carries the
+ * four-times token declaration and the @theme aliases, DESIGN.md §2), then the
+ * faces, then the reset, then everything else.
+ *
+ * Tailwind v4 is CSS-first. There is no tailwind.config.js and none is to be
+ * created. Tailwind is used for layout and utility only; every colour and type
+ * value comes from a custom property owned by DESIGN.md. Tailwind's default
+ * grey scales are banned (§2).
+ */
+
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Faces — DESIGN.md §3. Three faces, three jobs, no substitutions.
+
+   Self-hosted woff2 from site/public/fonts/. Zero runtime font fetching, no
+   Google Fonts link, no @import from a CDN. All three are SIL Open Font
+   Licence 1.1; see site/public/fonts/LICENCES.md.
+
+   NO SANS-SERIF EXISTS ON THE PUBLIC SITE. Never Inter, never system-ui, never
+   any grotesque. IBM Plex Mono is the utility face; it is a monospace and it is
+   not a substitute for a sans.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: "Fraunces";
+  src: url("/fonts/fraunces-variable.woff2") format("woff2");
+  font-weight: 300 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Newsreader";
+  src: url("/fonts/newsreader-variable.woff2") format("woff2");
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Newsreader";
+  src: url("/fonts/newsreader-400italic.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/ibm-plex-mono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("/fonts/ibm-plex-mono-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Reset — DESIGN.md §4
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * border-radius: 0 GLOBALLY. Nothing on the public site overrides this above
+ * 2px. A rounded corner is the single fastest way to turn a survey document
+ * into a SaaS product (§10).
+ */
+*,
+*::before,
+*::after {
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+html {
+  /* Sizes and colours come from the tokens; nothing here freezes a literal. */
+  background-color: var(--paper);
+  color: var(--ink);
+  -webkit-text-size-adjust: 100%;
+  /* No smooth scrolling: nothing on this site hijacks scroll (§9). */
+}
+
+body {
+  margin: 0;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: clamp(1.0625rem, 0.4vw + 1rem, 1.1875rem); /* 17px → 19px, §3 */
+  line-height: 1.65;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  /* No horizontal page scroll at any width down to 360px (§9). Wide content
+     scrolls inside its own container instead. */
+  overflow-x: clip;
+}
+
+/* NO BOX-SHADOWS ON THE PUBLIC SITE, EVER (§4). Stated as a rule rather than
+   left to discipline, because a shadow is what muscle memory reaches for. */
+body :where(*) {
+  box-shadow: none;
+}
+
+img,
+svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Typography — DESIGN.md §3
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * NO font-weight >= 700 ANYWHERE, either app. Emphasis comes from size,
+ * italics, and the mono/serif contrast. If something needs to shout, make it
+ * bigger or set it in mono caps.
+ */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-variation-settings: "SOFT" 40, "WONK" 0;
+  line-height: 1.1;
+  text-wrap: balance;
+  margin: 0;
+}
+
+/* Display steps big. A timid display size is what makes a page read as a
+   listing rather than a survey (§3). */
+h1 {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  letter-spacing: -0.015em;
+}
+
+h2 {
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+}
+
+h3 {
+  font-size: clamp(1.25rem, 1.6vw, 1.5rem);
+}
+
+p {
+  margin: 0 0 1.35em;
+}
+
+em,
+i {
+  font-style: italic;
+}
+
+strong,
+b {
+  /* 600, never 700+. */
+  font-weight: 600;
+}
+
+/* Numerals in the mono face for anything countable — years, case counts, fees,
+   dates, coordinates. Figures never appear in the display face (§3). */
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.5;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.mono-caps {
+  text-transform: uppercase;
+}
+
+/* The small mono eyebrow above a hairline, in the manner of a chapter head in a
+   printed survey. NO ICONS IN SECTION OPENERS. No background fills, no
+   numbered chips (§4). */
+.section-opener {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faded);
+  padding-bottom: 0.75rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Links — DESIGN.md §3
+
+   REAL UNDERLINES. No underline-on-hover-only, and no hover colour-flip of the
+   text itself: the underline changes colour, the text does not.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--ink-faded);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s ease;
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration-color: var(--vine);
+}
+
+/* Visible keyboard focus everywhere. Never `outline: none` without a
+   replacement (§9). */
+:focus-visible {
+  outline: 1px solid var(--vine);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Layout grammar — DESIGN.md §5
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * Hairlines, not borders. Dividers are 1px in --ink-faded at 25% opacity. No
+ * boxed borders around content blocks.
+ */
+:root {
+  --hairline: color-mix(in srgb, var(--ink-faded) 25%, transparent);
+}
+
+/*
+ * ONE page-level exception to "no boxes": a single hairline frame around the
+ * whole page, scrolling with the content, never fixed. This is page chrome, not
+ * a box around a content block; sections and entries stay unbordered (§4).
+ */
+.page-frame {
+  margin: 0.5rem;
+  border: 1px solid var(--hairline);
+  padding: clamp(1.25rem, 4vw, 3.5rem) clamp(1rem, 4vw, 3rem);
+  min-height: calc(100dvh - 1rem);
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * A single reading spine, max-width 65ch, placed ASYMMETRICALLY — offset left
+ * of centre on wide screens, with the wide right margin carrying occasional
+ * mono margin-notes and the §6a fauna. NEVER a centred symmetric hero layout.
+ */
+.reading-spine {
+  max-width: 65ch;
+  margin-inline: 0;
+}
+
+@media (min-width: 64rem) {
+  .reading-spine {
+    /* Offset left of centre: the spine sits at roughly 38% of the frame rather
+       than 50%, leaving the wide right margin the design calls for. */
+    margin-left: max(0px, min(8vw, 6rem));
+  }
+}
+
+/* Whitespace is structural. Section spacing 6–10rem on desktop. When in doubt,
+   add space, not decoration (§5). */
+.section-gap {
+  margin-top: clamp(3.5rem, 9vw, 10rem);
+}
+
+.hairline-top {
+  border-top: 1px solid var(--hairline);
+}
+
+/*
+ * NO CARDS. Producer listings are typographic entries separated by hairlines,
+ * like a table of contents. No boxes, no fills, no shadows, no hover-lift.
+ * This is the single rule most likely to be violated by muscle memory, and the
+ * one that most determines whether the site passes §10.
+ */
+.entry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.entry-list > li + li {
+  border-top: 1px solid var(--hairline);
+}
+
+/* Wide content scrolls inside its own container, never the page (§9). */
+.scroll-x {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The one button style — DESIGN.md §7a
+
+   `.visit-btn` is the ONLY button style on the public site. It must look like a
+   stamped instruction, not a CTA. Always a real <a>, because it navigates.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.visit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px; /* §9 tap target */
+  padding: 0.75em 1.25em;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--vine);
+  /* NO FILLED ACCENT BACKGROUND. A filled button would blow the --vine budget
+     on a page that already shows --vine in links and the fact row (§2). */
+  background-color: var(--paper-raised);
+  border: 1px solid var(--vine);
+  transition: none;
+}
+
+/* No colour flip, no fill, no glow, no lift on hover or focus. */
+.visit-btn:hover,
+.visit-btn:focus-visible {
+  color: var(--vine);
+  background-color: var(--paper-raised);
+  border-color: var(--vine);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Grain — DESIGN.md §4
+
+   A full-page noise overlay on every public page. Subtle enough that you only
+   notice it when it is gone.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: var(--grain-opacity);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The tipped-in plate — DESIGN.md §4
+
+   A photograph tipped into a survey volume: inset, never full-bleed, on a
+   --paper-raised mount with a hairline edge and a deeper foot, sitting FLAT.
+   The reference removed its deterministic tilt and it is not coming back.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.tipped-photo {
+  margin: clamp(2.5rem, 5vw, 4rem) 0;
+}
+
+.tipped-photo__mount {
+  background-color: var(--paper-raised);
+  border: 1px solid var(--hairline);
+  padding: 4px 4px 12px; /* deeper foot */
+  /* No rotation. No shadow. */
+}
+
+.tipped-photo__caption {
+  margin-top: 0.75rem;
+  color: var(--ink-faded);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Pull quotes — DESIGN.md §7. Display italic, in flow, no quote-mark art.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pull {
+  margin: clamp(2rem, 4vw, 3rem) 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--hairline);
+  padding-left: clamp(1rem, 2.5vw, 1.75rem);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 300;
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.pull__attribution {
+  display: block;
+  margin-top: 0.9rem;
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faded);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Fact row and glyphs — DESIGN.md §6
+
+   PRESENT-ONLY. A producer's entry shows what is known and omits what is not.
+   No greyed-out absent features, no em-dash placeholders, no "not specified".
+   A field guide does not record what was not there.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.fact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-faded);
+}
+
+/* A linked fact keeps the glyph and its label on one baseline. Without this the
+   anchor is a plain inline box and the two stack when the row wraps. */
+.fact a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: inherit;
+}
+
+/* Glyphs are tonal with the surrounding text and never coloured independently.
+   stroke="currentColor" means a colour transition on an ancestor animates the
+   stroke for free (§9 item 1). */
+.icon {
+  flex: none;
+  color: inherit;
+  transition: color 0.15s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The provenance close — DESIGN.md §7
+
+   This project's signature element. It is ALWAYS present, set in words and
+   dates, and it must read as a CITATION, not a certification. It never uses
+   --vine as a "verified green": it is --ink-faded like every other dateline,
+   and the tokens do not encode approval.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.provenance {
+  margin-top: clamp(2.5rem, 5vw, 4rem);
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--hairline);
+  color: var(--ink-faded);
+}
+
+.provenance p {
+  margin: 0 0 0.4em;
+}
+
+.provenance a {
+  color: inherit;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The appendix block — DESIGN.md §7. --paper-raised, mono, hairline-topped,
+   in flow at the foot of the page. Not a card: it has no border but its top
+   hairline, and it bleeds to the spine's width.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.appendix {
+  margin-top: clamp(2.5rem, 5vw, 4rem);
+  padding: clamp(1.25rem, 3vw, 2rem);
+  background-color: var(--paper-raised);
+  border-top: 1px solid var(--hairline);
+  color: var(--ink);
+}
+
+.appendix dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1.5rem;
+  margin: 0 0 1.5rem;
+}
+
+.appendix dt {
+  /* Glyph and label on one baseline. The svg reset makes icons display:block,
+     which otherwise stacks them above the word. */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faded);
+  white-space: nowrap;
+}
+
+.appendix dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Text filters — DESIGN.md §5
+
+   Every filter, facet and toggle on the public site is an inline mono text
+   control. No sidebar, no checkbox, no pill, no chip, no dropdown, no faceted
+   rail. Filtering is a thing the reader does with words.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.text-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+}
+
+.text-filters a[aria-current="true"] {
+  text-decoration-color: var(--vine);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Motion — DESIGN.md §9
+
+   BINDING NO-JS RULE: every element renders fully visible, in its final
+   position, in plain server-rendered HTML with no JavaScript at all. Motion is
+   something JS or CSS ADDS on top of an already-correct page, never something
+   a missing script leaves hidden.
+
+   Everything below therefore animates FROM a visible resting state, or runs as
+   a one-time on-load CSS animation whose 0% keyframe is the only hidden frame.
+   Nothing here sets a persistent `opacity: 0`.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes draw-line {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* One-time on-load settle. Runs on every load, no session gating. The element's
+   resting style is the FINAL state, so a killed animation lands correctly. */
+.rise-in {
+  animation: rise-in 0.7s var(--ease-graceful) both;
+}
+
+.draw-line {
+  transform-origin: left center;
+  animation: draw-line 0.9s var(--ease-graceful) both;
+}
+
+/*
+ * KILL SWITCH. Covers every plain-CSS transition and keyframe animation above.
+ *
+ * It does NOT stop a JS animation library, which writes inline transform and
+ * opacity through requestAnimationFrame rather than through the CSS transition
+ * or animation properties. When gsap lands, its own gsap.matchMedia() guard
+ * keyed to "(prefers-reduced-motion: no-preference)" is required as well.
+ * Either guard alone leaves a hole (§9).
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Margin fauna — DESIGN.md §6a
+
+   Recoloured at runtime by a CSS mask reading only the PNG's alpha channel.
+   Light mode paints --ink-faded. Dark mode is forced to pure white, a
+   deliberate narrow exception to §2's six tokens, scoped to this one
+   decorative element.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.margin-animal {
+  width: clamp(40px, 5vw, 64px);
+  height: clamp(40px, 5vw, 64px);
+  background-color: var(--ink-faded);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  pointer-events: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .margin-animal {
+    background-color: #ffffff;
+  }
+}
+
+:root[data-theme="dark"] .margin-animal {
+  background-color: #ffffff;
+}
+
+:root[data-theme="light"] .margin-animal {
+  background-color: var(--ink-faded);
+}
+
+/* Collapses out of the layout below 1024px rather than being squeezed into the
+   single-column spine (§6a). */
+@media (max-width: 63.99rem) {
+  .margin-animal {
+    display: none;
+  }
+}

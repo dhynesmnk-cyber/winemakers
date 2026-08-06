@@ -1,0 +1,102 @@
+---
+/**
+ * ThemeToggle.astro — DESIGN.md §5a, UX.md §2.6.
+ *
+ * A narrow, deliberate exception to the site's otherwise toggle-free chrome.
+ *
+ * Renders INSIDE the corner-menu drawer, in the drawer's normal document flow.
+ * It is not itself fixed or floating, and it is not in the page header, where
+ * it would compete with the masthead.
+ *
+ * A plain mono TEXT control in the "filters are text" idiom. Not an icon, not a
+ * switch, not a pill, not a sun/moon. It reads as words and it toggles by
+ * activation.
+ *
+ * NO-JS BEHAVIOUR: with JavaScript off there is no stored preference to read
+ * or write, so the control cannot do anything. It is therefore rendered
+ * `hidden` and unhidden by the same inline script that reads the preference.
+ * A dead control that silently does nothing is worse than no control: the site
+ * still follows `prefers-color-scheme` correctly without it (DESIGN.md §2).
+ */
+import { THEME_STORAGE_KEY } from "../config.ts";
+---
+
+<button
+  type="button"
+  class="theme-toggle mono mono-caps"
+  data-theme-toggle
+  hidden
+  aria-live="polite"
+>
+  Theme: <span data-theme-state>system</span>
+</button>
+
+<script is:inline define:vars={{ THEME_STORAGE_KEY }}>
+  (() => {
+    const button = document.querySelector("[data-theme-toggle]");
+    if (!button) return;
+    const state = button.querySelector("[data-theme-state]");
+    const root = document.documentElement;
+
+    // Only reachable when JS runs, so the control is only shown when it works.
+    button.hidden = false;
+
+    const read = () => {
+      try {
+        const stored = localStorage.getItem(THEME_STORAGE_KEY);
+        return stored === "light" || stored === "dark" ? stored : "system";
+      } catch {
+        return "system";
+      }
+    };
+
+    const paint = (value) => {
+      if (value === "system") root.removeAttribute("data-theme");
+      else root.setAttribute("data-theme", value);
+      if (state) state.textContent = value;
+    };
+
+    paint(read());
+
+    button.addEventListener("click", () => {
+      // system → light → dark → system. Three states, because "follow the
+      // operating system" is a real choice and a two-state toggle destroys it.
+      const order = ["system", "light", "dark"];
+      const next = order[(order.indexOf(read()) + 1) % order.length];
+      try {
+        if (next === "system") localStorage.removeItem(THEME_STORAGE_KEY);
+        else localStorage.setItem(THEME_STORAGE_KEY, next);
+      } catch {
+        /* Storage disabled. The choice will not persist; the page still flips. */
+      }
+      paint(next);
+    });
+  })();
+</script>
+
+<style>
+  .theme-toggle {
+    display: inline-block;
+    min-height: 44px;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: var(--ink-faded);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: left;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: var(--ink-faded);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    transition: text-decoration-color 0.15s ease;
+  }
+
+  .theme-toggle:hover,
+  .theme-toggle:focus-visible {
+    text-decoration-color: var(--vine);
+  }
+</style>

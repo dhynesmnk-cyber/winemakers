@@ -1,0 +1,343 @@
+---
+/**
+ * /producer/[slug]/ — the core entity. DESIGN.md §7, UX.md §2.3.
+ *
+ * Order is fixed by DESIGN.md §7: name, dateline, fact row, prose, the
+ * tipped-in plate mid-article, FAQ, the appendix block, the provenance close.
+ *
+ * The FAQ sits ABOVE the appendix: it is still editorial content, while the
+ * appendix is the page's practical close and should stay a stable landing spot
+ * regardless of how much FAQ exists.
+ *
+ * NO FIRST-HAND LANGUAGE ANYWHERE IN THE CHROME. No "we visited", no "our
+ * pick", no editor's rating, no stars, no scores, no "recommended". CLAUDE.md
+ * rule 6 is a design constraint as much as an editorial one: there is no UI
+ * affordance on this site that could imply a visit or a tasting, because there
+ * was none.
+ */
+import { getCollection, render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import FactRow from "../../components/FactRow.astro";
+import Icon from "../../components/Icon.astro";
+import Pull from "../../components/Pull.astro";
+import TippedPhoto from "../../components/TippedPhoto.astro";
+import {
+  CATEGORY_LABELS,
+  CONFIDENCE_TIER_LABELS,
+  OWNERSHIP_EVIDENCE_LABELS,
+  STATE_NAMES,
+  VARIETY_LABELS,
+} from "../../config.ts";
+import { regionName, subregionName } from "../../data/regions.ts";
+
+export async function getStaticPaths() {
+  const producers = await getCollection("producers");
+  return producers.map((producer) => ({
+    params: { slug: producer.id },
+    props: { producer },
+  }));
+}
+
+const { producer } = Astro.props;
+const { data } = producer;
+const { Content } = await render(producer);
+
+const isoDate = (value: Date) => value.toISOString().slice(0, 10);
+
+// Dateline, in words: suburb, state, primary region, subregion, category, year.
+const stateName = STATE_NAMES[data.location.state as keyof typeof STATE_NAMES];
+const category = CATEGORY_LABELS[data.category as keyof typeof CATEGORY_LABELS];
+
+// Dateline items, in DESIGN.md §7 order: suburb, state, primary region,
+// subregions, category, founded year. Present-only, like everything else.
+const datelineItems: { text: string; href?: string }[] = [
+  ...(data.location.suburb ? [{ text: data.location.suburb }] : []),
+  { text: stateName },
+  { text: regionName(data.primary_region), href: `/region/${data.primary_region}/` },
+  ...(data.subregions ?? []).map((slug) => ({
+    text: subregionName(slug),
+    href: `/region/${data.primary_region}/${slug}/`,
+  })),
+  { text: category },
+  ...(data.founded_year ? [{ text: `Founded ${data.founded_year}` }] : []),
+];
+
+const ownership = data.ownership_source;
+const ownershipIsUrl = /^https?:\/\//.test(ownership.source);
+const methodLabel =
+  OWNERSHIP_EVIDENCE_LABELS[
+    ownership.method as keyof typeof OWNERSHIP_EVIDENCE_LABELS
+  ];
+
+// Present-only provenance list. A field the producer does not state carries no
+// record, and no row is emitted for it.
+const verificationRows = Object.entries(data.verification ?? {}).filter(
+  ([, record]) => record !== undefined,
+) as [string, { source: string; tier: string; date: Date }][];
+---
+
+<BaseLayout title={data.name} description={data.summary}>
+  <article class="reading-spine">
+    <header>
+      <h1>{data.name}</h1>
+
+      {/*
+        Separators are real text nodes between the items rather than a ::before
+        on each, so a wrapped dateline never starts a line with a stray
+        interpunct. The parts are built first and interleaved.
+      */}
+      <p class="dateline mono mono-caps">
+        {datelineItems.map((item, index) => (
+          <>
+            {index > 0 && " · "}
+            {item.href ? <a href={item.href}>{item.text}</a> : item.text}
+          </>
+        ))}
+      </p>
+    </header>
+
+    <div class="fact-row-wrap">
+      <FactRow data={data} context="fact_row" linked />
+    </div>
+
+    {
+      data.varieties && data.varieties.length > 0 && (
+        <p class="varieties mono">
+          <Icon name="variety" context="fact_row" />
+          {data.varieties.map((slug, index) => (
+            <>
+              {index > 0 && " · "}
+              <a href={`/variety/${slug}/`}>
+                {VARIETY_LABELS[slug as keyof typeof VARIETY_LABELS]}
+              </a>
+            </>
+          ))}
+        </p>
+      )
+    }
+
+    <div class="prose">
+      <Content components={{ Pull, TippedPhoto }} />
+    </div>
+
+    {
+      data.image && data.image_caption && data.image_source && (
+        <TippedPhoto
+          src={data.image}
+          caption={data.image_caption}
+          source={data.image_source}
+          transitionName={`plate-${producer.id}`}
+        />
+      )
+    }
+
+    {
+      data.faq && data.faq.length > 0 && (
+        <section class="faq section-gap">
+          <p class="section-opener draw-line-on-view">Questions</p>
+          {data.faq.map((pair) => (
+            <div class="faq__pair">
+              <h3>{pair.question}</h3>
+              <p>{pair.answer}</p>
+            </div>
+          ))}
+        </section>
+      )
+    }
+
+    {/* The appendix — the page's practical close. */}
+    <section class="appendix">
+      <dl>
+        {
+          (data.location.address || data.location.suburb) && (
+            <>
+              <dt><Icon name="location" context="chip" /> Where</dt>
+              <dd>
+                {[data.location.address, data.location.suburb, stateName]
+                  .filter(Boolean)
+                  .join(", ")}
+              </dd>
+            </>
+          )
+        }
+
+        <dt><Icon name="cellar_door_open" context="chip" /> Cellar door</dt>
+        <dd>
+          {
+            data.cellar_door === "none"
+              ? "No cellar door. Wine is sold direct rather than on site."
+              : data.cellar_door === "by_appointment"
+                ? "Open by appointment."
+                : "Open during published hours."
+          }
+          {data.cellar_door_hours && <><br />{data.cellar_door_hours}</>}
+        </dd>
+
+        {
+          data.cost && (
+            <>
+              <dt><Icon name="cost" context="chip" /> Cost</dt>
+              <dd>{data.cost}</dd>
+            </>
+          )
+        }
+
+        {
+          data.minimum_age && (
+            <>
+              <dt>Minimum age</dt>
+              <dd>{data.minimum_age}</dd>
+            </>
+          )
+        }
+
+        {
+          data.ships_nationally && (
+            <>
+              <dt><Icon name="ships_nationally" context="chip" /> Delivery</dt>
+              <dd>Ships nationally.</dd>
+            </>
+          )
+        }
+      </dl>
+
+      <p class="appendix__actions">
+        {/*
+          The one button style. Copy is instructional and neutral, never
+          "Shop now", "Order", "Book", "Discover" or "Explore". Outbound links
+          are never affiliate links and are never marked sponsored: the site
+          takes no money from the businesses it documents.
+        */}
+        <a class="visit-btn" href={data.website} rel="noopener">
+          Producer's own site
+        </a>
+        {
+          data.buy_online && data.shop_url && (
+            <a class="visit-btn" href={data.shop_url} rel="noopener">
+              Buy direct
+            </a>
+          )
+        }
+      </p>
+    </section>
+
+    {/*
+      THE PROVENANCE CLOSE — this project's signature element, and the visual
+      form of CLAUDE.md rule 6.
+
+      ALWAYS PRESENT: its absence would be read as "unknown", and an undetermined
+      producer is not publishable. Set in words and dates, NEVER as a badge,
+      tick, shield, seal, meter, score or percentage. It is --ink-faded like
+      every other dateline; --vine is never used here as a "verified green",
+      because the tokens do not encode approval.
+
+      It must read as a CITATION, not a certification.
+    */}
+    <footer class="provenance mono">
+      <p>
+        <a href="/methodology/">Independent</a>. No parent company.
+      </p>
+      <p>
+        Ownership checked on {isoDate(ownership.date)} against{" "}
+        {
+          ownershipIsUrl ? (
+            <a href={ownership.source} rel="noopener">{ownership.source}</a>
+          ) : (
+            ownership.source
+          )
+        }{" "}
+        ({methodLabel.toLowerCase()}).
+      </p>
+      <p>
+        Entry drafted {isoDate(data.drafted)}. Verified {isoDate(data.verified)}.
+        Source: <a href={data.source_url} rel="noopener">{data.source_url}</a>.
+      </p>
+
+      {
+        verificationRows.length > 0 && (
+          <ul class="provenance__fields">
+            {verificationRows.map(([field, record]) => (
+              <li>
+                {field.replaceAll("_", " ")} ·{" "}
+                <a href={record.source} rel="noopener">{record.source}</a> ·{" "}
+                {CONFIDENCE_TIER_LABELS[
+                  record.tier as keyof typeof CONFIDENCE_TIER_LABELS
+                ].toLowerCase()}{" "}
+                · {isoDate(record.date)}
+              </li>
+            ))}
+          </ul>
+        )
+      }
+
+      {
+        data.change_log && data.change_log.length > 0 && (
+          <ul class="provenance__fields">
+            {data.change_log.map((entry) => (
+              <li>
+                {isoDate(entry.date)}: {entry.field} changed ({entry.trigger}).
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </footer>
+  </article>
+</BaseLayout>
+
+<style>
+  .dateline {
+    color: var(--ink-faded);
+    margin: 1.25rem 0 0;
+    max-width: 60ch;
+  }
+
+  .fact-row-wrap {
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .varieties {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--ink-faded);
+    margin-top: 1rem;
+  }
+
+  .prose {
+    margin-top: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  .faq__pair {
+    margin-bottom: 1.75rem;
+  }
+
+  .faq__pair h3 {
+    font-size: 1.125rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .faq__pair p {
+    margin: 0;
+  }
+
+  .appendix__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0;
+  }
+
+  .provenance__fields {
+    list-style: none;
+    margin: 0.9rem 0 0;
+    padding: 0;
+  }
+
+  .provenance__fields li {
+    margin-bottom: 0.25rem;
+  }
+</style>

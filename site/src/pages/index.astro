@@ -1,0 +1,85 @@
+---
+/**
+ * The homepage. DESIGN.md §7, TRD.md §4.6.
+ *
+ * REGION-FIRST, WITH REAL PAGINATION. This is a design decision taken now, not
+ * a performance fix deferred to later. The reference's homepage embeds its
+ * whole dataset and filters it client-side, which is correct at 32 venues and
+ * wrong at 300: it ships everything to every visitor on the highest-traffic
+ * page, a flat list of 300 producers is a wall rather than a guide, and it
+ * buries the one claim this project makes, which is that four regions are
+ * covered DEEPLY.
+ *
+ * GATE 1 SCOPE. The region index, the pagination routes and the secondary
+ * browse block belong to Gate 6, which owns the taxonomy. What is here now is
+ * the masthead, the foreword and the producer index, so the layout, the type
+ * and the entry rendering can be judged against DESIGN.md §10 with real
+ * content in them. The region block is stubbed with a comment rather than
+ * faked with placeholder counts.
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ProducerEntry from "../components/ProducerEntry.astro";
+import { SITE_NAME, SITE_TAGLINE } from "../config.ts";
+import { getCollection } from "astro:content";
+
+const producers = (await getCollection("producers")).sort((a, b) =>
+  a.data.name.localeCompare(b.data.name, "en-AU"),
+);
+---
+
+<BaseLayout title={SITE_NAME} description={SITE_TAGLINE} logoSize="large">
+  <div class="reading-spine">
+    <section class="section-gap rise-in">
+      <p class="section-opener draw-line">The guide</p>
+
+      <p>
+        This is a field guide to independent Australian winemakers. It records
+        who they are, where their fruit comes from, how they farm and make, and
+        whether you can visit. Every entry is documented from published sources,
+        and every entry says which source and on what date.
+      </p>
+
+      <p>
+        <em>Independent</em> is doing the work here, and it is used more strictly
+        than the trade uses it. Any corporate ownership blocks inclusion,
+        including a minority stake and including one label among several under a
+        family group that is itself unowned. That excludes producers many people
+        would call independent, which is why the rule is written down rather than
+        assumed. The <a href="/methodology/">methodology page</a> states it in
+        full, including what it leaves out.
+      </p>
+
+      <p>
+        Nobody working on this guide has visited these cellar doors or tasted
+        these wines, and nothing here is written as though they had. There are no
+        ratings, no scores and no tasting notes. What there is, is a record of
+        what each producer publishes about their own operation, with a citation.
+      </p>
+    </section>
+
+    {/*
+      GATE 6: the region index goes here, above the producer index — the four
+      coverage regions promoted with a producer count each, then every other GI
+      region with ≥1 published producer, grouped by state. Present-only, plain
+      mono text links, hairline-separated. No tiles, no maps, no counts as
+      badges. Then the demoted secondary block: browse by variety, by practice,
+      by wine style, at 40px glyphs.
+    */}
+
+    <section class="section-gap">
+      <p class="section-opener draw-line">Producers</p>
+
+      {
+        producers.length === 0 ? (
+          <p>No producers are published yet.</p>
+        ) : (
+          <ul class="entry-list">
+            {producers.map((producer) => (
+              <ProducerEntry slug={producer.id} data={producer.data} />
+            ))}
+          </ul>
+        )
+      }
+    </section>
+  </div>
+</BaseLayout>

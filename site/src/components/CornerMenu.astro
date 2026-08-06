@@ -1,0 +1,182 @@
+---
+/**
+ * CornerMenu.astro — DESIGN.md §5b.
+ *
+ * A NARROW, NAMED EXCEPTION to "never fixed, never floating", for this one
+ * control only. Everything else still holds: no modals, no toasts, no other
+ * floating chrome, no sticky headers, no back-to-top button. The corner menu is
+ * the ONE fixed element on the site.
+ *
+ * A single button fixed top-right on every public page, labelled MENU in mono
+ * text. No icon on the button itself.
+ *
+ * The panel is PERMANENTLY MOUNTED and toggled with a class plus `inert` —
+ * never the `hidden` attribute, which cannot be transitioned. Closed, it is
+ * `inert`, so its links are not tabbable.
+ *
+ * NO DIMMING SCRIM. The page stays visible so the drawer reads as a leaf
+ * folding out of the document rather than an app off-canvas menu. A scrim is
+ * precisely the §10 failure mode.
+ *
+ * NO-JS: the button is rendered `hidden` and unhidden by the inline script, and
+ * the panel is a plain, in-flow `<nav>` at the foot of the page when the script
+ * has not run. Every link in it is reachable without JavaScript — that is
+ * `/validate` check 16, and it is why the panel is real markup rather than
+ * something the script builds.
+ *
+ * At Gate 1 the region tier is empty because Gate 6 owns the taxonomy routes.
+ * The tiers are laid out here so the structure is fixed and Gate 6 fills it.
+ */
+import ThemeToggle from "./ThemeToggle.astro";
+---
+
+<button
+  type="button"
+  class="corner-menu__button mono mono-caps"
+  data-menu-button
+  aria-expanded="false"
+  aria-controls="corner-menu-panel"
+  hidden
+>
+  Menu
+</button>
+
+<nav
+  id="corner-menu-panel"
+  class="corner-menu__panel"
+  data-menu-panel
+  aria-label="Site menu"
+>
+  <div class="corner-menu__inner">
+    {/* Tier 1: search, home, theme. */}
+    <ul class="corner-menu__tier">
+      <li><a href="/">Home</a></li>
+      <li><ThemeToggle /></li>
+    </ul>
+
+    {/*
+      Tier 2: PRIMARY, find a producer by region. Gate 6 fills this from
+      regions.ts intersected with published, grouped by state, present-only.
+      At the target coverage this tier is the menu.
+    */}
+
+    {/* Tier 3: More. */}
+    <p class="corner-menu__heading mono mono-caps">More</p>
+    <ul class="corner-menu__tier">
+      <li><a href="/glossary/">Glossary</a></li>
+      <li><a href="/methodology/">Methodology</a></li>
+    </ul>
+  </div>
+</nav>
+
+<script is:inline>
+  (() => {
+    const button = document.querySelector("[data-menu-button]");
+    const panel = document.querySelector("[data-menu-panel]");
+    if (!button || !panel) return;
+
+    // Only shown once the script that drives it has run.
+    button.hidden = false;
+    panel.classList.add("is-drawer");
+    panel.inert = true;
+
+    const setOpen = (open) => {
+      panel.classList.toggle("is-open", open);
+      panel.inert = !open;
+      button.setAttribute("aria-expanded", String(open));
+    };
+
+    button.addEventListener("click", () =>
+      setOpen(button.getAttribute("aria-expanded") !== "true"),
+    );
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (button.getAttribute("aria-expanded") !== "true") return;
+      setOpen(false);
+      button.focus(); // Focus returns to the button, per §5b.
+    });
+  })();
+</script>
+
+<style>
+  .corner-menu__button {
+    position: fixed;
+    top: 1.25rem;
+    right: 1.25rem;
+    z-index: 60;
+    min-height: 44px;
+    padding: 0 0.75rem;
+    background-color: var(--paper);
+    border: 1px solid var(--hairline);
+    color: var(--ink-faded);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    cursor: pointer;
+  }
+
+  .corner-menu__button:hover,
+  .corner-menu__button:focus-visible {
+    color: var(--vine);
+    border-color: var(--vine);
+  }
+
+  /* Without JS this is a plain nav in the page flow at the foot. */
+  .corner-menu__panel {
+    margin-top: clamp(3rem, 8vw, 6rem);
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--hairline);
+  }
+
+  /* With JS it becomes the drawer. */
+  .corner-menu__panel.is-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 55;
+    width: min(22rem, 88vw);
+    margin: 0;
+    padding-top: 0;
+    overflow-y: auto;
+    background-color: var(--paper-raised);
+    /* A single hairline LEFT border. No radius, no shadow. */
+    border: 0;
+    border-left: 1px solid var(--hairline);
+    transform: translateX(100%);
+    transition: transform 0.35s ease;
+  }
+
+  .corner-menu__panel.is-drawer.is-open {
+    transform: translateX(0);
+  }
+
+  .corner-menu__inner {
+    padding: clamp(4rem, 8vw, 5rem) clamp(1.25rem, 4vw, 2rem) 2rem;
+  }
+
+  .corner-menu__panel:not(.is-drawer) .corner-menu__inner {
+    padding: 0;
+  }
+
+  .corner-menu__tier {
+    list-style: none;
+    margin: 0 0 2rem;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.05em;
+  }
+
+  .corner-menu__tier li {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .corner-menu__heading {
+    color: var(--ink-faded);
+    margin: 0 0 0.75rem;
+  }
+</style>
