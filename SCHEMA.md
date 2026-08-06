@@ -1,0 +1,516 @@
+# SCHEMA.md — The Data Contract
+
+This document is the single source of truth for the producer data model. It outranks TRD.md wherever the two disagree about data (CLAUDE.md rule 3).
+
+**One contract, four consumers.** Every field named here exists in four places, and any change lands in all four *in the same commit* (CLAUDE.md rule 7):
+
+1. the zod content schema — `site/src/content/config.ts`
+2. the SQLite DDL — `admin/pipeline/data_store.py`
+3. the Harvester JSON validator — `admin/pipeline/orchestrator.py`
+4. the admin frontmatter editor — `admin/schema.py` (`KNOWN_FIELDS`)
+
+`/validate` check 13 diffs these four surfaces and fails on any disagreement. The `schema-change` skill fires on any edit to a field, enum or validator.
+
+Closed enums live once in `site/src/config.ts` (TypeScript) and `admin/config.py` (Python) as a hand-mirrored pair, and the zod sub-schemas are **built programmatically from those tuples** — add a key to the tuple and the schema follows. Never write an enum literal inline.
+
+---
+
+## 1. Closed vocabularies
+
+Every list below is a closed `as const` tuple in `config.ts` / `config.py`. Adding a value is a schema change.
+
+### 1.1 `CATEGORIES`
+
+| Key | Meaning |
+|---|---|
+| `estate_winery` | Grows and makes on its own site. |
+| `urban_winery` | Makes wine in a city or town premises, fruit trucked in. |
+| `negociant` | Buys fruit or finished wine and blends under their own label. |
+| `garagiste` | Makes wine in shared, rented or borrowed space, at small scale. |
+| `cooperative` | Multiple growers/makers sharing a facility and a label. |
+| `other` | Genuinely ambiguous. Not a dumping ground. |
+
+`negociant` and `garagiste` are deliberately split — a garagiste makes wine in shared or rented space; a négociant buys fruit or finished wine. Different businesses.
+
+### 1.2 `CELLAR_DOOR_STATES`
+
+`none` · `by_appointment` · `open`
+
+A boolean would lose `by_appointment`, which is the most common state for small producers.
+
+### 1.3 `CERTIFICATION_STATES`
+
+`none` · `practising` · `certified`
+
+Applies to both `organic` and `biodynamic`. The distinction is load-bearing: certified and uncertified-but-in-practice are materially different, the difference is often a deliberate choice by the producer, and publishing a false certification claim about a real business is a labelling problem, not merely an accuracy one. `certified` without a named certifier fails the build (`/validate` check 9).
+
+### 1.4 `FRUIT_SOURCE`
+
+`estate` · `purchased` · `mixed`
+
+Most small producers are `mixed`; a boolean forces a wrong answer. `purchased` is neutral, not a demerit.
+
+### 1.5 `PRODUCTION_BANDS`
+
+`under_1000` · `1000_5000` · `5000_20000` · `over_20000` · `unknown`
+
+Bands are gettable from published sources; exact case numbers usually are not.
+
+### 1.6 `PRACTICE_KEYS` (canonical order)
+
+`wild_ferment` · `unfined` · `unfiltered` · `minimal_so2`
+
+Four booleans, all required when the `practices` object is present, no extras (zod `.strict()`). Each is checkable against a producer's own tech sheets.
+
+**There is no `low_intervention` key and there never will be.** The term has no agreed definition and no certification. Flagging it means arbitrating it, and the site would be argued with from both directions. A `/low-intervention/` editorial page composed from these four facts is fine; a field on anyone's entry is not.
+
+### 1.7 `LOGISTICS_KEYS`
+
+`walk_ins_welcome` · `bookings_required` · `restaurant` · `picnic_provisions` · `dog_friendly` · `family_friendly` · `wheelchair_access` · `group_bookings` · `vineyard_tours` · `parking`
+
+Optional object; individual keys default `false`.
+
+### 1.8 `VESSEL_KEYS`
+
+`stainless` · `oak_barrique` · `oak_foudre` · `concrete` · `amphora` · `ceramic` · `glass`
+
+### 1.9 `WINE_STYLE_KEYS`
+
+`red` · `white` · `rose` · `sparkling` · `skin_contact` · `fortified` · `dessert`
+
+### 1.10 `VARIETY_KEYS`
+
+Grape slugs, closed and curated in `config.ts` (e.g. `shiraz`, `cabernet-sauvignon`, `chardonnay`, `pinot-noir`, `grenache`, `nebbiolo`, `fiano`, `vermentino`, `gamay`, `mataro`). Closed rather than freeform because it drives `/variety/[grape]/` routes and the glossary — a typo would otherwise mint a dead page. Extending the list is a schema change; the seed set is authored in Wave 2.
+
+### 1.11 `CONFIDENCE_TIERS` (weakest → strongest)
+
+`unverified` · `published_by_producer` · `observed_on_visit` · `operator_confirmed`
+
+The pipeline only ever sets `published_by_producer`. `observed_on_visit` exists for completeness but is **never pipeline-set** — this project makes no first-hand visits and publishes no first-hand tasting notes (CLAUDE.md rule 6); only a reviewer who genuinely visited may set it. A re-harvest **upgrades, never silently downgrades** a field's tier (`CONFIDENCE_TIER_RANK`).
+
+### 1.12 `VERIFIABLE_FIELDS`
+
+`parent_company` · `organic` · `organic_certifier` · `biodynamic` · `biodynamic_certifier` · `fruit_source` · `production_band` · `annual_production_cases` · `founded_year` · `tasting_fee` · `cellar_door_hours` · `varieties` · `wine_styles`
+
+Certification and ownership need provenance more than tasting fees do. Deliberately *not* on the list: `name`, `location`, `category` (self-evident or editorial), the practice and logistics booleans (covered by the producer-level `verified` date).
+
+### 1.13 `STATES`
+
+`VIC` · `NSW` · `QLD` · `SA` · `WA` · `TAS` · `NT` · `ACT`
+
+---
+
+## 2. MDX Frontmatter
+
+Collection directory: `site/src/content/producers/_published/`. Entity: `producer`. Route: `/producer/[slug]/`.
+
+Slug = filename (`jauma-wines.mdx`), kebab-case, unique across `_staging` + `_published`. Slug is **not** a frontmatter field — it is derived from the filename everywhere.
+
+| Field | Type | Req | Rules |
+|---|---|---|---|
+| `name` | string | ✓ | The producer's actual trading name. |
+| `parent_company` | string \| null | ✓ | **`null` = independent. Any non-null value blocks publication.** The key is always present — an absent key is an undetermined producer, which is not publishable. See §4. |
+| `ownership_source` | object | ✓ | `{ source: string, date: date }`. No producer publishes without an ownership determination and a source. Documents a *negative* (see §4.2). |
+| `category` | enum | ✓ | One of `CATEGORIES` (§1.1). Never a near-synonym. |
+| `founded_year` | number \| null | – | Four-digit year. Null when not published. |
+| `website` | string (url) | ✓ | The producer's own site. |
+| `location` | object | ✓ | `{ address?, suburb?, state, latitude?, longitude? }`. **Only `state` is required.** Where a person can physically go. Latitude −44.0…−9.0, longitude 112.0…154.0 when present; null coordinates mean no map pin and **do not block publication** — a label-only producer is a first-class entry. |
+| `regions` | array of region slugs | ✓ | Min 1. Where the **fruit** comes from. GI region slugs from `regions.ts`. |
+| `primary_region` | region slug | ✓ | Canonical route and breadcrumb anchor. Must be a member of `regions`. |
+| `subregions` | array of subregion slugs | – | Blewitt Springs, Piccadilly Valley, Whitlands, Moppity and similar. Each must belong to a region listed in `regions`. |
+| `cellar_door` | enum | ✓ | One of `CELLAR_DOOR_STATES` (§1.2). |
+| `cellar_door_hours` | string \| null | – | Freeform display string, e.g. `"Fri–Sun 11am–5pm"`. Drafted from `facts.hours`, never fabricated. Omitted entirely when `cellar_door: none`. |
+| `cost` | string \| null | – | Freeform pricing display string, e.g. `"Tastings $15, waived on a six-bottle purchase"`. Drafted from `facts.pricing`, never fabricated. |
+| `tasting_fee` | object | – | `{ fee_aud: number \| null, waived_on_purchase: boolean \| null }`. Structured numbers alongside the freeform `cost` string, never replacing it. Cross-validated against `cost` (§2a). Omitted entirely when there is no published tasting fee — never invented. |
+| `minimum_age` | number \| null | – | Positive integer. Licensed premises. |
+| `organic` | enum | ✓ | One of `CERTIFICATION_STATES` (§1.3). |
+| `organic_certifier` | string \| null | –* | *Required when `organic: certified`. ACO, NASAA, AUS-QUAL. Must be null otherwise. |
+| `biodynamic` | enum | ✓ | One of `CERTIFICATION_STATES`. |
+| `biodynamic_certifier` | string \| null | –* | *Required when `biodynamic: certified`. Demeter. Must be null otherwise. |
+| `fruit_source` | enum | ✓ | One of `FRUIT_SOURCE` (§1.4). |
+| `practices` | object | ✓ | Exactly the four boolean keys from §1.6, all required, no extras (zod `.strict()`). |
+| `vessels` | array of enum | – | Values from `VESSEL_KEYS` (§1.8). Unique, no duplicates. |
+| `varieties` | array of variety slugs | – | Values from `VARIETY_KEYS` (§1.10). A variety is listed only if the source names it. Drives `/variety/[grape]/`. |
+| `wine_styles` | array of enum | – | Values from `WINE_STYLE_KEYS` (§1.9). |
+| `production_band` | enum | ✓ | One of `PRODUCTION_BANDS` (§1.5). `unknown` is a legitimate answer and the correct one when not published. |
+| `annual_production_cases` | number \| null | – | Exact figure only when published. Must be consistent with `production_band` (§2a). |
+| `buy_online` | boolean | ✓ | |
+| `ships_nationally` | boolean | ✓ | |
+| `shop_url` | string (url) \| null | – | Required in practice when `buy_online: true`; enforced as a zod refinement. |
+| `logistics` | object | – | The ten boolean keys from §1.7. Optional — omit entirely where none are known; individual keys default `false`. |
+| `verification` | object | – | Per-field `{source, tier, date}` provenance, keyed by field name (subset of `VERIFIABLE_FIELDS`, §1.12). Rendered/metadata only; not stored in SQLite. |
+| `change_log` | array | – | Computed diff entries `{field, from, to, date, trigger}`, appended on re-harvest. Absent at first draft. Rendered/metadata only. |
+| `summary` | string | ✓ | ≤160 chars. Index one-liner + meta description. In register. |
+| `drafted` | date (YYYY-MM-DD) | ✓ | Date the draft was generated. Stays fixed. |
+| `verified` | date (YYYY-MM-DD) | ✓ | Date of the most recent harvest/verification pass. Re-set on every re-harvest. |
+| `source_url` | string (url) | ✓ | The URL harvested from. |
+| `image` | string | – | Path to published image asset. Present only after the separate image-publish action. |
+| `image_source` | string (url) | –* | *Required if `image` present (zod refinement). |
+| `image_caption` | string | –* | *Required if `image` present. `LOT I. — THE HOME BLOCK, LOOKING WEST.` register. |
+| `faq` | array of `{question, answer}` | – | 3–6 pairs recommended, hard cap 8. Drafted strictly from the Harvester's `facts`; never fabricated. Absent or empty → no FAQ section renders. |
+
+### Fields deliberately absent
+
+- **`status` / claim fields.** The claim flow and Stripe are deferred (handover §2). No `unclaimed`/`claimed` enum, no claim routes, no `noindex` claim pages.
+- **`independence`.** The `clear | check | reject` verdict is a *pipeline and staging* artefact, not published frontmatter — a published producer is `clear` by definition. It lives in the Harvester JSON (§5) and the staging sidecar.
+- **`low_intervention`.** See §1.6.
+- **Notation/abbreviation codes.** No badge system. Labels are words.
+
+### 2a. Cross-field rules
+
+These are the refinements that cannot be expressed by a single field's type. Those that can see both fields live in zod `.superRefine()`; those that need the filesystem or the DB live in `/validate`.
+
+| # | Rule | Enforced in |
+|---|---|---|
+| 1 | `image_source` and `image_caption` are required when `image` is present | zod `.refine()` |
+| 2 | `organic: certified` requires a non-null `organic_certifier`; any other state requires it to be null | zod `.superRefine()` + `/validate` 9 |
+| 3 | `biodynamic: certified` requires a non-null `biodynamic_certifier`; any other state requires it to be null | zod `.superRefine()` + `/validate` 9 |
+| 4 | `primary_region` must be a member of `regions` | zod `.superRefine()` |
+| 5 | Every `subregions` entry must belong to a region listed in `regions` | `/validate` 12 (needs `regions.ts`) |
+| 6 | `buy_online: true` requires a non-null `shop_url` | zod `.superRefine()` |
+| 7 | `cellar_door: none` forbids `cellar_door_hours` | zod `.superRefine()` |
+| 8 | **`tasting_fee.fee_aud` must fall within the range of dollar amounts stated in the `cost` string.** A structured fee the cost string cannot corroborate is a failure — delete the whole `tasting_fee` object rather than leave an uncorroborated figure | `/validate` 10 |
+| 9 | `annual_production_cases`, when present, must fall inside `production_band` | `/validate` 10 |
+| 10 | **`parent_company` must be `null`** on every published file | `/validate` 8 |
+| 11 | `ownership_source` must be present with a non-empty `source` and a `date` | `/validate` 8 |
+| 12 | Every populated `VERIFIABLE_FIELDS` entry carries a `{source, tier, date}` record; no tier downgrades against the previous commit | `/validate` 14 |
+
+Rule 8 mirrors the reference's price↔cost cross-check, which lives in Python rather than zod because the regex that scrapes dollar amounts from the freeform string is shared with the display helper. Keep that split: one regex, one home.
+
+### 2b. Provenance
+
+**`verification`** is built by `admin/pipeline/verification.py::build_verification`, keyed by `VERIFIABLE_FIELDS`. Every currently-populated verifiable field carries a `{source, tier, date}` record; a field the producer doesn't state carries none. On re-harvest, a field already at an equal-or-stronger tier is **preserved, never downgraded** (`CONFIDENCE_TIER_RANK`).
+
+**`change_log`** is *computed*, not hand-maintained (`compute_change_log`): on a re-harvest, one `{field, from, to, date, trigger}` entry per verifiable field whose value moved. This matches the "frontmatter is truth, DB is disposable" architecture — nobody edits a log by hand.
+
+---
+
+## 3. SQLite (`data/directory.db`)
+
+The published MDX directory is the source of truth; `directory.db` is disposable and always fully rebuilt from `_published` frontmatter. Rebuilding twice must be byte-identical.
+
+**Correction to the build handover (§3.10).** The handover says `varieties`, `wine_styles`, `vessels` and `subregions` become child tables "mirroring the facilities pattern". The reference's `facilities` table is a **1:1 wide table of fixed boolean columns**, not a child table. That shape is correct for `practices` and `logistics`, whose keys are a fixed closed set. It cannot hold an open-ended array. Those four therefore become **true `(slug, value)` row tables** — and so does `regions`, which the handover's list omits but which is equally an array.
+
+```sql
+CREATE TABLE producers (
+  slug TEXT PRIMARY KEY,          -- matches MDX filename; no separate UUID
+  name TEXT NOT NULL,
+  parent_company TEXT,            -- always NULL on published rows; column kept so
+                                  -- the invariant is queryable, not merely asserted
+  ownership_source TEXT NOT NULL,
+  ownership_source_date TEXT NOT NULL,
+  category TEXT NOT NULL,
+  founded_year INTEGER,
+  website TEXT NOT NULL,
+  -- location, flattened
+  address TEXT,
+  suburb TEXT,
+  state TEXT NOT NULL,
+  latitude REAL,
+  longitude REAL,
+  primary_region TEXT NOT NULL,
+  -- visiting
+  cellar_door TEXT NOT NULL,
+  cellar_door_hours TEXT,
+  cost TEXT,
+  tasting_fee_aud REAL,           -- flattened from tasting_fee
+  tasting_fee_waived_on_purchase INTEGER,
+  minimum_age INTEGER,
+  -- farming and winemaking
+  organic TEXT NOT NULL,
+  organic_certifier TEXT,
+  biodynamic TEXT NOT NULL,
+  biodynamic_certifier TEXT,
+  fruit_source TEXT NOT NULL,
+  -- scale
+  production_band TEXT NOT NULL,
+  annual_production_cases INTEGER,
+  -- commerce
+  buy_online INTEGER NOT NULL DEFAULT 0,
+  ships_nationally INTEGER NOT NULL DEFAULT 0,
+  shop_url TEXT,
+  summary TEXT NOT NULL,
+  has_image INTEGER NOT NULL DEFAULT 0
+);
+
+-- 1:1 wide boolean tables (fixed closed key sets)
+CREATE TABLE practices (
+  slug TEXT PRIMARY KEY REFERENCES producers(slug) ON DELETE CASCADE,
+  wild_ferment INTEGER NOT NULL,
+  unfined INTEGER NOT NULL,
+  unfiltered INTEGER NOT NULL,
+  minimal_so2 INTEGER NOT NULL
+);
+CREATE TABLE logistics (
+  slug TEXT PRIMARY KEY REFERENCES producers(slug) ON DELETE CASCADE,
+  walk_ins_welcome INTEGER NOT NULL DEFAULT 0,
+  bookings_required INTEGER NOT NULL DEFAULT 0,
+  restaurant INTEGER NOT NULL DEFAULT 0,
+  picnic_provisions INTEGER NOT NULL DEFAULT 0,
+  dog_friendly INTEGER NOT NULL DEFAULT 0,
+  family_friendly INTEGER NOT NULL DEFAULT 0,
+  wheelchair_access INTEGER NOT NULL DEFAULT 0,
+  group_bookings INTEGER NOT NULL DEFAULT 0,
+  vineyard_tours INTEGER NOT NULL DEFAULT 0,
+  parking INTEGER NOT NULL DEFAULT 0
+);
+
+-- (slug, value) child row tables — one row per array member
+CREATE TABLE producer_regions (
+  slug TEXT NOT NULL REFERENCES producers(slug) ON DELETE CASCADE,
+  region TEXT NOT NULL,
+  PRIMARY KEY (slug, region)
+);
+CREATE TABLE producer_subregions (
+  slug TEXT NOT NULL REFERENCES producers(slug) ON DELETE CASCADE,
+  subregion TEXT NOT NULL,
+  PRIMARY KEY (slug, subregion)
+);
+CREATE TABLE producer_varieties (
+  slug TEXT NOT NULL REFERENCES producers(slug) ON DELETE CASCADE,
+  variety TEXT NOT NULL,
+  PRIMARY KEY (slug, variety)
+);
+CREATE TABLE producer_wine_styles (
+  slug TEXT NOT NULL REFERENCES producers(slug) ON DELETE CASCADE,
+  wine_style TEXT NOT NULL,
+  PRIMARY KEY (slug, wine_style)
+);
+CREATE TABLE producer_vessels (
+  slug TEXT NOT NULL REFERENCES producers(slug) ON DELETE CASCADE,
+  vessel TEXT NOT NULL,
+  PRIMARY KEY (slug, vessel)
+);
+```
+
+`verification` and `change_log` are **not** stored in SQLite — rendered/metadata only, same posture as `verified`. Child-table rebuild is delete-then-insert per slug so a removed variety disappears rather than lingering.
+
+---
+
+## 4. The independence determination
+
+The inclusion criterion, the editorial position, and the reason the site exists. **Independence is an ownership fact. It is not inferable from prose** — corporate portfolio brands are engineered to read as small and independent, and a genuinely independent producer with a thin website may read as corporate. Any test based on tone fails systematically in both directions.
+
+### 4.1 The rule
+
+**Strict.** Any corporate ownership blocks publication — including minority stakes and multi-label family groups. `parent_company: null` is the only publishable value.
+
+This is stricter than the trade's ordinary use of "independent": it excludes a maker with a 20% outside investor, and it excludes one of four labels under a family group that is itself unowned. That is a deliberate editorial position, and the consequence is that **the methodology page must define the term as this site uses it** rather than relying on the reader's assumption. It also means `data/ownership.json` has to seed family groups and minority holdings, not only outright portfolio ownership — otherwise the deny-list silently under-enforces the rule.
+
+### 4.2 Evidence of a negative
+
+Because the rule is strict, `ownership_source` documents the *absence* of a corporate parent, which is harder evidence than documenting a presence. One of the following, recorded with a date:
+
+1. An ASIC or ABN lookup identifying the operating entity and showing no corporate parent;
+2. The producer's own published ownership statement (an "about" or "our story" page that names who owns the business);
+3. A named independent trade source (wine media, regional association register, importer or distributor listing) stating ownership.
+
+*(Open for sign-off — see the Wave 0 close-out.)*
+
+### 4.3 `data/ownership.json`
+
+Hand-maintained. Shape:
+
+```json
+{
+  "parent": "Treasury Wine Estates",
+  "labels": ["…"],
+  "domains": ["…"],
+  "aliases": ["…"],
+  "source": "https://…",
+  "updated": "2026-08-06"
+}
+```
+
+Deny-list checks run on **name, domain and ABN** before a draft enters the queue. No label may appear under two parents. Every record carries a source and a date.
+
+### 4.4 Explicit reject categories
+
+Pure retailers · restaurants · large corporate portfolio brands · and the highest-volume false positive, **virtual brands and supermarket private labels**, which have plausible-looking standalone sites by design.
+
+### 4.5 The verdict
+
+The Harvester extracts `ownership_signals` and emits `independence: clear | check | reject`. **It never decides alone.** The admin review pane surfaces the flag and the underlying signals; `check` never auto-publishes.
+
+---
+
+## 5. Harvester JSON output
+
+One JSON object, no markdown fence (the orchestrator strips one anyway rather than burning the single re-ask on formatting). Validated by `_validate_harvester_json` for parseability, object-ness, and the presence of every required key.
+
+```jsonc
+{
+  "name": "…",                       // null if the page is not an independent wine producer
+  "website": "…",
+  "location": { "address": null, "suburb": null, "state": null,
+                "latitude": null, "longitude": null },   // lat/lng always null — geocoded downstream
+  "regions": [],                     // GI region names as stated; slugified downstream
+  "category": null,                  // one of CATEGORIES, or null
+  "founded_year": null,
+
+  "ownership_signals": {
+    "parent_company_mentions": [],   // verbatim phrases naming a parent, group or holding company
+    "abn": null,
+    "shared_address": null,          // an address shared with another label
+    "shared_contact_domain": null,   // a contact email on another label's domain
+    "statements": []                 // "part of the X family", "a member of the Y group", etc.
+  },
+  "independence": "clear",           // clear | check | reject
+
+  "determinations": {                // re-imposed on the frontmatter by the pipeline (§6)
+    "organic": "none",
+    "organic_certifier": null,
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "fruit_source": null,
+    "practices": { "wild_ferment": false, "unfined": false,
+                   "unfiltered": false, "minimal_so2": false },
+    "varieties": []
+  },
+
+  "facts": {
+    "vineyard": [], "varieties": [], "winemaking": [], "tastings": [],
+    "pricing": [], "hours": [], "setting": [], "history": [],
+    "people": [], "other": []
+  },
+  "confidence_notes": []
+}
+```
+
+`HARVESTER_REQUIRED_KEYS = ("name", "website", "location", "regions", "category", "ownership_signals", "independence", "determinations", "facts", "confidence_notes")`
+
+### The Harvester's standing rules
+
+Preserved verbatim in intent from the reference, vocabulary swapped:
+
+- **Evidence or nothing.** A variety is listed only if the source names it. `fruit_source: estate` only if the source states the fruit is estate-grown. `organic: certified` only if a certifier is named — otherwise `practising` at most, and note it in `confidence_notes`.
+- **Null over guess.** Unknown scalars are `null`. Do not infer state from a region name. Leave `latitude`/`longitude` null always.
+- **Facts are specifics.** Preserve numbers and materials exactly as stated: *"2019 Syrah, 14 months in old oak"*. One fact per array item.
+- **Strip the marketing.** A sentence with zero facts is discarded.
+- **Ownership signals are extracted, not judged.** The Harvester reports what the page says about ownership. It does not decide independence from tone.
+
+---
+
+## 6. Pipeline-owned fields
+
+The pipeline, not the agents, owns these — `_finalize_frontmatter()` stamps them after the Gatekeeper returns:
+
+- `source_url` (the harvest URL); `website` defaults to it
+- `drafted` and `verified` = today
+- **`determinations` re-imposed from the Harvester** onto `organic`, `organic_certifier`, `biodynamic`, `biodynamic_certifier`, `fruit_source`, `practices` and `varieties` — these are the Harvester's finding, not the Architect's or Gatekeeper's, and that is enforced rather than trusted to survive two rewrite passes
+- `location.latitude` / `location.longitude` from the geocoder
+- `verification` stamped `published_by_producer` from the harvest URL
+- `change_log` computed against the previous frontmatter on re-harvest
+
+The Gatekeeper is instructed to leave `verification` and `change_log` untouched.
+
+---
+
+## 7. Sample MDX
+
+Place in `_published` at G1. Every required field present; optional fields shown both populated and absent.
+
+```mdx
+---
+name: Example Wines
+parent_company: null
+ownership_source:
+  source: https://example.com/about
+  date: 2026-08-06
+category: garagiste
+founded_year: 2014
+website: https://example.com
+location:
+  address: 12 Example Road
+  suburb: Basket Range
+  state: SA
+  latitude: -34.9285
+  longitude: 138.7401
+regions:
+  - adelaide-hills
+primary_region: adelaide-hills
+subregions:
+  - piccadilly-valley
+cellar_door: by_appointment
+cellar_door_hours: Saturdays 11am to 4pm, by appointment
+cost: Tastings $15 per person, waived on a six-bottle purchase
+tasting_fee:
+  fee_aud: 15
+  waived_on_purchase: true
+minimum_age: 18
+organic: practising
+organic_certifier: null
+biodynamic: none
+biodynamic_certifier: null
+fruit_source: mixed
+practices:
+  wild_ferment: true
+  unfined: true
+  unfiltered: true
+  minimal_so2: false
+vessels:
+  - stainless
+  - oak_barrique
+  - amphora
+varieties:
+  - chardonnay
+  - pinot-noir
+  - gamay
+wine_styles:
+  - red
+  - white
+  - skin_contact
+production_band: under_1000
+annual_production_cases: 800
+buy_online: true
+ships_nationally: true
+shop_url: https://example.com/shop
+logistics:
+  bookings_required: true
+  dog_friendly: true
+  parking: true
+verification:
+  organic:
+    source: https://example.com/vineyard
+    tier: published_by_producer
+    date: 2026-08-06
+  tasting_fee:
+    source: https://example.com/visit
+    tier: published_by_producer
+    date: 2026-08-06
+summary: A garagiste operation in Basket Range working Adelaide Hills fruit across three varieties.
+drafted: 2026-08-06
+verified: 2026-08-06
+source_url: https://example.com/about
+faq:
+  - question: Do I need to book to visit?
+    answer: Yes. The cellar door opens Saturdays by appointment only.
+---
+
+Body copy goes here, 350 to 700 words, with one or two <Pull> tags.
+```
+
+---
+
+## 8. Astro build note
+
+Sub-schemas are built programmatically from the `config.ts` tuples, following the reference's pattern:
+
+```ts
+const practicesSchema = z.object(
+  Object.fromEntries(PRACTICE_KEYS.map((key) => [key, z.boolean()])) as Record<
+    (typeof PRACTICE_KEYS)[number], z.ZodBoolean>,
+).strict();
+
+const logisticsSchema = z.object(
+  Object.fromEntries(LOGISTICS_KEYS.map((key) => [key, z.boolean().default(false)])) as ...
+).strict().optional();
+
+const verificationEntrySchema = z.object({
+  source: z.string(),
+  tier: z.enum(CONFIDENCE_TIERS),
+  date: z.coerce.date(),   // coerce, not z.date(): YAML writes both Date and "YYYY-MM-DD"
+});
+```
+
+Use `z.coerce.date()` for every date field for the same reason. The collection loader points at `_published` only, so staging and rejected content sit outside the collection tree entirely.

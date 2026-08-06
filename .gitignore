@@ -1,0 +1,21 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Never tracked — the deploy guard refuses these (see /validate check 7)
+temp_data/
+content-staging/
+
+# Build output and deps
+node_modules/
+dist/
+.astro/
+__pycache__/
+*.pyc
+.venv/
+
+# Local tooling
+.netlify
+.DS_Store
+*.log
