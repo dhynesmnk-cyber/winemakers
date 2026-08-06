@@ -13,7 +13,7 @@ dist/
 .astro/
 __pycache__/
 *.pyc
-.venv/
+.venv*/
 
 # Local tooling
 .netlify

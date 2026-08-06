@@ -1,0 +1,15 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["dist"],
+  "compilerOptions": {
+    // Explicit `.ts` extensions on relative imports. Vite resolves them, and so
+    // does `node --experimental-strip-types`, which is what keeps the data
+    // modules in src/data and src/icons checkable on their own with no build
+    // step. CONSTANTS-REQUIRED.md §1: keep them that way.
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true
+  }
+}
