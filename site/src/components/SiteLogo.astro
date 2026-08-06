@@ -73,6 +73,11 @@ const markAvailable = hasAnimal(MASCOT);
 
   .site-logo__wordmark {
     margin: 0;
+    /* A long site name must break rather than run under the fixed corner-menu
+       button at narrow widths. The current placeholder is an unbreakable
+       18-character token, which is a harsher test than any real name. */
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-family: var(--font-display);
     font-weight: 400;
     font-variation-settings: "SOFT" 40;
@@ -85,6 +90,7 @@ const markAvailable = hasAnimal(MASCOT);
     display: inline-flex;
     align-items: center;
     gap: 0.6rem;
+    max-width: 100%;
   }
 
   .site-logo--default .site-logo__wordmark {

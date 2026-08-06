@@ -108,6 +108,10 @@ const canonical = new URL(Astro.url.pathname, SITE_URL).href;
     <style>
       .site-header {
         margin-bottom: clamp(2.5rem, 6vw, 5rem);
+        /* The corner menu is the one fixed element on the site (DESIGN.md
+           §5b), so the header reserves room for it rather than running
+           underneath it at narrow widths. */
+        padding-right: 5.5rem;
       }
 
       main {
