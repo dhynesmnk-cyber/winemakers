@@ -13,7 +13,7 @@
     "What is listed is the case that actually deceives: Lake's Folly, Giant Steps, Chapel Hill, Pewsey Vale. Each has its own site, its own history and its own regional identity, and each has a parent."
   ],
   "verdict_field": [
-    "PROPOSED IN WAVE 2, NEEDS SIGN-OFF BEFORE GATE 4 RELIES ON IT. SCHEMA.md §4.3 does not specify it.",
+    "Added in Wave 2 and signed off 2026-08-07. SCHEMA.md §4.3 amended to match on the same date.",
     "reject = the attribution is documented and the deny-list hit blocks the draft outright.",
     "check = the attribution is credible but not confirmed against a registry. The hit routes the draft to human review and never auto-publishes (SCHEMA.md §4.5). It does not reject.",
     "The distinction exists because a false positive here silently blocks a genuinely independent producer, and nobody ever finds out. Retailer-exclusive labels are the hardest to attribute and carry check until a registry lookup upgrades them."
@@ -21,13 +21,15 @@
   "abn_rule": [
     "ABNs are recorded ONLY from a lookup or from the operator's own published trading terms, with the source and the date. An ABN is never guessed, never inferred from a company name, and never carried across from a related entity.",
     "One ABN is currently recorded. That is not a gap to be filled by estimation — it is the honest state of the register, and it is filled in as lookups are done.",
-    "SCHEMA.md §4.3's example record omits an abns field while its prose requires ABN checks. The field is added here; see FLAGGED-CONFLICTS in the Wave 2 handover."
+    "SCHEMA.md §4.3's example record omitted an abns field while its prose required ABN checks. The field was added here in Wave 2 and §4.3's example amended to match on 2026-08-07."
   ],
   "known_gaps": [
-    "MINORITY HOLDINGS ARE THE THINNEST PART OF THIS FILE and the strict rule needs them most. A 20% outside investor blocks publication and is almost never on a producer's website. Only outright and controlling stakes are seeded below.",
+    "COVERAGE IS DEEPEST IN THE FOUR GATE 8 REGIONS and thin everywhere else. Adelaide Hills, McLaren Vale, Yarra Valley and Mornington Peninsula were swept on 2026-08-07 because that is where producers get published first, so that is where a gap actually bites.",
+    "MINORITY HOLDINGS REMAIN THE THINNEST PART OF THIS FILE and the strict rule needs them most. A 20% outside investor blocks publication and is almost never on a producer's website. What is seeded is outright and controlling stakes plus co-ownerships whose proportions are unpublished; genuine small stakes need ASIC and ABN registry lookups, not web reading.",
+    "ABSENCE FROM THIS FILE MEANS UNCHECKED, NOT CLEARED. It is not a whitelist and must never be read as one. The determination still runs per SCHEMA.md §4.2 for every producer.",
+    "OWNERSHIP MOVES, AND THREE RECORDS ALREADY HAVE. Stonier left Accolade in 2022 and Knappstein left in 2025; both would have been wrong rejections. Vinarchy is cutting about 40 per cent of its brands and Endeavour announced a Pinnacle restructure and winery sales in May 2026. Re-verify before Gate 4 and on a standing basis after it; /validate check 8 re-checks every published producer against this file for exactly that reason.",
     "Coles Liquor's exclusive-label list is unpopulated. The domains still match; the label names do not.",
-    "Endeavour Group announced a Pinnacle restructure and winery sales in May 2026. Its record will move. Re-verify before Gate 4.",
-    "Négociant and virtual-brand coverage is untested — SEED.md carries no négociant fixture."
+    "Négociant and virtual-brand coverage is untested. SEED.md carries no négociant fixture."
   ],
   "categories": {
     "corporate_portfolio": "A company holding multiple label businesses. SCHEMA.md §4.4 reject category.",
@@ -137,7 +139,6 @@
         "Tintara",
         "Bay of Fires",
         "House of Arras",
-        "Knappstein",
         "Goundrey",
         "Berri Estates",
         "Renmano",
@@ -181,7 +182,6 @@
         "houghton-wines.com.au",
         "houseofarras.com.au",
         "bayoffireswines.com.au",
-        "knappstein.com.au",
         "brooklandvalley.com.au",
         "jacobscreek.com",
         "sthugo.com",
@@ -201,7 +201,7 @@
       "abns": [],
       "source": "https://en.wikipedia.org/wiki/Vinarchy",
       "updated": "2026-08-07",
-      "note": "Formed April 2025 when Australian Wine Holdco combined Accolade Wines with Pernod Ricard's wine portfolio. Headquartered at Old Reynella, South Australia. Both former parent names are aliases because published trade sources and producer sites will name either for years yet. The label Tatachilla shares a name with a McLaren Vale locality carried in regions.ts; name matching must not fire on the place."
+      "note": "Formed April 2025 when Australian Wine Holdco combined Accolade Wines with Pernod Ricard's wine portfolio. Headquartered at Old Reynella, South Australia. Both former parent names are aliases because published trade sources and producer sites will name either for years yet. The label Tatachilla shares a name with a McLaren Vale locality carried in regions.ts; name matching must not fire on the place. Knappstein was removed from this record on 2026-08-07: Accolade sold it to Australian Yinmore Wines, which now holds it. Vinarchy announced in mid-2025 that it would cut roughly 40 per cent of its brands, so expect more of this list to move and re-verify before Gate 4."
     },
     {
       "parent": "Casella Family Brands",
@@ -490,6 +490,118 @@
       "source": "https://en.wikipedia.org/wiki/Torbreck",
       "updated": "2026-08-07",
       "note": "Acquired 2008 by the American owner of Quivira in Sonoma. An outside individual investor rather than a portfolio company, which is precisely the case the strict rule was chosen to catch and precisely the case a reviewer should sign off on rather than a matcher."
+    },
+
+    {
+      "parent": "Australian Yinmore Wines",
+      "category": "investor_owned",
+      "verdict": "reject",
+      "labels": ["Knappstein"],
+      "domains": ["knappstein.com.au"],
+      "aliases": [
+        "Yinmore Wines",
+        "Australian Yinmore Wines Pty Ltd",
+        "Yunnan Yinmore Group",
+        "YYG"
+      ],
+      "abns": [],
+      "source": "https://winetitles.com.au/knappstein-winery-production-to-continue-under-new-ownership/",
+      "updated": "2026-08-07",
+      "note": "An Australian incorporated company held by the China-based Yunnan Yinmore Group. It bought the Knappstein winery, five vineyards and the label from Accolade. Knappstein sat in the Vinarchy record until 2026-08-07 and was moved here; a producer wrongly attributed to a portfolio that no longer owns them is still a wrong rejection."
+    },
+    {
+      "parent": "Wirra Wirra Wines",
+      "category": "family_group",
+      "verdict": "reject",
+      "labels": ["Wirra Wirra", "Ashton Hills", "Ashton Hills Vineyard", "Hahndorf Hill"],
+      "domains": ["wirrawirra.com", "ashtonhills.com.au", "hahndorfhillwinery.com.au"],
+      "aliases": ["Wirra Wirra Vineyards"],
+      "abns": [],
+      "source": "https://theshout.com.au/wirra-wirra-acquires-ashton-hills/",
+      "updated": "2026-08-07",
+      "note": "Wirra Wirra bought Ashton Hills in 2015 and Hahndorf Hill in 2025, both in the Adelaide Hills. Three labels across two Gate 8 coverage regions, each still trading under its own name; Ashton Hills' founder stayed on as a mentor, which is exactly what makes the entry read independent. Wirra Wirra itself has no corporate parent, so this is SCHEMA.md §4.1's multi-label consequence rather than portfolio ownership, and all three are blocked."
+    },
+    {
+      "parent": "Kirby family",
+      "category": "family_group",
+      "verdict": "reject",
+      "labels": ["Yabby Lake", "Yabby Lake Vineyard", "Heathcote Estate"],
+      "domains": ["yabbylake.com", "heathcoteestate.com"],
+      "aliases": ["Robert and Mem Kirby", "Kirby Group"],
+      "abns": [],
+      "source": "https://winecompanion.com.au/wineries/victoria/mornington-peninsula/yabby-lake-vineyard",
+      "updated": "2026-08-07",
+      "note": "Two labels in two regions under one family: Yabby Lake on the Mornington Peninsula, a Gate 8 coverage region, and Heathcote Estate in central Victoria. Founder-established rather than acquired, which does not change the determination."
+    },
+    {
+      "parent": "Gjergja family",
+      "category": "family_group",
+      "verdict": "reject",
+      "labels": ["Port Phillip Estate", "Kooyong", "Kooyong Estate"],
+      "domains": ["portphillipestate.com.au", "kooyong.com"],
+      "aliases": ["Giorgio and Dianne Gjergja"],
+      "abns": [],
+      "source": "https://www.portphillipestate.com.au/",
+      "updated": "2026-08-07",
+      "note": "Port Phillip Estate bought in 2000, Kooyong in 2004. Two Mornington Peninsula labels sharing one winery and one owner while presenting as separate producers with separate sites."
+    },
+    {
+      "parent": "Edouard Peter",
+      "category": "investor_owned",
+      "verdict": "reject",
+      "labels": ["Yarra Yering", "Kaesler", "Kaesler Wines"],
+      "domains": ["yarrayering.com", "kaesler.com.au"],
+      "aliases": ["Ed Peter", "Dhall & Nash", "Terra Sancta"],
+      "abns": [],
+      "source": "https://cellarpress.vintagecellars.com.au/local-loves/the-yarra-yering-story",
+      "updated": "2026-08-07",
+      "note": "Yarra Yering was sold in 2009 to a partnership headed by the investment banker Edouard Peter, who is also majority shareholder in Kaesler in the Barossa. Yarra Yering is in the Yarra Valley, a Gate 8 coverage region, and reads as a singular estate in every account of it, which it remains; it is also owned."
+    },
+    {
+      "parent": "Circe Wines",
+      "category": "family_group",
+      "verdict": "check",
+      "labels": ["Stonier", "Stonier Wines", "Circe Wines"],
+      "domains": ["stonier.com.au", "circewines.com.au"],
+      "aliases": ["Drummond family", "McLeod family", "Thickins family"],
+      "abns": [],
+      "source": "https://www.winewithseth.com/winewiki/stonier-wines/",
+      "updated": "2026-08-07",
+      "note": "READ THIS BEFORE ACTING ON IT. Stonier passed through Petaluma, Lion Nathan, Kirin and Accolade over two decades and left corporate ownership in December 2022, bought by Circe Wines, itself held by three Mornington Peninsula families. It is therefore no longer a portfolio brand, and a deny-list that still had it under Accolade would reject an independent producer in a coverage region. It carries check rather than reject because two labels under a three-family partnership is the boundary of SCHEMA.md §4.1, not its centre, and the call belongs to a reviewer with the methodology page open."
+    },
+    {
+      "parent": "The Lane Vineyard ownership group",
+      "category": "investor_owned",
+      "verdict": "check",
+      "labels": ["The Lane Vineyard", "The Lane"],
+      "domains": ["thelane.com.au"],
+      "aliases": ["Vestey Group", "Jared Stringer"],
+      "abns": [],
+      "source": "https://www.thelane.com.au/about-us/",
+      "updated": "2026-08-07",
+      "note": "Established by the Edwards family in 1993, held by the UK's Vestey Group from 2012, and returned to Australian ownership in 2025 through a purchase by its chief executive together with a local Adelaide Hills investor. Adelaide Hills is a Gate 8 coverage region. Carries check because the current structure is a co-ownership whose proportions are not published, which is exactly the shape SCHEMA.md §4.1's minority-stake clause covers and exactly what a website will never tell you."
+    },
+    {
+      "parent": "Haselgrove Wines ownership group",
+      "category": "investor_owned",
+      "verdict": "check",
+      "labels": ["Haselgrove Wines"],
+      "domains": ["haselgrove.com.au"],
+      "aliases": [],
+      "abns": [],
+      "source": "https://www.mclarenvaleandfleurieucoast.com.au/haselgrove-wines",
+      "updated": "2026-08-07",
+      "note": "Founded 1981 and bought in 2008 by four Italian-Australian figures from the wine trade. McLaren Vale, a Gate 8 coverage region. NAME COLLISION, AND IT MATTERS: Nick Haselgrove Wines and James Haselgrove Wines are separate McLaren Vale businesses run by the Haselgrove family and are NOT part of this record. Match the full trading name, never the surname."
     }
+  ],
+
+  "checked_and_not_listed": [
+    "Recorded so the work is not repeated. Each was looked at on 2026-08-07 and deliberately left out, because a deny-list is judged as much by what it does not block.",
+    "TarraWarra Estate (Yarra Valley) — founded and owned by the Besen family since 1979. One label, founding family, no parent. Publishes.",
+    "Serafino (McLaren Vale) — Maglieri family, founder to daughter. One label. Publishes.",
+    "Shaw + Smith (Adelaide Hills) — a separate business from Hill-Smith Family Estates despite the shared surname. Do not match on the name.",
+    "All Saints Estate (Rutherglen) — run by members of the Brown family through a separate business. Not part of Brown Family Wine Group.",
+    "Tyrrell's, Taylors, Angove, De Bortoli — single family companies operating ranges, not groups holding separate label businesses. Their flagships publish. See inclusion_rule.",
+    "Levantine Hill, Oakridge, Seville Estate, Willow Creek, Pt. Leo Estate — ownership not established to the standard of SCHEMA.md §4.2 in the time available. Absent from this file means unchecked, NOT cleared. Look each one up at harvest."
   ]
 }
