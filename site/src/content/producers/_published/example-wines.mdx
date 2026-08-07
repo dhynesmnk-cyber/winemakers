@@ -58,17 +58,53 @@ logistics:
   dog_friendly: true
   parking: true
 verification:
+  parent_company:
+    source: https://example.com/about
+    tier: published_by_producer
+    date: &id001 2026-08-06
   organic:
     source: https://example.com/vineyard
     tier: published_by_producer
     date: 2026-08-06
+  biodynamic:
+    source: https://example.com/vineyard
+    tier: published_by_producer
+    date: *id001
+  fruit_source:
+    source: https://example.com/vineyard
+    tier: published_by_producer
+    date: *id001
+  production_band:
+    source: https://example.com/about
+    tier: published_by_producer
+    date: *id001
+  annual_production_cases:
+    source: https://example.com/about
+    tier: published_by_producer
+    date: *id001
+  founded_year:
+    source: https://example.com/about
+    tier: published_by_producer
+    date: *id001
   tasting_fee:
     source: https://example.com/visit
     tier: published_by_producer
     date: 2026-08-06
+  cellar_door_hours:
+    source: https://example.com/visit
+    tier: published_by_producer
+    date: *id001
+  varieties:
+    source: https://example.com/wines
+    tier: published_by_producer
+    date: *id001
+  wine_styles:
+    source: https://example.com/wines
+    tier: published_by_producer
+    date: *id001
 summary: A garagiste operation in Basket Range working Adelaide Hills fruit across three varieties.
 drafted: 2026-08-06
-verified: 2026-08-06
+verified: *id001
 source_url: https://example.com/about
 faq:
   - question: Do I need to book to visit?

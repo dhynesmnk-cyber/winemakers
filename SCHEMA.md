@@ -431,6 +431,8 @@ The Gatekeeper is instructed to leave `verification` and `change_log` untouched.
 
 Place in `_published` at G1. Every required field present; optional fields shown both populated and absent.
 
+**Corrected 2026-08-07, Gate 4.** The `verification` block below carries records for `organic` and `tasting_fee` only, while §2a rule 12 and §2b require one for **every currently-populated `VERIFIABLE_FIELDS` entry** — which in this sample is eleven fields, not two. The normative rule wins over the illustration, and `/validate` check 14 enforces the rule. The shipped `example-wines.mdx` was completed to match; the block below is left as authored so the correction is visible rather than silent. `verification.parent_company` is required even though its value is `null`: the null is a positive assertion of independence, not an empty field, and UX.md §1.4.6 makes that block the durable public half of the ownership determination.
+
 ```mdx
 ---
 name: Example Wines
