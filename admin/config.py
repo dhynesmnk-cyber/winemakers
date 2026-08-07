@@ -429,16 +429,26 @@ MAX_LOG_LINES = 500
 #: UX.md §1.5 row 3. Extracted text below this is a thin page: the item ends
 #: WITHOUT drafting and offers the user-triggered Playwright retry.
 #:
-#: Calibrated against SEED.md row 5 (Myrtaceae), which the fixture document
-#: requires to trip this threshold: roughly 250 to 300 words of mostly visitor
-#: logistics, which measures near 1,800 characters. The value sits above that
-#: with room, and the direction of the error is deliberate. A draft needs 350 to
-#: 700 words of documented body prose (MIN_PROSE_WORDS); a page carrying less
-#: raw text than the entry it would produce cannot source that entry without
-#: padding, and padding is how the honesty rule (CLAUDE.md rule 6) gets broken
-#: quietly. No draft is the correct output for a thin page, and the reviewer is
-#: told why rather than handed a near-empty file.
-THIN_EXTRACTION_CHARS = 2000
+#: MEASURED, not estimated. Every SEED.md URL was fetched on 2026-08-07 and the
+#: trafilatura extraction counted, because this threshold decides which fixture
+#: rows draft and which do not, and SEED.md states the expected outcome for each:
+#:
+#:     Wolf Blass      365 chars   must not draft (blocked earlier anyway)
+#:     Myrtaceae       457 chars   SEED row 5: must trip this threshold
+#:     Gemtree       1,225 chars   SEED row 3: must draft, needing reviewer work
+#:     Basket Range  2,018 chars   SEED row 4: must draft on the first pass
+#:
+#: So the value has to sit above 457 and at or below 1,225. 1,000 characters is
+#: roughly 170 words, which is comfortably less raw material than the 350-word
+#: minimum of a body (MIN_PROSE_WORDS) and therefore cannot source one without
+#: padding. Padding is how the honesty rule (CLAUDE.md rule 6) gets broken
+#: quietly, so no draft is the correct output and the reviewer is told why.
+#:
+#: An earlier value of 2,000 was authored from a word-count estimate of SEED
+#: row 5's prose. It would have put Basket Range, the clean baseline that is
+#: meant to be the least reviewer work in the corpus, 18 characters from being
+#: refused. Estimating this constant rather than measuring it does not work.
+THIN_EXTRACTION_CHARS = 1000
 
 #: UX.md §4 step 1. Candidates land in `temp_data/images/<slug>/` with a
 #: manifest recording each source URL, and are never auto-published.
