@@ -1,0 +1,469 @@
+"""validate_pipeline.py — the Gate 5 failure-table harness.
+
+CLAUDE.md's Gate 5 done-conditions name four things that can only be shown with
+deliberately broken fixtures: a bad URL and a malformed-JSON simulation failing
+per the failure table, a batch of ten completing with per-URL failures isolated,
+and the Harvester's `independence: reject` aborting before a draft is written.
+
+validate.md's self-test pattern is how this project mechanises exactly that:
+"the regression fails the same command that runs the real check". This module is
+that harness, so those conditions are re-proved on every run rather than
+demonstrated once at a gate exit and then trusted forever.
+
+── Fully offline, and deliberately so ────────────────────────────────────────
+
+No API key, no network, no real producer website. The agent client is a scripted
+fake and the fetch is stubbed, because a harness that needs the internet is one
+that gets skipped the first time a run is slow. The live SEED.md corpus is a
+separate exercise; this is the part that must work in a bare clone.
+
+Every fixture writes into a temporary directory. Nothing here touches the real
+`_staging`, `_blocked` or `_determinations`, and nothing accumulates.
+"""
+
+from __future__ import annotations
+
+import json
+import shutil
+import sys
+import tempfile
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from admin.pipeline import (  # noqa: E402
+    agents,
+    fetcher,
+    geocode,
+    harvest,
+    images,
+    orchestrator,
+    ownership,
+)
+
+TODAY = date(2026, 8, 7)
+
+
+# =============================================================================
+# Fakes
+# =============================================================================
+
+
+class _Block:
+    def __init__(self, text: str):
+        self.text = text
+
+
+class _Usage:
+    def __init__(self, i: int, o: int):
+        self.input_tokens = i
+        self.output_tokens = o
+
+
+class _Message:
+    def __init__(self, text: str):
+        self.content = [_Block(text)]
+        self.usage = _Usage(1200, 800)
+
+
+class FakeClient:
+    """Returns scripted responses in order. An exception in the script raises."""
+
+    def __init__(self, script: list[Any]):
+        self.script = list(script)
+        self.calls = 0
+        self.messages = self
+
+    def create(self, **kwargs: Any) -> _Message:
+        self.calls += 1
+        if not self.script:
+            raise AssertionError("fake client ran out of scripted responses")
+        item = self.script.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return _Message(item)
+
+
+def harvester_json(**overrides: Any) -> str:
+    payload: dict[str, Any] = {
+        "name": "Fixture Wines",
+        "website": "https://fixture.test/",
+        "location": {"address": "1 Fixture Road", "suburb": "Basket Range",
+                     "state": "SA", "latitude": None, "longitude": None},
+        "regions": ["Adelaide Hills"],
+        "category": "garagiste",
+        "founded_year": 2014,
+        "ownership_signals": {"parent_company_mentions": [], "abn": None,
+                              "shared_address": None, "shared_contact_domain": None,
+                              "statements": ["Owned by the Fixture family since 2014"]},
+        "independence": "clear",
+        "determinations": {"organic": "practising", "organic_certifier": None,
+                           "biodynamic": "none", "biodynamic_certifier": None,
+                           "fruit_source": "mixed",
+                           "practices": {"wild_ferment": True, "unfined": True,
+                                         "unfiltered": False, "minimal_so2": False},
+                           "varieties": ["Chardonnay", "Pinot Noir"]},
+        "facts": {k: [] for k in orchestrator.HARVESTER_FACT_KEYS},
+        "confidence_notes": [],
+    }
+    payload.update(overrides)
+    return json.dumps(payload)
+
+
+DRAFT_MDX = """---
+name: Fixture Wines
+category: garagiste
+website: https://fixture.test/
+location:
+  address: 1 Fixture Road
+  suburb: Basket Range
+  state: SA
+regions:
+  - adelaide-hills
+primary_region: adelaide-hills
+cellar_door: by_appointment
+organic: practising
+biodynamic: none
+fruit_source: mixed
+practices:
+  wild_ferment: true
+  unfined: true
+  unfiltered: false
+  minimal_so2: false
+production_band: under_1000
+buy_online: false
+ships_nationally: false
+summary: A garagiste operation at Basket Range working Adelaide Hills fruit.
+---
+
+The operation began in 2014 with fruit bought from two growers. The estate block
+is a little over a hectare, planted in the 1990s.
+
+Everything else is purchased. Production sits under a thousand cases.
+"""
+
+
+def _stub_fetch(text: str = "x" * 4000, html: str = "<html></html>"):
+    def fake(url: str, **kwargs: Any) -> fetcher.Fetched:
+        return fetcher.Fetched(url=url, final_url=url, status=200, html=html,
+                               text=text, byte_length=len(html))
+    return fake
+
+
+class Harness:
+    """A temporary tree, with every write path redirected into it."""
+
+    def __init__(self) -> None:
+        self.root = Path(tempfile.mkdtemp(prefix="winemakers-pipeline-"))
+        self.staging = self.root / "_staging"
+        self.published = self.root / "_published"
+        self.blocked = self.root / "_blocked"
+        for directory in (self.staging, self.published, self.blocked):
+            directory.mkdir(parents=True)
+        self._saved: dict[str, Any] = {}
+
+    def __enter__(self) -> "Harness":
+        self._saved = {
+            "h_staging": harvest.STAGING_DIR,
+            "h_published": harvest.PUBLISHED_DIR,
+            "o_blocked": ownership.BLOCKED_DIR,
+            "fetch": fetcher.fetch,
+            "geocode": geocode.geocode,
+            "images": images.download_candidates,
+        }
+        harvest.STAGING_DIR = self.staging
+        harvest.PUBLISHED_DIR = self.published
+        ownership.BLOCKED_DIR = self.blocked
+        fetcher.fetch = _stub_fetch()
+        # Neither of these may be reached over the network in a fixture run.
+        geocode.geocode = lambda location, **kw: (None, None)
+        images.download_candidates = lambda *a, **kw: []
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        harvest.STAGING_DIR = self._saved["h_staging"]
+        harvest.PUBLISHED_DIR = self._saved["h_published"]
+        ownership.BLOCKED_DIR = self._saved["o_blocked"]
+        fetcher.fetch = self._saved["fetch"]
+        geocode.geocode = self._saved["geocode"]
+        images.download_candidates = self._saved["images"]
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    @property
+    def drafts(self) -> list[str]:
+        return sorted(p.name for p in self.staging.glob("*.mdx"))
+
+
+# =============================================================================
+# The fixtures
+# =============================================================================
+
+
+def _harvest(script: list[Any], url: str = "https://fixture.test/", **kwargs: Any):
+    """Run one harvest against a scripted client, capturing the log."""
+    lines: list[tuple[str, str]] = []
+    agents.set_client(FakeClient(script))
+    result = harvest.harvest_one(
+        url, log=lambda lvl, msg: lines.append((lvl, msg)), today=TODAY, **kwargs
+    )
+    return result, lines
+
+
+def _text(lines: list[tuple[str, str]]) -> str:
+    return "\n".join(message for _, message in lines)
+
+
+def _selftest() -> list[str]:
+    errors: list[str] = []
+
+    def check(condition: bool, message: str) -> None:
+        if not condition:
+            errors.append(message)
+
+    # ── Row 1: a bad or unreachable URL ───────────────────────────────────
+    with Harness() as h:
+        def boom(url: str, **kw: Any):
+            raise fetcher.FetchError("timeout after 20s", reason="timeout")
+        fetcher.fetch = boom
+        result, lines = _harvest([])
+        check(result.state == harvest.FAILED, "row 1: a failed fetch did not FAIL")
+        check("timeout" in result.detail, "row 1: the reason is not carried on the row")
+        check(any(lvl == "error" for lvl, _ in lines), "row 1: no error-level log line")
+        check(h.drafts == [], "row 1: a draft was written despite a failed fetch")
+
+    # ── Row 2: robots.txt disallows ───────────────────────────────────────
+    with Harness() as h:
+        def disallowed(url: str, **kw: Any):
+            raise fetcher.RobotsDisallowed(url, "Disallow matching /")
+        fetcher.fetch = disallowed
+        result, lines = _harvest([])
+        check(result.state == harvest.FAILED, "row 2: a robots disallow did not FAIL")
+        check("robots.txt" in _text(lines), "row 2: robots.txt is not named in the log")
+        check(not result.offer_playwright,
+              "row 2: a robots disallow must offer NO retry path")
+        check(h.drafts == [], "row 2: a draft was written despite a disallow")
+
+    # ── Row 3: thin page offers the user-triggered Playwright retry ───────
+    with Harness() as h:
+        def thin(url: str, **kw: Any):
+            raise fetcher.ThinExtraction(
+                fetcher.Fetched(url=url, final_url=url, status=200, html="", text="x" * 220)
+            )
+        fetcher.fetch = thin
+        result, lines = _harvest([])
+        check(result.state == harvest.FAILED, "row 3: a thin page did not end the item")
+        check(result.offer_playwright, "row 3: Playwright retry was not offered")
+        check("thin extraction: 220 chars" in _text(lines),
+              "row 3: the log does not state the character count")
+        check(h.drafts == [], "row 3: a draft was written from a thin page")
+
+    # ── Row 4: malformed agent JSON, one re-ask, then saved and reported ──
+    with Harness() as h:
+        result, lines = _harvest(["this is not json", "still not json"])
+        check(result.state == harvest.FAILED, "row 4: malformed JSON did not FAIL")
+        check("re-asking once" in _text(lines), "row 4: no re-ask was logged")
+        check("failed/" in _text(lines), "row 4: the raw output path was not logged")
+        check(h.drafts == [], "row 4: a draft was written from malformed JSON")
+
+    # A malformed FIRST response that parses on the re-ask must recover.
+    with Harness() as h:
+        result, lines = _harvest(["not json", harvester_json(), DRAFT_MDX, DRAFT_MDX])
+        check(result.state == harvest.STAGED,
+              "row 4: a recovered re-ask did not produce a draft")
+
+    # ── Row 5: name null is not an error state ────────────────────────────
+    with Harness() as h:
+        result, lines = _harvest([harvester_json(name=None,
+                                                 confidence_notes=["This is a retailer."])])
+        check(result.state == harvest.FAILED, "row 5: a non-producer page did not end")
+        check("could not identify a wine producer" in _text(lines),
+              "row 5: the log does not use the documented wording")
+        check("This is a retailer." in _text(lines),
+              "row 5: confidence_notes were not surfaced")
+        check(h.drafts == [], "row 5: a draft was written for a non-producer page")
+
+    # ── Row 7: the Harvester's reject aborts BEFORE a draft is written ────
+    #    This is a named Gate 5 done-condition.
+    with Harness() as h:
+        # The Architect and Gatekeeper responses are scripted DELIBERATELY, even
+        # though a correct pipeline never reaches them. If the abort regresses,
+        # the run must get far enough to write a draft so the assertion that
+        # fires is "a draft was written" and not "the fake ran out of script".
+        # A harness whose failure message names the wrong thing costs an hour.
+        result, lines = _harvest([
+            harvester_json(
+                independence="reject",
+                ownership_signals={"parent_company_mentions": ["A division of Example Group"],
+                                   "abn": None, "shared_address": None,
+                                   "shared_contact_domain": None,
+                                   "statements": ["Part of the Example Group"]},
+            ),
+            DRAFT_MDX,
+            DRAFT_MDX,
+        ])
+        check(result.state == harvest.BLOCKED, "row 7: a Harvester reject did not BLOCK")
+        check(h.drafts == [], "row 7: A DRAFT WAS WRITTEN DESPITE independence: reject")
+        check(list(h.blocked.glob("*.json")), "row 7: no blocked record was written")
+        check(any(lvl == "error" for lvl, _ in lines), "row 7: no error-level log line")
+
+    # ── Row 8: an ownership check writes the draft and flags it ───────────
+    with Harness() as h:
+        result, lines = _harvest([
+            harvester_json(independence="check"), DRAFT_MDX, DRAFT_MDX
+        ])
+        check(result.state == harvest.STAGED, "row 8: a check verdict did not stage a draft")
+        check("OWNERSHIP: CHECK" in _text(lines),
+              "row 8: the save line does not carry OWNERSHIP: CHECK")
+        # `<slug>.ownership.json` beside the draft; `<slug>.json` only once the
+        # approve action retains it into DETERMINATIONS_DIR (Gate 4 convention).
+        check((h.staging / "fixture-wines.ownership.json").is_file(),
+              "row 8: no determination sidecar was written beside the draft")
+
+    # ── Row 9: slug collision halts before drafting ───────────────────────
+    with Harness() as h:
+        (h.published / "fixture-wines.mdx").write_text("---\nname: x\n---\n", encoding="utf-8")
+        result, lines = _harvest([harvester_json(), DRAFT_MDX, DRAFT_MDX])
+        check(result.state == harvest.SKIPPED, "row 9: a slug collision did not SKIP")
+        check("_published" in _text(lines), "row 9: the log does not say where it exists")
+        check(h.drafts == [], "row 9: a draft was written over a collision")
+
+    # ── Row 11: an unmatched variety is reported, never silently dropped ──
+    with Harness() as h:
+        result, lines = _harvest([
+            harvester_json(determinations={
+                "organic": "none", "organic_certifier": None,
+                "biodynamic": "none", "biodynamic_certifier": None,
+                "fruit_source": "estate",
+                "practices": {k: False for k in orchestrator.PRACTICE_KEYS},
+                "varieties": ["Chardonnay", "Invented Grape"],
+            }),
+            DRAFT_MDX, DRAFT_MDX,
+        ])
+        check(result.state == harvest.STAGED, "row 11: the draft was not written")
+        check('unmatched variety: "Invented Grape"' in _text(lines),
+              "row 11: the unmatched variety was not logged")
+        check(result.unmatched.get("varieties") == ["Invented Grape"],
+              "row 11: the unmatched value is not carried to the review pane")
+
+    # ── Certification integrity: certified with no certifier is downgraded ─
+    with Harness() as h:
+        result, lines = _harvest([
+            harvester_json(determinations={
+                "organic": "certified", "organic_certifier": None,
+                "biodynamic": "none", "biodynamic_certifier": None,
+                "fruit_source": "estate",
+                "practices": {k: False for k in orchestrator.PRACTICE_KEYS},
+                "varieties": [],
+            }),
+            DRAFT_MDX, DRAFT_MDX,
+        ])
+        check(result.state == harvest.STAGED, "certification: the draft was not written")
+        text = (h.staging / "fixture-wines.mdx").read_text(encoding="utf-8")
+        check("organic: practising" in text,
+              "certification: `certified` with no named certifier was NOT downgraded")
+        check("no named certifier" in _text(lines),
+              "certification: the downgrade was not logged")
+
+    # ── Token usage appears in the log (a named done-condition) ───────────
+    with Harness() as h:
+        result, lines = _harvest([harvester_json(), DRAFT_MDX, DRAFT_MDX])
+        check("tokens in/out:" in _text(lines), "token usage did not appear in the log")
+        check(result.ledger is not None and result.ledger.total().input_tokens > 0,
+              "the ledger recorded no input tokens")
+
+    # ── The Gatekeeper failing must not cost the producer ─────────────────
+    with Harness() as h:
+        result, lines = _harvest([harvester_json(), DRAFT_MDX, "not mdx at all", "still not"])
+        check(result.state == harvest.STAGED,
+              "a Gatekeeper failure lost the draft; the Architect's copy was usable")
+        check("staging the unpolished draft" in _text(lines),
+              "the Gatekeeper fallback was not logged")
+
+    return errors
+
+
+def _batch_selftest() -> list[str]:
+    """Ten URLs, mixed outcomes, per-URL isolation (Gate 5 done-condition)."""
+    from admin.pipeline import queue as queue_module
+
+    errors: list[str] = []
+    with Harness() as h:
+        urls = [f"https://fixture{i}.test/" for i in range(10)]
+
+        # Two bad ones: index 3 fetch-fails, index 7 returns unusable JSON.
+        real_stub = _stub_fetch()
+
+        def selective(url: str, **kw: Any):
+            if url == urls[3]:
+                raise fetcher.FetchError("HTTP 404", reason="HTTP 404")
+            return real_stub(url, **kw)
+
+        fetcher.fetch = selective
+
+        script: list[Any] = []
+        for index in range(10):
+            if index == 3:
+                continue  # never reaches an agent
+            if index == 7:
+                script += ["not json", "still not json"]
+            else:
+                script += [harvester_json(name=f"Fixture {index} Wines"), DRAFT_MDX, DRAFT_MDX]
+        agents.set_client(FakeClient(script))
+
+        lines: list[str] = []
+        q = queue_module.HarvestQueue(path=h.root / "queue.json")
+        q.add(urls)
+        q.run_sync(log=lambda lvl, msg: lines.append(msg), today=TODAY)
+
+        states = [item["state"] for item in q.items]
+        staged = states.count("STAGED")
+        failed = states.count("FAILED")
+
+        if staged != 8:
+            errors.append(f"batch: expected 8 staged from 10 with 2 bad URLs, got {staged}")
+        if failed != 2:
+            errors.append(f"batch: expected 2 failed, got {failed}")
+        if len(h.drafts) != 8:
+            errors.append(f"batch: {len(h.drafts)} draft files on disk, expected 8")
+        if q.items[3]["state"] != "FAILED":
+            errors.append("batch: the fetch-failing URL did not fail on its own row")
+        if q.items[7]["state"] != "FAILED":
+            errors.append("batch: the malformed-JSON URL did not fail on its own row")
+        if any(item["state"] == "QUEUED" for item in q.items):
+            errors.append("batch: a failure stopped the run; items were left QUEUED")
+
+        # Durability: the queue must survive being reloaded from disk.
+        reloaded = queue_module.HarvestQueue(path=h.root / "queue.json")
+        reloaded.load()
+        if [i["state"] for i in reloaded.items] != states:
+            errors.append("batch: queue state did not survive a reload from disk")
+
+    return errors
+
+
+def main() -> int:
+    try:
+        errors = _selftest() + _batch_selftest()
+    except Exception as exc:  # noqa: BLE001
+        import traceback
+
+        traceback.print_exc()
+        errors = [f"harness raised {exc!r}"]
+
+    if errors:
+        print(f"PIPELINE FIXTURES FAIL — {len(errors)} issue(s)")
+        for message in errors:
+            print(f"  {message}")
+        return 1
+    print(
+        "PIPELINE FIXTURES PASS — failure table rows 1, 2, 3, 4, 5, 7, 8, 9 and 11, "
+        "certification downgrade, token ledger, Gatekeeper fallback, "
+        "and a ten-URL batch with two isolated failures"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
