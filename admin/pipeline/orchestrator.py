@@ -56,6 +56,7 @@ from admin.config import (  # noqa: E402
     VARIETY_KEYS,
 )
 from admin import schema  # noqa: E402
+from admin.pipeline import ownership as ownership_module  # noqa: E402
 from admin.pipeline import verification as verification_module  # noqa: E402
 
 Logger = Callable[[str, str], None]
@@ -464,11 +465,31 @@ def _finalize_frontmatter(
         source = getattr(determination, "basis", "") or ""
         existing = data.get("ownership_source")
         if not isinstance(existing, dict) or not str(existing.get("source") or "").strip():
-            data["ownership_source"] = {
-                "source": source_url,
-                "method": "producer_statement",
-                "date": today,
-            }
+            # `producer_statement` is a claim that the source names who owns
+            # the business, and it is only true when the Harvester extracted
+            # such a statement. Until 2026-08-08 it was written unconditionally,
+            # so a page silent on ownership published carrying a record
+            # asserting the producer had stated it — a fabricated provenance
+            # claim in the one field whose whole purpose is auditability, on
+            # the axis this site claims authority over.
+            #
+            # With no statement there is no route the pipeline can honestly
+            # name, so the field is left for a human, exactly as UX.md §1.5 row
+            # 12 leaves empty `regions`. Approval is blocked until it is filled
+            # (`approval_blocks`, UX.md §1.4.5 rule 3).
+            if ownership_module.states_ownership(getattr(determination, "signals", []) or []):
+                data["ownership_source"] = {
+                    "source": source_url,
+                    "method": "producer_statement",
+                    "date": today,
+                }
+            else:
+                data.pop("ownership_source", None)
+                log(
+                    "warn",
+                    "no ownership statement extracted, so ownership_source is "
+                    "left for a human to record. Approval is blocked until it is.",
+                )
         if source:
             log("info", f"ownership determination recorded: {source}")
 

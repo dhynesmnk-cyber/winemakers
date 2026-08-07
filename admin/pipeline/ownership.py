@@ -791,6 +791,26 @@ def populated_signals(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [row for row in rows if row.get("populated")]
 
 
+def states_ownership(rows: list[dict[str, Any]]) -> bool:
+    """Whether the page positively stated who owns the business.
+
+    SCHEMA.md §4.2 route 2, and the sentence that does the most work in it: "A
+    source that merely fails to mention a parent is not evidence of absence. It
+    must positively state ownership."
+
+    A populated `statements` row is that positive claim, unless
+    `statements_name_a_group` flagged it — in which case it states the opposite
+    and `escalating_signals` has already moved the verdict.
+
+    This is a count of what the Harvester extracted, not a reading of it. The
+    Harvester is told to record ownership claims verbatim; nothing here judges
+    prose (CLAUDE.md rule 8).
+    """
+    if statements_name_a_group(rows):
+        return False
+    return any(row.get("key") == "statements" for row in populated_signals(rows))
+
+
 def statements_name_a_group(rows: list[dict[str, Any]]) -> list[str]:
     """The `statements` items that match `PARENT_PATTERNS`, verbatim.
 
@@ -934,10 +954,16 @@ def _basis_line(verdict: str, rows: list[Row], signals: list[dict[str, Any]]) ->
                 "Clear: no deny-list match on name, domain or ABN, and the "
                 f"{recorded} extracted statements name no parent."
             )
+        # Amended 2026-08-08: unreachable via `determine`, which now escalates
+        # this case to `check`. Kept because `_basis_line` is called directly
+        # with a hand-supplied verdict, and a basis that silently described
+        # silence as clean is the sentence this whole module exists to prevent.
         return (
-            "Clear: no deny-list match on name, domain or ABN, and no ownership "
-            "signals extracted."
+            "Clear: no deny-list match on name, domain or ABN, but the source "
+            "states no ownership. This is not evidence of independence."
         )
+    if verdict == "check" and not states_ownership(signals):
+        return "Check: the source does not state who owns this business."
     return f"{verdict.capitalize()}: see the signals below."
 
 
@@ -971,6 +997,7 @@ def determine(
 
     rows = deny_list_check(name, website, signals.get("abn"), register=register)
     signal_table = signal_rows(signals)
+    notes: list[str] = []
 
     verdict = "clear"
     for row in rows:
@@ -986,13 +1013,31 @@ def determine(
             # naming an owning family is the evidence SCHEMA.md §4.2 asks for
             # and no longer forces the review it is supposed to satisfy.
             verdict = "check"
+        elif not states_ownership(signal_table):
+            # Amended 2026-08-08. `clear` is a positive finding and needs
+            # positive evidence. Until this date the verdict *started* at
+            # `clear` and only an escalating signal moved it, so a page that
+            # said nothing at all about ownership returned `clear` on the
+            # strength of its silence — the one reading SCHEMA.md §4.2, this
+            # module's own docstring and the ownership-check skill all forbid.
+            #
+            # SEED.md row 1 is why it matters. Wolf Blass names no parent
+            # anywhere and was caught only by the deny-list. A portfolio label
+            # not yet in the register, on an equally silent site, was
+            # publishable as independent. Row 3 is the fixture that found it.
+            verdict = "check"
+            notes.append(
+                "The source does not state who owns this business. Silence is "
+                "not evidence of independence (SCHEMA.md §4.2). Record a "
+                "registry lookup, a producer statement naming the owners, or a "
+                "named trade source before approving."
+            )
 
     # The Harvester's own verdict can only tighten. It never relaxes one the
     # deny-list or the signals produced (SCHEMA.md §4.5).
     if harvester_verdict in VERDICTS:
         verdict = _stronger(verdict, harvester_verdict)
 
-    notes: list[str] = []
     if register.get("_missing"):
         # Absence of a register is not a clean bill of health. Say so, and do
         # not hand back a `clear` that nothing verified.
