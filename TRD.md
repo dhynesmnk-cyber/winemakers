@@ -213,6 +213,7 @@ That is an acceptable trade only because the durable public record lives elsewhe
 | `PRODUCTION_BAND_RANGES` | both | The numeric ranges behind `PRODUCTION_BANDS`, for SCHEMA.md §2a rule 9. |
 | `PRODUCERS_PER_PAGE` | `config.ts` | Pagination page size (§4.6). Default 24; UX.md wins if it specifies otherwise. |
 | `SEARCH_INDEX_INLINE_MAX` | `config.ts` | 500 — the producer count above which the embedded search index becomes a fetched one (§4.7). |
+| `HOMEPAGE_LATEST_COUNT`, `SEARCH_MAX_RESULTS` | `config.ts` | **AMENDED 2026-08-08 — see below.** Both are named by UX.md §2.1 and were missing from this checklist. |
 | `COVERAGE_REGIONS` | both | The four Gate 8 seed regions, so "which regions are populated" is data, not prose. |
 | `MIN_COMPARISON_PRODUCERS`, `MIN_AGGREGATION_LINKS` | `config.ts` | Gate 9 thresholds; `MIN_AGGREGATION_LINKS` is 3 per `/validate` check 17. |
 | `ROOT`, `SITE_DIR`, `PUBLISHED_DIR`, `STAGING_DIR`, `REJECTED_DIR`, `DELETED_DIR`, `DB_PATH`, `PRODUCERS_JSON_PATH`, `FOREWORDS_JSON_PATH`, `OWNERSHIP_JSON_PATH`, `PROMPTS_DIR`, `TEMP_DATA_DIR`, `IMAGES_DIR`, `FAILED_DIR`, `HARVEST_QUEUE_PATH`, `GEOCODE_CACHE_PATH` | `config.py` | Every cross-cutting path, defined once, `pathlib`, safe from the repo root. |
@@ -220,6 +221,24 @@ That is an acceptable trade only because the durable public record lives elsewhe
 | `MODEL_ARTICLE`, `MODEL_FACTCHECK`, `MODEL_BRIEF`, `BLOG_PUBLISHED_DIR`, `BLOG_STAGING_DIR`, `ARTICLE_STAGING_DIR`, `FACTCHECKS_DIR` | `config.py` | Gate 11. Named now so the key set is stable; unused until then. |
 
 `.env.example` mirrors the `.env` key set exactly, with comments and no values, and is the one `.env*` file that is tracked.
+
+### Amendment, 2026-08-08 (Gate 6): two constants UX.md names and this checklist did not
+
+UX.md §2.1 refers to `HOMEPAGE_LATEST_COUNT` and `SEARCH_MAX_RESULTS` by name as though they were already decided. Neither appeared in the table above, in `CONSTANTS-REQUIRED.md`, or in `config.ts`, and neither document gives a number. Gate 6 needs both to build the homepage, so the values are set here rather than left as bare literals in a template.
+
+**`HOMEPAGE_LATEST_COUNT` = 8.** The homepage renders this many `ProducerEntry` rows, the most recently `drafted`, then one link to `/producers/`. Eight is long enough to show the guide is being added to and short enough that it cannot compete with the region chooser above it, which UX.md §2.1 item 4 calls the primary navigation and the main content of the page. It is a fixed-length slice: the homepage has no pager and mints no `/page/[n]/` route at the site root.
+
+**`SEARCH_MAX_RESULTS` = 8.** The most results the search field offers at once. `↑`/`↓` reaches the last one without the list running off a phone viewport. Search is an accelerator and never the only route to anything, so truncating is not a loss of access.
+
+Both live in `config.ts` alone. Neither has a Python consumer, so neither goes in the mirrored pair and check 13 does not diff them.
+
+*Sorting for "most recently drafted" is `drafted` descending, then `name` ascending. The tiebreak is load-bearing rather than cosmetic: a batch harvest stamps one `drafted` date across a whole run, so without it the homepage's eight rows would reorder on every rebuild and the derived-artefact diff in check 3 would churn.*
+
+### Amendment, 2026-08-08 (Gate 6): the state route's slug form
+
+§4.2's route table gives `/[state]/` and UX.md §2.4 says the eight slugs come from the closed `STATES` tuple, but no document says whether the slug is the code or the name. It is the **slugified full name** — `/south-australia/`, `/victoria/`, `/new-south-wales/` — not `/sa/`, `/vic/`, `/nsw/`.
+
+Every other public route on this site slugifies a human name, and DESIGN.md §5's `ProducerEntry` dateline states the rule for states specifically: words, not codes. A two-letter path would be the only route on the site that reads as an internal identifier. The tuple still governs which eight exist; only the rendering of each slug into a path changed.
 
 ---
 

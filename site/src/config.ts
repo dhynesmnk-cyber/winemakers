@@ -238,6 +238,30 @@ export const PRODUCTION_BAND_RANGES: Record<
 export const PRODUCERS_PER_PAGE = 24;
 
 /**
+ * UX.md §2.1 item 5. The homepage renders this many `ProducerEntry` rows —
+ * the most recently `drafted` — then one link to `/producers/`, and never
+ * more. It is a fixed-length slice, not a page-one of anything: the homepage
+ * has no pager and mints no `/page/[n]/` route at the site root.
+ *
+ * VALUE SET AT GATE 6, 2026-08-08. UX.md names the constant and never gives it
+ * a number, and TRD.md §3's checklist does not carry it at all. See the dated
+ * TRD.md amendment for the reasoning: eight is long enough to show the guide is
+ * being added to and short enough that it cannot compete with the region
+ * chooser above it, which UX.md calls the main content of the page.
+ */
+export const HOMEPAGE_LATEST_COUNT = 8;
+
+/**
+ * UX.md §2.1 item 3. The most results the search field offers at once.
+ *
+ * VALUE SET AT GATE 6, 2026-08-08, same footing as `HOMEPAGE_LATEST_COUNT`.
+ * Eight is a keyboard-navigable list: `↑`/`↓` reaches the last result without
+ * the list running off the viewport on a phone. Search is an accelerator and
+ * never the only route to anything, so truncation is not a loss of access.
+ */
+export const SEARCH_MAX_RESULTS = 8;
+
+/**
  * TRD.md §4.7. Above this published-producer count the embedded search index
  * becomes a fetched one. NOT IN FORCE AT v1 and not to be built pre-emptively.
  */
