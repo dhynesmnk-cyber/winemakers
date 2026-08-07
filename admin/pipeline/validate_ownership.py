@@ -66,18 +66,23 @@ def _determination_abn(slug: str) -> tuple[str | None, bool]:
     return None, True
 
 
-def check_8_ownership() -> list[str]:
-    """Every published producer, per file. Any failure = fail."""
+def check_8_ownership() -> tuple[list[str], list[str]]:
+    """`(errors, notes)` for every published producer, per file.
+
+    Errors fail the check. Notes are reported and do not: see `_determination_abn`
+    and the `notes` block below for the one thing that is deliberately advisory.
+    """
     errors: list[str] = []
+    notes: list[str] = []
     register = ownership.load_register()
 
     if register.get("_missing"):
         return [
             "data/ownership.json is not present. The deny-list is one of the two "
             "inputs to every determination and nothing can be audited without it."
-        ]
+        ], notes
     if register.get("_error"):
-        return [f"data/ownership.json could not be read: {register['_error']}"]
+        return [f"data/ownership.json could not be read: {register['_error']}"], notes
 
     for path in _published_files():
         slug = path.stem
@@ -122,11 +127,23 @@ def check_8_ownership() -> list[str]:
         # The standing re-audit. Name, domain and ABN, each independently.
         abn, has_determination = _determination_abn(slug)
         if not has_determination:
-            errors.append(
+            # ADVISORY, NOT A FAILURE, and the reason is worth stating.
+            #
+            # `DETERMINATIONS_DIR` sits under `content-staging/`, which is
+            # gitignored volume state, so a determination does not travel with
+            # the repository. Failing on its absence would fail this check on
+            # every fresh clone, which would train whoever runs it to ignore
+            # the result — the worst thing that can happen to this check.
+            #
+            # The DURABLE public record is the committed frontmatter:
+            # `ownership_source` above, and `verification.parent_company`,
+            # which check 14 asserts. The sidecar is the working evidence
+            # behind it. So its absence is reported and does not fail.
+            notes.append(
                 f"{path.name}: no retained determination in "
-                f"{DETERMINATIONS_DIR.name}/. Every published producer carries its "
-                f"determination (UX.md §1.4.6); a missing one means this file was "
-                f"published by a route that bypassed the hub."
+                f"{DETERMINATIONS_DIR.name}/. The committed frontmatter still "
+                f"carries the durable record; this is the working evidence, and "
+                f"it does not travel with the repository."
             )
 
         for row in ownership.deny_list_check(
@@ -143,7 +160,7 @@ def check_8_ownership() -> list[str]:
                 f"source {match.source or 'not recorded'}). "
                 f"Re-run the determination and unpublish if it holds."
             )
-    return errors
+    return errors, notes
 
 
 # =============================================================================
@@ -321,7 +338,10 @@ def _selftest() -> list[str]:
 
 
 def main() -> int:
-    errors = _selftest() + check_8_ownership()
+    found, notes = check_8_ownership()
+    errors = _selftest() + found
+    for note in notes:
+        print(f"  note: {note}")
     if errors:
         print(f"VALIDATE 8 FAIL — {len(errors)} error(s)")
         for message in errors:
