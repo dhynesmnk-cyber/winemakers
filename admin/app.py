@@ -611,6 +611,30 @@ async def api_unpublish(slug: str, _: None = Depends(require_auth)) -> JSONRespo
         return JSONResponse({"blocked": str(exc)}, status_code=422)
 
 
+@app.post("/api/draft/{slug}/geocode")
+async def api_regeocode(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    """Repair the coordinates on a staged or published entry (UX.md §1.5 row 10).
+
+    Runs in a thread: `geocode` enforces Nominatim's one-request-per-second
+    policy with a blocking sleep, which must not stall the event loop.
+    """
+    try:
+        result = await asyncio.to_thread(staging.regeocode, slug, log)
+    except staging.ActionBlocked as exc:
+        return JSONResponse({"blocked": str(exc)}, status_code=422)
+    if not result["found"]:
+        return JSONResponse(
+            {
+                "found": False,
+                "detail": (
+                    f"No coordinates found for {result['query']}. The entry is "
+                    f"unchanged and still publishes without a map pin."
+                ),
+            }
+        )
+    return _action_response(result)
+
+
 # =============================================================================
 # 6. Harvest
 # =============================================================================

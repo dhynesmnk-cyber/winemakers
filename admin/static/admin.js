@@ -1157,6 +1157,44 @@ function buildField(name, spec, data) {
             : "no coordinates, this producer publishes without a map pin",
         }),
       );
+      // A miss is silent by design — null coordinates never block a publish —
+      // so the only way to notice a geocoder that is refusing requests is to
+      // look at this line. Offer the repair right here, where it is noticed.
+      if (!hasCoordinates && (location.address || location.suburb)) {
+        const button = el("button", {
+          type: "button",
+          class: "btn btn-quiet",
+          text: "Look up coordinates",
+        });
+        const outcome = el("p", { class: "field-help" });
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          button.textContent = "Looking up…";
+          outcome.textContent = "";
+          try {
+            const response = await fetch(`/api/draft/${state.slug}/geocode`, {
+              method: "POST",
+            });
+            const result = await response.json();
+            if (result.blocked || result.found === false) {
+              outcome.className = "field-help warn";
+              outcome.textContent = result.blocked || result.detail;
+              button.disabled = false;
+              button.textContent = "Look up coordinates";
+            } else {
+              outcome.className = "field-help";
+              outcome.textContent = `Found ${result.latitude}, ${result.longitude}.`;
+              await loadDraft(state.slug);
+            }
+          } catch (error) {
+            outcome.className = "field-help warn";
+            outcome.textContent = `Lookup failed: ${error.message}`;
+            button.disabled = false;
+            button.textContent = "Look up coordinates";
+          }
+        });
+        box.append(button, outcome);
+      }
       return fieldShell(name, spec, box);
     }
 

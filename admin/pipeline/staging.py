@@ -448,6 +448,78 @@ def undo(slug: str, log: Logger = _null_log) -> dict[str, Any]:
     return {"slug": slug}
 
 
+def regeocode(slug: str, log: Logger = _null_log) -> dict[str, Any]:
+    """Look the address up again and write the coordinates onto a published entry.
+
+    *Gate 5.* Null coordinates never block a publish (SCHEMA.md §2, UX.md §1.5
+    row 10) and `geocode.geocode` never raises, so a geocoder that is refusing
+    requests is completely silent: producers simply publish without a map pin.
+    Basket Range Wine published that way on 2026-08-07 with a placeholder
+    `GEOCODER_USER_AGENT` in `.env`, and there was no way to repair it short of
+    re-running the whole URL through three paid agent calls to fix two numbers.
+
+    This is that repair. It touches `location.latitude` and `location.longitude`
+    and nothing else: no agent runs, no prose changes, no determination is
+    re-made. A miss is reported and leaves the entry exactly as it was, because
+    a producer with no pin is a first-class entry and not a failure state.
+
+    Runs against a staged draft or a published entry, whichever holds the slug.
+    The cache is bypassed deliberately: the caller is here because the last
+    answer was wrong, and a cached miss would return the same wrong answer.
+    """
+    from admin.pipeline import geocode  # local: keeps the geocoder off the import path
+
+    # Staging first, then published — the same posture as
+    # `ownership.determination_for`. Most misses are caught at review time,
+    # before the entry publishes, and a reviewer looking at a draft with no pin
+    # should not have to publish it first to fix it.
+    path = STAGING_DIR / f"{slug}.mdx"
+    published = path.is_file() is False
+    if published:
+        path = PUBLISHED_DIR / f"{slug}.mdx"
+    if not path.is_file():
+        raise ActionBlocked(f"{slug} is neither staged nor published")
+
+    try:
+        data, body = schema.read_mdx(path)
+    except schema.FrontmatterError as exc:
+        raise ActionBlocked(f"{slug} could not be read: {exc}") from exc
+
+    location = data.get("location") or {}
+    query = geocode.build_query(location)
+    if not query:
+        raise ActionBlocked(
+            f"{slug} has no address or suburb to geocode. A label-only producer "
+            f"has nowhere to put a pin, which is a first-class entry, not a fault."
+        )
+
+    log("info", f"geocoding {slug}: {query}")
+    latitude, longitude = geocode.geocode(location, log=log, use_cache=False)
+    if latitude is None or longitude is None:
+        # The warning naming the cause has already gone to the log from
+        # `geocode`. Do not overwrite good coordinates with nulls on a miss.
+        return {"slug": slug, "found": False, "query": query}
+
+    before = (location.get("latitude"), location.get("longitude"))
+    data["location"] = {**location, "latitude": latitude, "longitude": longitude}
+    schema.write_mdx(path, data, body)
+    log(
+        "info",
+        f"{slug}: {before[0]}, {before[1]} -> {latitude}, {longitude}",
+    )
+    # Only a published entry is in the derived data. Rebuilding for a draft
+    # would be a no-op that reads as though something happened.
+    if published:
+        _rebuild_derived(log)
+    return {
+        "slug": slug,
+        "found": True,
+        "query": query,
+        "latitude": latitude,
+        "longitude": longitude,
+    }
+
+
 def unpublish(slug: str, log: Logger = _null_log) -> dict[str, Any]:
     """Park a published file in `DELETED_DIR`, timestamped, and rebuild.
 
