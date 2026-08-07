@@ -60,11 +60,21 @@ GLOSSARY_TS_PATH = ROOT / "site" / "src" / "data" / "glossary.ts"
 
 #: Surfaces that land at a later gate. Reported as pending, never as agreement.
 PENDING_SURFACES = {
-    "admin/schema.py": ("KNOWN_FIELDS, the admin frontmatter editor", 3),
-    "admin/mdx_preview.py": ("the review-pane preview", 3),
     "admin/pipeline/orchestrator.py": ("the Harvester JSON validator", 5),
     "PROMPTS/architect.md": ("the Architect prompt", 5),
     "PROMPTS/gatekeeper.md": ("the Gatekeeper prompt", 5),
+}
+
+#: Surfaces whose gate HAS shipped. Absence is a failure here, not a pending
+#: note. A surface that ships and then disappears would otherwise be waved
+#: through by the same mechanism that legitimately excuses an unbuilt one, which
+#: would make this check quieter the more of the build it is supposed to cover.
+#:
+#: 2026-08-07, Gate 3: `admin/schema.py` and `admin/mdx_preview.py` moved here
+#: from PENDING_SURFACES on the gate that wrote them.
+SHIPPED_SURFACES = {
+    "admin/schema.py": ("KNOWN_FIELDS, the admin frontmatter editor", 3),
+    "admin/mdx_preview.py": ("the review-pane preview", 3),
 }
 
 
@@ -249,7 +259,10 @@ def _compare_field_sets(failures: list[str], pending: list[str]) -> None:
                     f"{', '.join(sorted(only_admin))}"
                 )
     else:
-        pending.append("admin/schema.py — KNOWN_FIELDS, the admin frontmatter editor (Gate 3)")
+        failures.append(
+            "admin/schema.py is missing. It shipped at Gate 3 and is consumer 4 "
+            "of 4 (CLAUDE.md rule 7); its absence is drift, not a pending gate."
+        )
 
 
 def _compare_storage(failures: list[str]) -> None:
@@ -341,6 +354,44 @@ def _compare_storage(failures: list[str]) -> None:
             )
 
 
+#: Numeric bounds the zod schema states as a literal and `admin/config.py`
+#: carries as a named constant, with the pattern that reads the zod copy.
+#:
+#: These are the quiet half of the same drift the field diff catches. The admin
+#: editor's character counter, the `FLAGGED` chip and the approve gate all read
+#: the Python constant, while the Astro build enforces the literal. Two numbers
+#: that disagree means the editor says a draft is fine and the build refuses it,
+#: or worse, the other way round.
+NUMERIC_BOUNDS = (
+    ("SUMMARY_MAX_CHARS", r"summary:\s*z\.string\(\)\.min\(1\)\.max\((\d+)\)"),
+    ("FAQ_MAX_ITEMS", r"\.max\((\d+),\s*\{\s*message:\s*\"faq is capped"),
+)
+
+
+def _compare_numeric_bounds(failures: list[str], text: str | None = None) -> None:
+    """`admin/config.py`'s bounds against the literals in the zod schema."""
+    if text is None:
+        text = ZOD_SCHEMA_PATH.read_text(encoding="utf-8")
+    for name, pattern in NUMERIC_BOUNDS:
+        match = re.search(pattern, text)
+        python_value = getattr(py_config, name, None)
+        if python_value is None:
+            failures.append(f"{name}: absent from admin/config.py")
+            continue
+        if match is None:
+            failures.append(
+                f"{name}: the matching bound was not found in the zod schema. "
+                f"Either the schema moved it or this check's pattern is stale, "
+                f"and both are worth knowing about."
+            )
+            continue
+        if int(match.group(1)) != python_value:
+            failures.append(
+                f"{name}: the zod schema says {match.group(1)}, "
+                f"admin/config.py says {python_value}"
+            )
+
+
 def _compare_config_pair(failures: list[str]) -> None:
     """`site/src/config.ts` ↔ `admin/config.py`: same names, same order, members.
 
@@ -409,12 +460,19 @@ def run() -> tuple[list[str], list[str]]:
     _compare_field_sets(failures, pending)
     _compare_storage(failures)
     _compare_config_pair(failures)
+    _compare_numeric_bounds(failures)
 
     for relative, (what, gate) in sorted(PENDING_SURFACES.items()):
+        if not (ROOT / relative).is_file():
+            pending.append(f"{relative} — {what} (Gate {gate})")
+
+    for relative, (what, gate) in sorted(SHIPPED_SURFACES.items()):
         if relative == "admin/schema.py":
             continue  # reported by _compare_field_sets, which reads it
         if not (ROOT / relative).is_file():
-            pending.append(f"{relative} — {what} (Gate {gate})")
+            failures.append(
+                f"{relative} is missing — {what}, shipped at Gate {gate}"
+            )
 
     return failures, pending
 
@@ -511,6 +569,27 @@ def _selftest() -> list[str]:
         if not any("VARIETY_KEYS" in f for f in failures):
             errors.append("selftest: a drifted VARIETY_KEYS list was NOT caught")
         py_config.VARIETY_KEYS = saved_varieties  # type: ignore[misc]
+
+        # 6. A numeric bound moving on one side only. Fed a doctored copy of the
+        #    schema text rather than the real file: this check reads a literal
+        #    the schema states, so the drift has to be introduced on that side.
+        failures = []
+        _compare_numeric_bounds(
+            failures,
+            ZOD_SCHEMA_PATH.read_text(encoding="utf-8").replace(
+                ".min(1).max(160)", ".min(1).max(200)"
+            ),
+        )
+        if not any("SUMMARY_MAX_CHARS" in f for f in failures):
+            errors.append("selftest: a drifted summary length bound was NOT caught")
+
+        # And the other side: the pattern going stale must report, never pass.
+        failures = []
+        _compare_numeric_bounds(failures, "the zod schema, with neither bound in it")
+        if len(failures) != len(NUMERIC_BOUNDS):
+            errors.append(
+                "selftest: a bound the zod schema no longer states was NOT reported"
+            )
     finally:
         FIELD_DISPOSITION.clear()
         FIELD_DISPOSITION.update(saved_disposition)
