@@ -43,6 +43,45 @@
   {
     "biodynamic": "none",
     "biodynamic_certifier": null,
+    "category": "negociant",
+    "cellar_door": "none",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Example Label Only",
+    "organic": "none",
+    "organic_certifier": null,
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": true
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "under_1000",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "example-label-only",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "A Yarra Valley label working purchased fruit, with no cellar door and no address open to the public.",
+    "varieties": [
+      "chardonnay",
+      "pinot-noir"
+    ],
+    "vessels": [
+      "oak_barrique",
+      "stainless"
+    ],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
     "category": "garagiste",
     "cellar_door": "by_appointment",
     "fruit_source": "mixed",

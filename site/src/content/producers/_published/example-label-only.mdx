@@ -1,0 +1,134 @@
+---
+name: Example Label Only
+parent_company: null
+ownership_source:
+  source: https://label.example/about
+  method: producer_statement
+  date: 2026-08-07
+category: negociant
+founded_year: 2019
+website: https://label.example
+location:
+  state: VIC
+regions:
+  - yarra-valley
+primary_region: yarra-valley
+cellar_door: none
+organic: none
+organic_certifier: null
+biodynamic: none
+biodynamic_certifier: null
+fruit_source: purchased
+practices:
+  wild_ferment: true
+  unfined: false
+  unfiltered: false
+  minimal_so2: false
+vessels:
+  - stainless
+  - oak_barrique
+varieties:
+  - chardonnay
+  - pinot-noir
+wine_styles:
+  - white
+  - red
+production_band: under_1000
+buy_online: true
+ships_nationally: true
+shop_url: https://label.example/shop
+verification:
+  parent_company:
+    source: https://label.example/about
+    tier: published_by_producer
+    date: &id001 2026-08-07
+  organic:
+    source: https://label.example/about
+    tier: published_by_producer
+    date: *id001
+  biodynamic:
+    source: https://label.example/about
+    tier: published_by_producer
+    date: *id001
+  fruit_source:
+    source: https://label.example/about
+    tier: published_by_producer
+    date: *id001
+  production_band:
+    source: https://label.example/about
+    tier: published_by_producer
+    date: *id001
+  founded_year:
+    source: https://label.example/about
+    tier: published_by_producer
+    date: *id001
+  varieties:
+    source: https://label.example/wines
+    tier: published_by_producer
+    date: *id001
+  wine_styles:
+    source: https://label.example/wines
+    tier: published_by_producer
+    date: *id001
+summary: A Yarra Valley label working purchased fruit, with no cellar door and no address open to the public.
+drafted: 2026-08-07
+verified: *id001
+source_url: https://label.example/about
+faq:
+  - question: Is there a cellar door?
+    answer: No. This is a label rather than a winery site, and the producer publishes no address open to the public.
+  - question: Where does the fruit come from?
+    answer: Growers in the Yarra Valley. The producer owns no vineyard and states so on their own about page.
+  - question: Where can the wine be bought?
+    answer: Through the producer's own online shop, which ships nationally.
+---
+
+{/*
+  FIXTURE. Hand-written for Gate 5, and the reason is written down in two
+  places: SEED.md's "Gaps" section and HANDOVER.md open item 5 both record that
+  no SEED row covers a label-only producer, and both say Gate 5 must test this
+  case with a hand-placed staging file until a real one is found.
+
+  What it exercises, and nothing else does: a `location` carrying only a
+  `state`, which makes `geocode.build_query` return an empty string; null
+  coordinates; and `cellar_door: none`. SCHEMA.md §2 is explicit that such a
+  producer publishes normally and that null coordinates mean no map pin rather
+  than a blocked entry. Basket Range Wine reached that state on 2026-08-07, but
+  only by accident, through a geocoder failure, and the re-geocode action
+  removes the accident. An accident is not a test.
+
+  Example Label Only is not a real business. The name and the domain are both
+  `example`, and every fact below is invented to exercise a field rather than to
+  describe anyone.
+
+  It comes OUT before Gate 8 publishes real producers, on the same condition and
+  for the same reason as `example-wines.mdx`. A fictional entry sitting in a
+  directory whose whole claim is that its entries are documented from published
+  sources would be the worst possible thing to leave behind.
+*/}
+
+Example Label Only buys fruit from growers in the Yarra Valley and has done
+since 2019. There is no vineyard and no winery building open to visitors. The
+wine is made under a shared-space arrangement and sold through the producer's
+own shop.
+
+The producer publishes no address, which is the ordinary arrangement for a label
+at this scale rather than an omission. A reader looking for somewhere to visit
+will not find one here, and this entry does not invent one: there is no cellar
+door, no set of opening hours and no map pin, because the producer has published
+none of those things.
+
+Two wines are made, a chardonnay and a pinot noir, both from purchased fruit.
+Purchased fruit is recorded here as a fact about how the business works and not
+as a mark against it. Production sits under a thousand cases.
+
+<Pull attribution="Example Label Only, on their about page">
+  We do not own a vineyard and we have never claimed to. We buy from four
+  growers and we name them on every back label.
+</Pull>
+
+Fermentation is spontaneous. The wines go into stainless steel and old
+barriques. Nothing here describes how either wine tastes, and nobody working on
+this directory has opened a bottle of it: what is recorded is what the producer
+has published about their own operation, with the page it came from cited at the
+foot of this entry.
