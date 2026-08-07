@@ -1,0 +1,46 @@
+[
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "garagiste",
+    "cellar_door": "by_appointment",
+    "fruit_source": "mixed",
+    "has_image": false,
+    "name": "Example Wines",
+    "organic": "practising",
+    "organic_certifier": null,
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": true,
+      "unfined": true,
+      "wild_ferment": true
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "under_1000",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "example-wines",
+    "state": "SA",
+    "subregions": [
+      "piccadilly-valley"
+    ],
+    "suburb": "Basket Range",
+    "summary": "A garagiste operation in Basket Range working Adelaide Hills fruit across three varieties.",
+    "varieties": [
+      "chardonnay",
+      "gamay",
+      "pinot-noir"
+    ],
+    "vessels": [
+      "amphora",
+      "oak_barrique",
+      "stainless"
+    ],
+    "wine_styles": [
+      "red",
+      "skin_contact",
+      "white"
+    ]
+  }
+]
