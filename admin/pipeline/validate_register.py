@@ -291,13 +291,21 @@ def main() -> int:
         return 1
 
     results = run()
+
+    # METHODOLOGY.md asked to be linted against this list once it existed. It
+    # joins `results` rather than printing beneath them, so the count line
+    # covers it too. A warnings-only check is read by its total; a hit outside
+    # the total is a hit nobody judges, and this one printed `0 hit(s) across
+    # 0 file(s)` above a listed hit until 2026-08-07.
+    methodology = ROOT / "METHODOLOGY.md"
+    if methodology.is_file():
+        extra = lint_text(methodology.read_text(encoding="utf-8"))
+        if extra:
+            results.append((methodology, extra))
+
     total = sum(len(hits) for _, hits in results)
 
-    # METHODOLOGY.md asked to be linted against this list once it existed.
-    methodology = ROOT / "METHODOLOGY.md"
-    extra = lint_text(methodology.read_text(encoding="utf-8")) if methodology.is_file() else []
-
-    if not results and not extra:
+    if not results:
         published = len(list(PUBLISHED_DIR.glob("*.mdx")))
         print(f"VALIDATE 6 PASS — register lint clean across {published} published file(s)")
         return 0
@@ -308,9 +316,6 @@ def main() -> int:
             rel = path.relative_to(ROOT)
             print(f"  {rel}:{hit['line']}  {hit['kind']}: {hit['phrase']!r}")
             print(f"      {hit['excerpt']}")
-    for hit in extra:
-        print(f"  METHODOLOGY.md:{hit['line']}  {hit['kind']}: {hit['phrase']!r}")
-        print(f"      {hit['excerpt']}")
     return 0
 
 
