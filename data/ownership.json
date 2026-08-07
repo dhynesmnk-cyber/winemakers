@@ -29,7 +29,8 @@
     "ABSENCE FROM THIS FILE MEANS UNCHECKED, NOT CLEARED. It is not a whitelist and must never be read as one. The determination still runs per SCHEMA.md §4.2 for every producer.",
     "OWNERSHIP MOVES, AND THREE RECORDS ALREADY HAVE. Stonier left Accolade in 2022 and Knappstein left in 2025; both would have been wrong rejections. Vinarchy is cutting about 40 per cent of its brands and Endeavour announced a Pinnacle restructure and winery sales in May 2026. Re-verify before Gate 4 and on a standing basis after it; /validate check 8 re-checks every published producer against this file for exactly that reason.",
     "Coles Liquor's exclusive-label list is unpopulated. The domains still match; the label names do not.",
-    "Négociant and virtual-brand coverage is untested. SEED.md carries no négociant fixture."
+    "NO VIRTUAL-BRAND RECORD CARRIES A REJECT, AND THAT IS AN HONEST GAP RATHER THAN AN OVERSIGHT. Gate 4 swept published sources for an Australian virtual brand whose parent is documented to SCHEMA.md §4.2's standard and found none that is not already inside an existing record. The retailer 'phantom' labels — Cow Bombie, Forest of Echoes, Train to Nowhere and the rest — are Pinnacle Drinks, which is an alias of Endeavour Group, so they belong in that record and inherit its check verdict; they cannot be given a second parent. One trade page attributing roughly two hundred brands to Endeavour was rejected outright as a source: it lists Josef Chromy, Shingleback, Oakridge and Cape Mentelle among them, three of which are independent or already recorded under another parent. Importing it would have rejected real McLaren Vale and Tasmanian producers. A virtual brand is by construction absent from a deny-list until somebody identifies its owner; until then the catch is the reviewer, looking for a physical address, an operating entity and a person's name. Négociant coverage is likewise untested and SEED.md carries no négociant fixture.",
+    "RETAILERS AND RESTAURANTS WERE ADDED 2026-08-07 (Gate 4): Merivale, Vinomofo, Naked Wines Australia and ALDI Stores. All four are seeded with domains rather than labels, because the value is stopping the retailer's or restaurant's own site from being harvested as a producer, and because none of their house-label lists is verified to the standard this file requires. Naked Wines is the one to read twice: it funds independent winemakers who run their own businesses, so its domains are listed and its winemakers' labels must never be."
   ],
   "categories": {
     "corporate_portfolio": "A company holding multiple label businesses. SCHEMA.md §4.4 reject category.",
@@ -225,7 +226,10 @@
         "baileysofglenrowan.com.au",
         "brandslaira.com.au"
       ],
-      "aliases": ["Casella Wines", "Casella Wines Pty Limited"],
+      "aliases": [
+        "Casella Wines",
+        "Casella Wines Pty Limited"
+      ],
       "abns": [],
       "source": "https://www.casellafamilybrands.com/about/our-story",
       "updated": "2026-08-07",
@@ -248,7 +252,11 @@
         "tempustwo.com.au",
         "nepenthe.com.au"
       ],
-      "aliases": ["Australian Vintage Limited", "AVL", "McGuigan Simeon Wines"],
+      "aliases": [
+        "Australian Vintage Limited",
+        "AVL",
+        "McGuigan Simeon Wines"
+      ],
       "abns": [],
       "source": "https://avlwines.com.au/",
       "updated": "2026-08-07",
@@ -377,7 +385,9 @@
         "tamarridge.com.au",
         "innocentbystander.com.au"
       ],
-      "aliases": ["Brown Brothers Milawa Vineyard"],
+      "aliases": [
+        "Brown Brothers Milawa Vineyard"
+      ],
       "abns": [],
       "source": "https://www.brownfamilywinegroup.com.au/",
       "updated": "2026-08-07",
@@ -411,7 +421,10 @@
         "smithbrook.com.au",
         "lowestoft.wine"
       ],
-      "aliases": ["Fogarty Hall Fine Wine Estates", "Fogarty Group"],
+      "aliases": [
+        "Fogarty Hall Fine Wine Estates",
+        "Fogarty Group"
+      ],
       "abns": [],
       "source": "https://www.fogarty.wine/pages/about-us",
       "updated": "2026-08-07",
@@ -421,14 +434,20 @@
       "parent": "Rathbone Wine Group",
       "category": "family_group",
       "verdict": "reject",
-      "labels": ["Yering Station", "Mount Langi Ghiran", "Xanadu Wines"],
+      "labels": [
+        "Yering Station",
+        "Mount Langi Ghiran",
+        "Xanadu Wines"
+      ],
       "domains": [
         "rathbonewinegroup.com",
         "yering.com",
         "langi.com.au",
         "xanaduwines.com"
       ],
-      "aliases": ["Rathbone Family Group"],
+      "aliases": [
+        "Rathbone Family Group"
+      ],
       "abns": [],
       "source": "https://www.rathbonewinegroup.com/",
       "updated": "2026-08-07",
@@ -449,7 +468,10 @@
         "yangarra.com",
         "hickinbothamwines.com.au"
       ],
-      "aliases": ["Kendall-Jackson", "Jackson Family Estates"],
+      "aliases": [
+        "Kendall-Jackson",
+        "Jackson Family Estates"
+      ],
       "abns": [],
       "source": "https://www.thedrinksbusiness.com/2020/08/jackson-family-wines-buys-giant-steps/",
       "updated": "2026-08-07",
@@ -459,9 +481,20 @@
       "parent": "Moët Hennessy",
       "category": "corporate_portfolio",
       "verdict": "reject",
-      "labels": ["Chandon Australia", "Domaine Chandon Australia"],
-      "domains": ["chandon.com.au", "moethennessy.com", "lvmh.com"],
-      "aliases": ["LVMH", "Moët Hennessy Louis Vuitton", "Domaine Chandon"],
+      "labels": [
+        "Chandon Australia",
+        "Domaine Chandon Australia"
+      ],
+      "domains": [
+        "chandon.com.au",
+        "moethennessy.com",
+        "lvmh.com"
+      ],
+      "aliases": [
+        "LVMH",
+        "Moët Hennessy Louis Vuitton",
+        "Domaine Chandon"
+      ],
       "abns": [],
       "source": "https://www.chandon.com.au/",
       "updated": "2026-08-07",
@@ -471,9 +504,18 @@
       "parent": "Heytesbury Pty Ltd",
       "category": "investor_owned",
       "verdict": "check",
-      "labels": ["Vasse Felix", "Heytesbury"],
-      "domains": ["vassefelix.com.au"],
-      "aliases": ["Heytesbury Wine Group", "Holmes à Court family", "Holmes a Court"],
+      "labels": [
+        "Vasse Felix",
+        "Heytesbury"
+      ],
+      "domains": [
+        "vassefelix.com.au"
+      ],
+      "aliases": [
+        "Heytesbury Wine Group",
+        "Holmes à Court family",
+        "Holmes a Court"
+      ],
       "abns": [],
       "source": "https://www.vassefelix.com.au/heytesbury-wine-group",
       "updated": "2026-08-07",
@@ -483,21 +525,32 @@
       "parent": "Peter Kight",
       "category": "investor_owned",
       "verdict": "check",
-      "labels": ["Torbreck", "Torbreck Vintners"],
-      "domains": ["torbreck.com"],
-      "aliases": ["Pete Kight", "Quivira Vineyards"],
+      "labels": [
+        "Torbreck",
+        "Torbreck Vintners"
+      ],
+      "domains": [
+        "torbreck.com"
+      ],
+      "aliases": [
+        "Pete Kight",
+        "Quivira Vineyards"
+      ],
       "abns": [],
       "source": "https://en.wikipedia.org/wiki/Torbreck",
       "updated": "2026-08-07",
       "note": "Acquired 2008 by the American owner of Quivira in Sonoma. An outside individual investor rather than a portfolio company, which is precisely the case the strict rule was chosen to catch and precisely the case a reviewer should sign off on rather than a matcher."
     },
-
     {
       "parent": "Australian Yinmore Wines",
       "category": "investor_owned",
       "verdict": "reject",
-      "labels": ["Knappstein"],
-      "domains": ["knappstein.com.au"],
+      "labels": [
+        "Knappstein"
+      ],
+      "domains": [
+        "knappstein.com.au"
+      ],
       "aliases": [
         "Yinmore Wines",
         "Australian Yinmore Wines Pty Ltd",
@@ -513,9 +566,20 @@
       "parent": "Wirra Wirra Wines",
       "category": "family_group",
       "verdict": "reject",
-      "labels": ["Wirra Wirra", "Ashton Hills", "Ashton Hills Vineyard", "Hahndorf Hill"],
-      "domains": ["wirrawirra.com", "ashtonhills.com.au", "hahndorfhillwinery.com.au"],
-      "aliases": ["Wirra Wirra Vineyards"],
+      "labels": [
+        "Wirra Wirra",
+        "Ashton Hills",
+        "Ashton Hills Vineyard",
+        "Hahndorf Hill"
+      ],
+      "domains": [
+        "wirrawirra.com",
+        "ashtonhills.com.au",
+        "hahndorfhillwinery.com.au"
+      ],
+      "aliases": [
+        "Wirra Wirra Vineyards"
+      ],
       "abns": [],
       "source": "https://theshout.com.au/wirra-wirra-acquires-ashton-hills/",
       "updated": "2026-08-07",
@@ -525,9 +589,19 @@
       "parent": "Kirby family",
       "category": "family_group",
       "verdict": "reject",
-      "labels": ["Yabby Lake", "Yabby Lake Vineyard", "Heathcote Estate"],
-      "domains": ["yabbylake.com", "heathcoteestate.com"],
-      "aliases": ["Robert and Mem Kirby", "Kirby Group"],
+      "labels": [
+        "Yabby Lake",
+        "Yabby Lake Vineyard",
+        "Heathcote Estate"
+      ],
+      "domains": [
+        "yabbylake.com",
+        "heathcoteestate.com"
+      ],
+      "aliases": [
+        "Robert and Mem Kirby",
+        "Kirby Group"
+      ],
       "abns": [],
       "source": "https://winecompanion.com.au/wineries/victoria/mornington-peninsula/yabby-lake-vineyard",
       "updated": "2026-08-07",
@@ -537,9 +611,18 @@
       "parent": "Gjergja family",
       "category": "family_group",
       "verdict": "reject",
-      "labels": ["Port Phillip Estate", "Kooyong", "Kooyong Estate"],
-      "domains": ["portphillipestate.com.au", "kooyong.com"],
-      "aliases": ["Giorgio and Dianne Gjergja"],
+      "labels": [
+        "Port Phillip Estate",
+        "Kooyong",
+        "Kooyong Estate"
+      ],
+      "domains": [
+        "portphillipestate.com.au",
+        "kooyong.com"
+      ],
+      "aliases": [
+        "Giorgio and Dianne Gjergja"
+      ],
       "abns": [],
       "source": "https://www.portphillipestate.com.au/",
       "updated": "2026-08-07",
@@ -549,9 +632,20 @@
       "parent": "Edouard Peter",
       "category": "investor_owned",
       "verdict": "reject",
-      "labels": ["Yarra Yering", "Kaesler", "Kaesler Wines"],
-      "domains": ["yarrayering.com", "kaesler.com.au"],
-      "aliases": ["Ed Peter", "Dhall & Nash", "Terra Sancta"],
+      "labels": [
+        "Yarra Yering",
+        "Kaesler",
+        "Kaesler Wines"
+      ],
+      "domains": [
+        "yarrayering.com",
+        "kaesler.com.au"
+      ],
+      "aliases": [
+        "Ed Peter",
+        "Dhall & Nash",
+        "Terra Sancta"
+      ],
       "abns": [],
       "source": "https://cellarpress.vintagecellars.com.au/local-loves/the-yarra-yering-story",
       "updated": "2026-08-07",
@@ -561,9 +655,20 @@
       "parent": "Circe Wines",
       "category": "family_group",
       "verdict": "check",
-      "labels": ["Stonier", "Stonier Wines", "Circe Wines"],
-      "domains": ["stonier.com.au", "circewines.com.au"],
-      "aliases": ["Drummond family", "McLeod family", "Thickins family"],
+      "labels": [
+        "Stonier",
+        "Stonier Wines",
+        "Circe Wines"
+      ],
+      "domains": [
+        "stonier.com.au",
+        "circewines.com.au"
+      ],
+      "aliases": [
+        "Drummond family",
+        "McLeod family",
+        "Thickins family"
+      ],
       "abns": [],
       "source": "https://www.winewithseth.com/winewiki/stonier-wines/",
       "updated": "2026-08-07",
@@ -573,9 +678,17 @@
       "parent": "The Lane Vineyard ownership group",
       "category": "investor_owned",
       "verdict": "check",
-      "labels": ["The Lane Vineyard", "The Lane"],
-      "domains": ["thelane.com.au"],
-      "aliases": ["Vestey Group", "Jared Stringer"],
+      "labels": [
+        "The Lane Vineyard",
+        "The Lane"
+      ],
+      "domains": [
+        "thelane.com.au"
+      ],
+      "aliases": [
+        "Vestey Group",
+        "Jared Stringer"
+      ],
       "abns": [],
       "source": "https://www.thelane.com.au/about-us/",
       "updated": "2026-08-07",
@@ -585,16 +698,93 @@
       "parent": "Haselgrove Wines ownership group",
       "category": "investor_owned",
       "verdict": "check",
-      "labels": ["Haselgrove Wines"],
-      "domains": ["haselgrove.com.au"],
+      "labels": [
+        "Haselgrove Wines"
+      ],
+      "domains": [
+        "haselgrove.com.au"
+      ],
       "aliases": [],
       "abns": [],
       "source": "https://www.mclarenvaleandfleurieucoast.com.au/haselgrove-wines",
       "updated": "2026-08-07",
       "note": "Founded 1981 and bought in 2008 by four Italian-Australian figures from the wine trade. McLaren Vale, a Gate 8 coverage region. NAME COLLISION, AND IT MATTERS: Nick Haselgrove Wines and James Haselgrove Wines are separate McLaren Vale businesses run by the Haselgrove family and are NOT part of this record. Match the full trading name, never the surname."
+    },
+    {
+      "parent": "Merivale",
+      "category": "restaurant",
+      "verdict": "reject",
+      "labels": [],
+      "domains": [
+        "merivale.com",
+        "merivale.com.au"
+      ],
+      "aliases": [
+        "Merivale Group",
+        "Hemmes Trading",
+        "The Merivale Group"
+      ],
+      "abns": [],
+      "source": "https://www.therealreview.com/2019/08/15/merivale-releases-own-brand-wines/",
+      "updated": "2026-08-07",
+      "note": "SCHEMA.md §4.4's restaurant category. Sydney's largest hospitality group, and it releases own-brand wines made under contract elsewhere — the group wine director's range is sold through its own bottle shops. Seeded with domains and NO labels, the same posture as Coles Group and for the same reason: the trade source names individual wines in the range but does not separate Merivale's own labels from wines it merely selected, and at least one name in it (Grossot) is a real Chablis domaine. A guessed label name in a deny-list blocks a real business. TO VERIFY: 'Mother Hen', an Adelaide Hills Chardonnay reported as made at Tapanappa, is the one worth establishing — Adelaide Hills is a Gate 8 coverage region and that label is exactly the shape that gets harvested as independent."
+    },
+    {
+      "parent": "Vinomofo",
+      "category": "retailer",
+      "verdict": "reject",
+      "labels": [
+        "Kinda Independent Wine Company"
+      ],
+      "domains": [
+        "vinomofo.com",
+        "vinomofo.com.au"
+      ],
+      "aliases": [
+        "Vinomofo Pty Ltd",
+        "Kinda Independent Wine Company"
+      ],
+      "abns": [],
+      "source": "https://www.bloomberg.com/profile/company/1732635D:AU",
+      "updated": "2026-08-07",
+      "note": "SCHEMA.md §4.4's pure-retailer category: an online wine retailer, not a producer. Listed because the retailer's own site would otherwise be harvestable as a producer. Its house label trades as Kinda Independent Wine Company — the name is the register's best single illustration of why a tone test cannot work, since the label announces the ambiguity and still is not independent. The co-producers named in trade coverage (Hither & Yon, De Bortoli and others) are separate businesses and are deliberately NOT listed here: they make wine under contract, which is not ownership."
+    },
+    {
+      "parent": "Naked Wines Australia",
+      "category": "retailer",
+      "verdict": "reject",
+      "labels": [],
+      "domains": [
+        "nakedwines.com.au",
+        "nakedwines.com"
+      ],
+      "aliases": [
+        "Naked Wines International Limited",
+        "Naked Wines.com"
+      ],
+      "abns": [],
+      "source": "https://www.nakedwines.com.au/content/about/about",
+      "updated": "2026-08-07",
+      "note": "A pure retailer, listed so its own domain is never harvested as a producer. NO LABELS ARE LISTED AND NONE SHOULD BE. Naked funds independent winemakers to make wines sold exclusively through it; those winemakers run their own businesses and Naked does not own them. Listing their labels would be the exact over-blocking error this file's inclusion_rule warns against, and it would reject genuinely independent producers — the worst failure mode available to a deny-list. An exclusive supply arrangement is not ownership."
+    },
+    {
+      "parent": "ALDI Stores",
+      "category": "retailer_private_label",
+      "verdict": "check",
+      "labels": [],
+      "domains": [
+        "aldi.com.au"
+      ],
+      "aliases": [
+        "ALDI Stores (A Limited Partnership)",
+        "ALDI Australia"
+      ],
+      "abns": [],
+      "source": "https://www.aldi.com.au/",
+      "updated": "2026-08-07",
+      "note": "Seeded with domains and no labels, matching Coles Group. Carries check rather than reject on the same reasoning the verdict_field records for retailer-exclusive labels: the attributions available are trade reporting rather than a registry. Its exclusive wine brands are unpopulated because they have not been verified."
     }
   ],
-
   "checked_and_not_listed": [
     "Recorded so the work is not repeated. Each was looked at on 2026-08-07 and deliberately left out, because a deny-list is judged as much by what it does not block.",
     "TarraWarra Estate (Yarra Valley) — founded and owned by the Besen family since 1979. One label, founding family, no parent. Publishes.",
