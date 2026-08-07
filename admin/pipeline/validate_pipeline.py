@@ -269,6 +269,24 @@ def _selftest() -> list[str]:
               "row 3: the log does not state the character count")
         check(h.drafts == [], "row 3: a draft was written from a thin page")
 
+    # ── Off-site redirect: never publish one business as another ──────────
+    #    Found live: citywinery.com.au now 301s to dietpills.com.au.
+    with Harness() as h:
+        def redirected(url: str, **kw: Any):
+            raise fetcher.OffSiteRedirect(url, "https://www.dietpills.com.au/post/x")
+        fetcher.fetch = redirected
+        result, lines = _harvest([harvester_json(), DRAFT_MDX, DRAFT_MDX])
+        check(result.state == harvest.FAILED, "off-site redirect: did not FAIL")
+        check(h.drafts == [],
+              "off-site redirect: A DRAFT WAS WRITTEN FROM ANOTHER BUSINESS'S SITE")
+        check("dietpills" in _text(lines), "off-site redirect: the log does not name where it went")
+
+    # A same-site redirect must still be followed without complaint.
+    check(fetcher.same_business("https://example.com.au/", "https://www.example.com.au/about"),
+          "off-site redirect: an apex-to-www redirect was treated as off-site")
+    check(not fetcher.same_business("https://a.com.au/", "https://b.com.au/"),
+          "off-site redirect: a genuine change of domain was allowed")
+
     # ── Boilerplate: a privacy policy must never become a producer ────────
     #    Not a UX.md §1.5 row. Added at Gate 5 against d'Arenberg's homepage,
     #    which extracts to 9,039 characters of privacy policy and no winery.
@@ -505,7 +523,8 @@ def main() -> int:
         return 1
     print(
         "PIPELINE FIXTURES PASS — failure table rows 1, 2, 3, 4, 5, 7, 8, 9 and 11, "
-        "boilerplate refusal both ways, certification downgrade, token ledger, "
+        "boilerplate refusal both ways, off-site redirect refusal, certification "
+        "downgrade, token ledger, "
         "Gatekeeper fallback, and a ten-URL batch with two isolated failures"
     )
     return 0

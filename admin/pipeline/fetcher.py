@@ -123,6 +123,33 @@ class BoilerplateExtraction(Exception):
         self.ratio = ratio
 
 
+class OffSiteRedirect(Exception):
+    """The URL asked for and the URL served are different businesses.
+
+    FOUND LIVE, and it is the most dangerous thing in this module.
+    `citywinery.com.au` — an urban winery considered as a SEED fixture — now
+    301s to `dietpills.com.au`. httpx followed it, the fetch reported success,
+    and the extraction was a weight-loss article. Nothing downstream would have
+    known: the Harvester would have been handed that text and told it came from
+    citywinery.com.au.
+
+    A lapsed domain that has been resold is exactly the case this catches, and
+    the failure mode it prevents is the worst one available to this project:
+    publishing another party's content as a named producer's own.
+
+    Redirects WITHIN a registrable domain are normal and are followed silently
+    (http to https, apex to www, a moved path). Only a change of business is an
+    error.
+    """
+
+    def __init__(self, url: str, final_url: str):
+        super().__init__(
+            f"redirected off-site: {urlparse(url).netloc} -> {urlparse(final_url).netloc}"
+        )
+        self.url = url
+        self.final_url = final_url
+
+
 class ThinExtraction(Exception):
     """UX.md §1.5 row 3. The item ends WITHOUT drafting.
 
@@ -234,6 +261,22 @@ def _respect_crawl_delay(url: str, log: Logger) -> None:
 # =============================================================================
 # 3. Extraction
 # =============================================================================
+
+
+def registrable(host: str) -> str:
+    """`shop.example.com.au` -> `example.com.au`. Enough to compare businesses."""
+    parts = [part for part in host.lower().split(".") if part]
+    if len(parts) <= 2:
+        return ".".join(parts)
+    if parts[-1] == "au" and len(parts) >= 3:
+        return ".".join(parts[-3:])
+    return ".".join(parts[-2:])
+
+
+def same_business(url: str, final_url: str) -> bool:
+    left = registrable(urlparse(url).netloc)
+    right = registrable(urlparse(final_url).netloc)
+    return not left or not right or left == right
 
 
 def extract_text(html: str) -> str:
@@ -399,6 +442,9 @@ def fetch(
     else:
         html, final_url, status, size = _fetch_httpx(url)
         rendered_by = "httpx"
+
+    if not same_business(url, final_url):
+        raise OffSiteRedirect(url, final_url)
 
     fetched = Fetched(
         url=url,

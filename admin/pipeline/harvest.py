@@ -154,6 +154,15 @@ def harvest_one(
             return HarvestResult(
                 FAILED, url, detail=f"thin extraction: {exc.chars} chars", offer_playwright=True
             )
+        except fetcher.OffSiteRedirect as exc:
+            log("error", str(exc))
+            log(
+                "info",
+                "no draft written. The domain no longer serves this producer, so "
+                "anything harvested here would be another party's content under "
+                "their name.",
+            )
+            return HarvestResult(FAILED, url, detail=str(exc))
         except fetcher.BoilerplateExtraction as exc:
             # No Playwright offer: the page rendered fine, it is the wrong page.
             log("warn", f"{exc} ({len(exc.fetched.text)} chars)")
