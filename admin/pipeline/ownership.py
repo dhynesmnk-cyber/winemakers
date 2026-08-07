@@ -639,6 +639,50 @@ def signal_rows(signals: Any) -> list[dict[str, Any]]:
     return rows
 
 
+def hit_rows(rows: list[Row]) -> list[dict[str, Any]]:
+    """A resolution row for every deny-list hit that returned `check`.
+
+    *Extends UX.md §1.4.3, flagged for sign-off.* The spec requires every
+    extracted **signal** to be resolved before a `check` can be approved, and
+    says nothing about a deny-list hit that produced a `check` — a hit carries
+    no signal rows, so such a draft could be approved on a recorded source alone
+    with nothing making the reviewer engage with the match.
+
+    That is the wrong way round. A named deny-list record is the strongest
+    evidence on the screen, stronger than any extracted phrase, and the one
+    thing §1.4.5 exists to stop is a `check` sliding through. So a `check` hit
+    gets the same three resolutions and the same note rule the signal rows use.
+    Nothing new is invented; §1.4.3's mechanism is applied to §1.4.2's evidence.
+
+    A `reject` hit gets no row. There is no resolution for a reject and offering
+    one would be an override, which UX.md §1.4.4 forbids outright.
+    """
+    return [
+        {
+            "key": f"deny_list:{row.match.check}",
+            "check": row.match.check,
+            "parent": row.match.parent,
+            "matched": row.match.matched,
+            "resolution": None,
+            "note": "",
+        }
+        for row in rows
+        if row.match and row.match.verdict == "check"
+    ]
+
+
+def unresolved_hits(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Deny-list hit rows with no resolution, or one that still needs a note."""
+    pending = []
+    for row in rows or []:
+        resolution = str(row.get("resolution") or "")
+        if resolution not in RESOLUTIONS:
+            pending.append(row)
+        elif resolution in RESOLUTIONS_REQUIRING_NOTE and not str(row.get("note") or "").strip():
+            pending.append(row)
+    return pending
+
+
 def populated_signals(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [row for row in rows if row.get("populated")]
 
@@ -666,6 +710,7 @@ class Determination:
     basis: str
     rows: list[Row] = field(default_factory=list)
     signals: list[dict[str, Any]] = field(default_factory=list)
+    hits_to_resolve: list[dict[str, Any]] = field(default_factory=list)
     register_updated: str = ""
     checked_at: str = ""
     machine_verdict: str = ""
@@ -681,6 +726,7 @@ class Determination:
                 "rows": [row.as_dict() for row in self.rows],
             },
             "signals": self.signals,
+            "hits_to_resolve": self.hits_to_resolve,
             "checked_at": self.checked_at,
             "machine_verdict": self.machine_verdict,
             "verdict_overridden_from": self.verdict_overridden_from,
@@ -797,6 +843,7 @@ def determine(
         basis=_basis_line(verdict, rows, signal_table),
         rows=rows,
         signals=signal_table,
+        hits_to_resolve=hit_rows(rows) if verdict == "check" else [],
         register_updated=str(register.get("updated") or ""),
         checked_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         machine_verdict=machine_verdict,
@@ -861,7 +908,15 @@ def chip_for(sidecar: dict[str, Any] | None) -> str:
         return "NOT DETERMINED"
     verdict = str(sidecar.get("verdict") or "").lower()
     if verdict == "check":
-        return "CHECK" if unresolved_signals(sidecar.get("signals") or []) else "RESOLVED"
+        signals = sidecar.get("signals") or []
+        hits = sidecar.get("hits_to_resolve") or []
+        if unresolved_signals(signals) or unresolved_hits(hits):
+            return "CHECK"
+        # `RESOLVED` is a claim that a person worked through the evidence. With
+        # nothing to work through, nobody has resolved anything and the chip
+        # stays `CHECK` — reading `RESOLVED` there would credit a reviewer with
+        # work they never did.
+        return "RESOLVED" if (populated_signals(signals) or hits) else "CHECK"
     if verdict == "clear":
         return "CLEAR"
     if verdict == "reject":
@@ -929,6 +984,13 @@ def approval_blocks(data: dict[str, Any], sidecar: dict[str, Any] | None) -> lis
             blocks.append(
                 f"{len(pending)} ownership signal{'s are' if len(pending) != 1 else ' is'} "
                 f"unresolved."
+            )
+        hits = unresolved_hits((sidecar or {}).get("hits_to_resolve") or [])
+        if hits:
+            named = ", ".join(sorted({hit.get("parent", "") for hit in hits if hit.get("parent")}))
+            blocks.append(
+                f"{len(hits)} deny-list match{'es are' if len(hits) != 1 else ' is'} "
+                f"unresolved ({named})."
             )
 
     # Rule 2, the other half: no keyboard shortcut approves a draft whose

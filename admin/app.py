@@ -433,6 +433,9 @@ def _ownership_panel(slug: str) -> dict[str, Any] | None:
         "chip": ownership.chip_for(sidecar),
         "unresolved": len(ownership.unresolved_signals(signals)),
         "populated": len(ownership.populated_signals(signals)),
+        "unresolved_hits": len(
+            ownership.unresolved_hits(sidecar.get("hits_to_resolve") or [])
+        ),
         # Display helpers live in Python beside the normalisers they depend on.
         # The admin's JavaScript renders them and reimplements neither.
         "abn_display": {
@@ -547,7 +550,10 @@ async def api_save_ownership(
     if submitted is not None:
         if not isinstance(submitted, dict):
             raise HTTPException(status_code=400, detail="resolutions must be an object")
-        for row in sidecar.get("signals") or []:
+        # Signal rows and deny-list hit rows share one keyspace and one control,
+        # so a reviewer resolves both the same way.
+        rows = (sidecar.get("signals") or []) + (sidecar.get("hits_to_resolve") or [])
+        for row in rows:
             if row.get("key") not in submitted:
                 continue
             entry = submitted[row["key"]] or {}

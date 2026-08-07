@@ -682,3 +682,214 @@ dialog dt {
     height: 60vh;
   }
 }
+
+/* ── The independence panel — UX.md §1.4.1 to §1.4.3 ─────────────────────────
+ *
+ * "The one part of the hub where the interface's job is to make a reviewer slow
+ * down." It is the first thing in the review pane, above the producer's name,
+ * and it cannot be collapsed. The border is heavier than a pinned group's for
+ * that reason: this block is not one section among ten.
+ *
+ * Colour never carries the verdict on its own. The verdict is a word, the
+ * deny-list states are words, and the chip repeats the word. DESIGN.md §8.
+ */
+
+.ownership-panel {
+  border: 1px solid color-mix(in srgb, var(--ink-faded) 45%, transparent);
+  border-left: 3px solid var(--vine);
+  border-radius: 4px;
+  background: var(--paper-raised);
+  padding: 0.75rem 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.ownership-verdict {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.ownership-verdict .verdict-word {
+  font-size: 16px;
+}
+
+.ownership-basis {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 13px;
+}
+
+/* A `check` reads as the exception it is, and a reject harder still. */
+.ownership-panel:has(.chip-check),
+.ownership-panel:has(.chip-not-determined) {
+  border-left-color: var(--claret);
+}
+
+.ownership-panel:has(.chip-reject) {
+  border-left-width: 5px;
+  border-left-color: var(--claret);
+}
+
+.note.prominent {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--claret);
+  border-left: 2px solid var(--claret);
+  padding-left: 0.5rem;
+}
+
+.deny-block,
+.signal-block {
+  margin-top: 0.85rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid color-mix(in srgb, var(--ink-faded) 25%, transparent);
+}
+
+.deny-block > .mono-caps,
+.signal-block > .mono-caps {
+  margin: 0 0 0.4rem;
+  color: var(--ink-faded);
+}
+
+.deny-table,
+.signal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.deny-table td,
+.signal-table td {
+  padding: 0.3rem 0.4rem 0.3rem 0;
+  vertical-align: top;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink-faded) 15%, transparent);
+}
+
+/* The label column. Scoped away from `.deny-detail`, whose cell spans all three
+ * columns and is therefore also a first child: without the exclusion it
+ * inherits `nowrap` and the matched record runs off the side of the panel. */
+.deny-table tr:not(.deny-detail) > td:first-child,
+.signal-table td:first-child {
+  width: 8.5rem;
+  color: var(--ink-faded);
+  white-space: nowrap;
+}
+
+/* The three states are words first. Colour is a second signal, never the only
+ * one, so a monochrome print or a colour-blind reader loses nothing. */
+.deny-no-match {
+  color: var(--ink-faded);
+}
+
+.deny-match {
+  color: var(--claret);
+  font-weight: 600;
+}
+
+.deny-not-checked,
+.deny-unreadable {
+  color: var(--ink-faded);
+  font-style: italic;
+}
+
+.deny-detail td {
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink-faded) 25%, transparent);
+}
+
+.deny-parent {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+  color: var(--claret);
+}
+
+.quote {
+  margin: 0.15rem 0;
+  font-style: italic;
+}
+
+.resolution-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.resolution {
+  flex: 0 0 auto;
+}
+
+.resolution-note {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+/* ── The Blocked list — UX.md §1.4.4 ─────────────────────────────────────── */
+
+.blocked-row {
+  padding: 0.5rem 0.4rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink-faded) 20%, transparent);
+  cursor: pointer;
+}
+
+.blocked-row:hover,
+.blocked-row:focus-visible {
+  background: var(--paper-raised);
+}
+
+.blocked-name {
+  margin: 0;
+  font-size: 13px;
+}
+
+.blocked-reason {
+  margin: 0.15rem 0 0;
+  color: var(--claret);
+  font-size: 11px;
+}
+
+.blocked-detail {
+  margin-top: 0.6rem;
+  padding: 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--ink-faded) 30%, transparent);
+  border-radius: 4px;
+  background: var(--paper-raised);
+}
+
+.blocked-actions {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.blocked-actions .note {
+  flex: 1 1 100%;
+}
+
+/* A deny-list record carries a source URL, and a source URL is one long
+ * unbroken token. Without this it forces the table wider than the column and
+ * pushes the whole review pane off the right edge of the screen. */
+.deny-table,
+.signal-table {
+  table-layout: fixed;
+  max-width: 100%;
+}
+
+.deny-table td,
+.signal-table td,
+.deny-detail p {
+  overflow-wrap: anywhere;
+}
+
+.deny-detail a {
+  word-break: break-all;
+}
+
+/* Flex and grid children default to min-width:auto, which lets a wide child
+ * win against the track. The columns are what should win. */
+.col,
+.editor,
+.review-split > * {
+  min-width: 0;
+}

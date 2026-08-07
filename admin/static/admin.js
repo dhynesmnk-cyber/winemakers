@@ -24,6 +24,7 @@ const state = {
   body: "",
   errors: {},
   ownershipBlocks: [],
+  ownership: null,
   saveTimer: null,
   undoTimer: null,
   loaded: false,
@@ -120,6 +121,30 @@ async function submitHarvest(value) {
   notes.hidden = response.notes.length === 0;
   notes.textContent = response.notes.join(". ");
   renderHarvestQueue(response);
+  followHarvest();
+}
+
+/* The runner is serial and server-held, so the browser has to ask how it is
+ * going. Polling stops as soon as nothing is queued or running, rather than
+ * ticking forever against an idle queue. */
+let harvestPoll = null;
+
+function followHarvest() {
+  if (harvestPoll) return;
+  harvestPoll = setInterval(async () => {
+    const data = await fetch("/api/harvest/queue").then((r) => r.json());
+    renderHarvestQueue(data);
+    const busy = (data.items || []).some(
+      (item) => item.state === "QUEUED" || item.state === "RUNNING",
+    );
+    if (!busy) {
+      clearInterval(harvestPoll);
+      harvestPoll = null;
+      // A block is written during the run, so the list is read after it.
+      refreshBlocked();
+      refreshQueue();
+    }
+  }, 1000);
 }
 
 $("#harvest-single").addEventListener("submit", (event) => {
@@ -409,9 +434,339 @@ function readonlyBlock(value) {
   });
 }
 
+/* ── The independence panel — UX.md §1.4.1 to §1.4.3 ───────────────────────
+ *
+ * "It is the one part of the hub where the interface's job is to make a
+ * reviewer slow down."
+ *
+ * The panel is the first thing in the review pane, above the producer's name.
+ * It cannot be collapsed and it renders for every draft including a clear one.
+ *
+ * THE VERDICT IS DISPLAYED, NEVER EDITED. There is no control here that sets
+ * it, and there is none anywhere else in this hub either (UX.md §1.4.5 rule 4,
+ * CLAUDE.md rule 8 in interface form). What a reviewer records is evidence and
+ * resolutions; the gate is then satisfied or it is not.
+ */
+
+const VERDICT_WORD = { clear: "Clear", check: "Check", reject: "Reject" };
+
+function resolutionControls(key, current, note, options) {
+  const select = el("select", { class: "resolution", "data-signal": key }, [
+    el("option", { value: "", text: "Unresolved" }),
+  ]);
+  for (const option of options) {
+    select.append(
+      el("option", {
+        value: option.value,
+        text: option.label + (option.note_required ? " (note required)" : ""),
+        selected: current === option.value,
+      }),
+    );
+  }
+  const field = el("input", {
+    type: "text",
+    class: "resolution-note",
+    "data-signal": key,
+    value: note || "",
+    placeholder: "One line: why this is resolved",
+  });
+  select.addEventListener("change", saveOwnership);
+  field.addEventListener("change", saveOwnership);
+  return el("div", { class: "resolution-controls" }, [select, field]);
+}
+
+function denyListRow(row, labels, panel) {
+  const cells = [
+    el("td", { class: "mono", text: labels[row.check] || row.check }),
+    el("td", { class: "mono", text: row.value || "not on the page" }),
+    el("td", { class: `mono deny-${row.state.replace(/ /g, "-")}`, text: row.state }),
+  ];
+  const line = el("tr", {}, cells);
+  if (!row.match) return [line];
+
+  // On a hit the row expands to the matched record in full. The panel never
+  // says only "matched": a reviewer must be able to see the evidence behind a
+  // block without opening a JSON file (UX.md §1.4.2).
+  const m = row.match;
+  const detail = el("td", { colspan: "3" }, [
+    el("p", { class: "deny-parent", text: m.parent }),
+    el("p", {
+      class: "note",
+      text:
+        `Matched ${JSON.stringify(m.matched)} in ${m.matched_in}` +
+        `${m.exact ? "" : ", as part of a longer name"}. ` +
+        `Category ${m.category || "not recorded"}. ` +
+        `Record verdict ${m.record_verdict}${
+          m.verdict === m.record_verdict ? "" : `, applied as ${m.verdict}`
+        }.`,
+    }),
+  ]);
+  if (m.abn_evidence) {
+    const e = m.abn_evidence;
+    detail.append(
+      el("p", {
+        class: "note mono",
+        text: `ABN ${e.abn}, ${e.entity || "entity not recorded"}, verified ${e.verified || "undated"}.`,
+      }),
+    );
+    if (e.quote) detail.append(el("p", { class: "note quote", text: `"${e.quote}"` }));
+  }
+  if (m.source) {
+    detail.append(
+      el("p", { class: "note" }, [
+        el("a", { href: m.source, rel: "noopener", target: "_blank", text: m.source }),
+        el("span", { class: "faded", text: ` · updated ${m.updated || "undated"}` }),
+      ]),
+    );
+  }
+  if (m.note) detail.append(el("p", { class: "note faded", text: m.note }));
+
+  // A `check` hit carries the same resolution control the signal rows use. A
+  // named deny-list record is the strongest evidence on this screen, and a
+  // reviewer has to say what they make of it before the draft can be approved.
+  // A `reject` hit gets no control: there is no resolution for a reject, and
+  // offering one would be the override UX.md §1.4.4 forbids.
+  const pending = (panel && panel.hits_to_resolve) || [];
+  const hit = pending.find((entry) => entry.check === row.check);
+  if (hit && panel.resolutions.length) {
+    detail.append(
+      el("p", {
+        class: "note",
+        text: `Resolve this match before approving. ${
+          m.verdict === "check" ? "The record's verdict is check, not reject." : ""
+        }`,
+      }),
+      resolutionControls(hit.key, hit.resolution, hit.note, panel.resolutions),
+    );
+  }
+  return [line, el("tr", { class: "deny-detail" }, [detail])];
+}
+
+function signalRow(row, panel) {
+  const label = panel.signal_labels[row.key] || row.key;
+  const cell = el("td", {});
+
+  if (!row.populated) {
+    cell.append(el("p", { class: "faded", text: "nothing extracted" }));
+    return el("tr", {}, [el("td", { class: "mono", text: label }), cell]);
+  }
+
+  const formatted = panel.abn_display[row.key];
+  row.items.forEach((item, index) => {
+    if (formatted) {
+      cell.append(
+        el("p", { class: "mono" }, [
+          document.createTextNode(formatted.formatted[index] || item),
+          el("span", { text: " " }),
+          el("a", {
+            href: formatted.lookup[index],
+            rel: "noopener",
+            target: "_blank",
+            text: "ABR lookup",
+          }),
+        ]),
+      );
+    } else {
+      cell.append(el("p", { class: "quote", text: `"${item}"` }));
+    }
+  });
+
+  // UX.md §1.4.3: every populated row carries a resolution control and a
+  // one-line note. While any row is unresolved, Approve is disabled and the
+  // reason is stated in text beside the button, not only as a tooltip.
+  cell.append(resolutionControls(row.key, row.resolution, row.note, panel.resolutions));
+
+  return el("tr", {}, [el("td", { class: "mono", text: label }), cell]);
+}
+
+function renderOwnershipPanel(data) {
+  const panel = data.ownership;
+  const section = el("section", { class: "ownership-panel", id: "ownership-panel" });
+
+  if (!panel) {
+    // Not a clear panel, and not an empty one either. A draft nothing has
+    // looked at is its own state, and it blocks approval.
+    section.append(
+      el("p", { class: "ownership-verdict" }, [
+        el("span", { class: "chip chip-not-determined", text: "NOT DETERMINED" }),
+      ]),
+      el("p", {
+        class: "note warn",
+        text:
+          "No ownership determination exists for this draft. Nothing has checked " +
+          "the deny-list or read the ownership signals, so there is nothing to " +
+          "display and this draft cannot be approved.",
+      }),
+    );
+    return section;
+  }
+
+  const verdict = String(panel.verdict || "").toLowerCase();
+  section.append(
+    el("p", { class: "ownership-verdict" }, [
+      el("span", { class: `chip chip-${panel.chip.toLowerCase().replace(/ /g, "-")}`, text: panel.chip }),
+      el("strong", { class: "verdict-word", text: VERDICT_WORD[verdict] || "Not determined" }),
+    ]),
+    el("p", { class: "ownership-basis", text: panel.basis || "" }),
+  );
+
+  if (panel.verdict_overridden_from) {
+    section.append(
+      el("p", {
+        class: "note warn prominent",
+        text:
+          "This draft was re-harvested after an automatic ownership reject. " +
+          "Read the signals carefully.",
+      }),
+    );
+  }
+
+  // The three named checks, always all three, whether they hit or not.
+  const body = el("tbody");
+  for (const row of panel.deny_list.rows) {
+    for (const node of denyListRow(row, panel.check_labels, panel)) body.append(node);
+  }
+  section.append(
+    el("div", { class: "deny-block" }, [
+      el("p", {
+        class: "mono mono-caps",
+        text: `Deny-list, data/ownership.json (updated ${panel.deny_list.updated || "undated"})`,
+      }),
+      el("table", { class: "deny-table" }, [body]),
+    ]),
+  );
+
+  // The signals table, always rendered. The empty case is shown as words rather
+  // than as an absent row, because the absence of signals is itself a finding
+  // and it is explicitly NOT evidence of independence (UX.md §1.4.5).
+  const signalBody = el("tbody");
+  for (const row of panel.signals) signalBody.append(signalRow(row, panel));
+  const signalBlock = el("div", { class: "signal-block" }, [
+    el("p", { class: "mono mono-caps", text: "Ownership signals" }),
+  ]);
+  if (panel.populated === 0) {
+    signalBlock.append(
+      el("p", { class: "note", text: "No ownership signals extracted from this page." }),
+      el("p", {
+        class: "note faded",
+        text:
+          "That is not evidence of independence. A corporate portfolio site " +
+          "naming no parent is the normal case, not the exception.",
+      }),
+    );
+  }
+  signalBlock.append(el("table", { class: "signal-table" }, [signalBody]));
+  section.append(signalBlock);
+
+  // Conflict handling. Where sources conflict the registry wins, and the note
+  // is written to the sidecar's confidence_notes and surfaced on every later
+  // visit to this draft. It is not published frontmatter (UX.md §1.4.2).
+  const existing = (panel.confidence_notes || [])
+    .filter((line) => String(line).startsWith("Conflict noted:"))
+    .map((line) => String(line).slice("Conflict noted:".length).trim())[0];
+  const conflict = el("input", {
+    type: "text",
+    id: "conflict-note",
+    value: existing || "",
+    placeholder: "Where sources disagree, the registry wins. Note the conflict here.",
+  });
+  conflict.addEventListener("change", saveOwnership);
+  section.append(
+    el("div", { class: "field", "data-field": "_conflict" }, [
+      el("label", { for: "conflict-note", text: "Conflict noted" }),
+      conflict,
+    ]),
+  );
+
+  for (const line of panel.confidence_notes || []) {
+    if (!String(line).startsWith("Conflict noted:")) {
+      section.append(el("p", { class: "note faded", text: line }));
+    }
+  }
+
+  // Dates side by side, so a reviewer can see how old the ownership evidence is
+  // relative to the rest of the entry. Display only, no block.
+  const source = (data.frontmatter && data.frontmatter.ownership_source) || {};
+  section.append(
+    el("p", { class: "note mono faded" }, [
+      el("span", { text: `ownership_source.date ${source.date || "not recorded"}` }),
+      el("span", { text: "   " }),
+      el("span", { text: `verified ${(data.frontmatter || {}).verified || "not recorded"}` }),
+    ]),
+  );
+
+  // A non-null parent_company blocks approval unconditionally, and the panel
+  // offers the reject with the parent's name pre-filled (UX.md §1.4.2).
+  const parent = (data.frontmatter || {}).parent_company;
+  if (parent) {
+    const reject = el("button", {
+      type: "button",
+      class: "btn btn-danger",
+      text: "Reject as corporately owned",
+    });
+    reject.addEventListener("click", () => {
+      $("#reject-panel").hidden = false;
+      $("#reject-reason").value = `Not an independent producer. Owned by ${parent}.`;
+      $("#reject-reason").focus();
+    });
+    section.append(
+      el("p", {
+        class: "note warn prominent",
+        text:
+          "parent_company is set. This producer cannot be published " +
+          "(SCHEMA.md §4.1). Reject it, or clear the field if it was entered in error.",
+      }),
+      reject,
+    );
+  }
+
+  return section;
+}
+
+async function saveOwnership() {
+  if (!state.slug) return;
+  const resolutions = {};
+  $$(".resolution").forEach((select) => {
+    const key = select.dataset.signal;
+    const note = $(`.resolution-note[data-signal="${key}"]`);
+    resolutions[key] = { resolution: select.value, note: note ? note.value : "" };
+  });
+  const conflictNode = $("#conflict-note");
+  const response = await fetch(`/api/draft/${state.slug}/ownership`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      resolutions,
+      conflict_note: conflictNode ? conflictNode.value : "",
+    }),
+  });
+  if (!response.ok) {
+    $("#save-state").textContent = "ownership save failed";
+    return;
+  }
+  const result = await response.json();
+  state.ownership = result.ownership;
+  state.ownershipBlocks = result.ownership_blocks || [];
+  $("#save-state").textContent = `saved ${result.saved}`;
+  // Repaint the chip in the queue row without a full reload: resolving the last
+  // signal moves it from CHECK to RESOLVED and that has to be visible at once.
+  const row = $(`.draft-row[data-slug="${state.slug}"]`);
+  if (row) {
+    const chip = row.querySelector(".chip + .chip");
+    if (chip) {
+      chip.textContent = result.ownership_chip;
+      chip.className = `chip chip-${result.ownership_chip.toLowerCase().replace(/ /g, "-")}`;
+    }
+  }
+  renderActions();
+}
+
 function renderEditor(data) {
   const container = $("#editor-groups");
   container.replaceChildren();
+
+  state.ownership = data.ownership || null;
+  container.append(renderOwnershipPanel(data));
 
   if (data.duplicate) {
     container.append(
@@ -455,7 +810,10 @@ function renderEditor(data) {
         }),
         el("p", {
           class: "field-help",
-          text: `Determination: ${data.ownership_chip}. The verdict, the deny-list rows and the signals table land at Gate 4.`,
+          text:
+            "Any one of the three kinds of evidence is sufficient: a registry " +
+            "lookup, the producer's own published ownership statement, or a " +
+            "named independent trade source.",
         }),
       );
     }
@@ -1196,6 +1554,173 @@ $("#reject-reason").addEventListener("keydown", (event) => {
   }
 });
 
+/* ── The Blocked list — UX.md §1.4.4 ───────────────────────────────────────
+ *
+ * The actions differ by the source of the reject, deliberately.
+ *
+ * A DENY-LIST REJECT HAS NO OVERRIDE ACTION. The only route is to correct
+ * data/ownership.json, which is hand-maintained and edited in a text editor.
+ * The interface never lets a click overrule the deny-list, because the
+ * deny-list is the artefact `/validate` check 8 audits against.
+ *
+ * A harvester signal reject offers `Re-harvest as check`, which re-runs the URL
+ * with the machine verdict floored at check so every check rule applies. It
+ * downgrades a machine abort to a human decision. It never skips the decision.
+ */
+
+async function refreshBlocked() {
+  const data = await fetch("/api/blocked").then((r) => r.json());
+  const list = $("#blocked-rows");
+  list.replaceChildren();
+  if (!data.rows || data.rows.length === 0) {
+    list.append(
+      el("li", {
+        class: "empty",
+        text:
+          "Nothing blocked. Producers stopped by the ownership rule appear here " +
+          "with their evidence.",
+      }),
+    );
+    $("#blocked-detail").hidden = true;
+    return;
+  }
+  for (const row of data.rows) {
+    const item = el("li", { class: "blocked-row", "data-slug": row.slug, tabindex: "0" }, [
+      el("p", { class: "blocked-name", text: row.name || row.slug }),
+      el("p", { class: "mono faded", text: row.url }),
+      el("p", { class: "mono blocked-reason", text: row.reason }),
+    ]);
+    if (row.reharvested) {
+      item.append(el("p", { class: "mono faded", text: "re-harvested since" }));
+    }
+    const open = () => showBlocked(row.slug);
+    item.addEventListener("click", open);
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        open();
+      }
+    });
+    list.append(item);
+  }
+}
+
+async function showBlocked(slug) {
+  const record = await fetch(`/api/blocked/${slug}`).then((r) => r.json());
+  const detail = $("#blocked-detail");
+  detail.hidden = false;
+  detail.replaceChildren();
+
+  if (record.unreadable) {
+    detail.append(el("p", { class: "field-error", text: record.unreadable }));
+    return;
+  }
+
+  // The same signals table and deny-list block the review pane uses, read-only.
+  const fauxPanel = {
+    ...record,
+    chip: "REJECT",
+    populated: (record.signals || []).filter((row) => row.populated).length,
+    abn_display: {},
+    resolutions: [],
+    signal_labels: Object.fromEntries(
+      (record.signals || []).map((row) => [row.key, row.key.replace(/_/g, " ")]),
+    ),
+    check_labels: { name: "name", domain: "domain", abn: "ABN" },
+  };
+  detail.append(
+    el("p", { class: "ownership-basis", text: record.basis || "" }),
+    el("p", {
+      class: "mono mono-caps",
+      text: `Deny-list, data/ownership.json (updated ${record.deny_list.updated || "undated"})`,
+    }),
+  );
+  const body = el("tbody");
+  for (const row of record.deny_list.rows) {
+    for (const node of denyListRow(row, fauxPanel.check_labels, null)) body.append(node);
+  }
+  detail.append(el("table", { class: "deny-table" }, [body]));
+
+  const signalBody = el("tbody");
+  for (const row of record.signals || []) {
+    const cell = el("td", {});
+    if (!row.populated) cell.append(el("p", { class: "faded", text: "nothing extracted" }));
+    else for (const item of row.items) cell.append(el("p", { class: "quote", text: `"${item}"` }));
+    signalBody.append(
+      el("tr", {}, [el("td", { class: "mono", text: row.key.replace(/_/g, " ") }), cell]),
+    );
+  }
+  detail.append(
+    el("p", { class: "mono mono-caps", text: "Ownership signals" }),
+    el("table", { class: "signal-table" }, [signalBody]),
+  );
+
+  const actions = el("div", { class: "blocked-actions" });
+  if (record.source_of_reject === "deny-list") {
+    actions.append(
+      el("p", {
+        class: "note",
+        text:
+          "This was a deny-list block. There is no override here. Correct " +
+          "data/ownership.json, then re-harvest so the corrected deny-list is " +
+          "what decides.",
+      }),
+      el("button", {
+        type: "button",
+        class: "btn btn-quiet",
+        id: "blocked-open-json",
+        text: "Open data/ownership.json",
+      }),
+      el("button", {
+        type: "button",
+        class: "btn btn-quiet",
+        id: "blocked-reharvest",
+        text: "Re-harvest",
+      }),
+    );
+  } else {
+    actions.append(
+      el("p", {
+        class: "note",
+        text:
+          "This was the Harvester's own signal-based reject. Re-harvesting as " +
+          "check puts the draft in the queue with every check rule applying: a " +
+          "source is required and every signal must be resolved.",
+      }),
+      el("button", {
+        type: "button",
+        class: "btn btn-quiet",
+        id: "blocked-reharvest-check",
+        text: "Re-harvest as check",
+      }),
+    );
+  }
+  detail.append(actions);
+
+  const reharvest = async (action) => {
+    const response = await fetch(`/api/blocked/${slug}/reharvest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    if (!response.ok) {
+      const problem = await response.json();
+      detail.append(el("p", { class: "field-error", text: problem.detail }));
+      return;
+    }
+    await refreshBlocked();
+    fetch("/api/harvest/queue")
+      .then((r) => r.json())
+      .then(renderHarvestQueue);
+  };
+  const openJson = $("#blocked-open-json");
+  if (openJson) openJson.addEventListener("click", () => $("#ownership-open").click());
+  const plain = $("#blocked-reharvest");
+  if (plain) plain.addEventListener("click", () => reharvest("reharvest"));
+  const asCheck = $("#blocked-reharvest-check");
+  if (asCheck) asCheck.addEventListener("click", () => reharvest("reharvest-as-check"));
+}
+
 /* ── Dialogs ───────────────────────────────────────────────────────────── */
 
 $("#shortcuts-open").addEventListener("click", () => $("#shortcuts").showModal());
@@ -1220,6 +1745,7 @@ startLogStream();
 fetch("/api/harvest/queue")
   .then((r) => r.json())
   .then(renderHarvestQueue);
+refreshBlocked();
 
 const firstRow = $(".draft-row");
 if (firstRow) selectRow(firstRow);

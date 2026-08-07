@@ -70,12 +70,22 @@
       </ul>
     </div>
 
+    {#
+      The Blocked list — UX.md §1.4.4. An `independence: reject` aborts the run
+      before a draft is written, so no file lands in _staging. That is correct,
+      and it still needs an on-screen state, because an abort a reviewer cannot
+      see is a silent failure.
+
+      Records are never deleted from here. They are the record of what the site
+      refused and why, and at 150 to 300 producers the same URL will be reached
+      for twice.
+    #}
     <div class="subpane">
       <h3 class="mono mono-caps">Blocked</h3>
-      <ul class="rows">
+      <ul id="blocked-rows" class="rows">
         <li class="empty">Nothing blocked. Producers stopped by the ownership rule appear here with their evidence.</li>
       </ul>
-      <p class="note faded">The ownership determination lands at Gate 4.</p>
+      <div id="blocked-detail" class="blocked-detail" hidden></div>
     </div>
   </section>
 
