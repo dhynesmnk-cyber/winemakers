@@ -118,7 +118,9 @@ Two documentation habits, both ported from the reference:
 
 ## Editorial guardrails
 
-The banned-word list, the em-dash ban, the not-X-but-Y ban and the hedge-word ban live in `PROMPTS/architect.md` and `PROMPTS/gatekeeper.md`, and are mirrored into `.claude/skills/producer-entry`. They apply to anything a reader sees, including the admin UI and FAQ answers.
+The banned-word list, the em-dash ban, the not-X-but-Y ban and the hedge-word ban live in `PROMPTS/gatekeeper.md`, which is their single authored home; `PROMPTS/architect.md` carries the four bans as rules the drafting stage writes to, and `.claude/skills/producer-entry` **references** them rather than restating them. They apply to anything a reader sees, including the admin UI and FAQ answers.
+
+*Amended 2026-08-07 (Gate 5): this previously said the lists were "mirrored into" the skill. They are not, and should not be. `/validate` check 6 parses the fenced blocks in `PROMPTS/gatekeeper.md`, so there is exactly one copy of every list and it is the copy the Gatekeeper is actually run with. A second hand-kept copy in a skill file would drift with nothing watching it, and the first symptom would be a lint passing copy the model was never told to avoid.*
 
 Two rules worth restating here because they are specific to wine and easy to get wrong:
 
