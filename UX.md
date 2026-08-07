@@ -121,9 +121,13 @@ Ownership:
 
 | Chip | Meaning |
 |---|---|
-| `CLEAR` | No deny-list hit and no ownership signals extracted. Still requires a recorded `ownership_source` before approval (§1.4.5). |
-| `CHECK` | Signals were extracted, or a determination was inconclusive. **Blocked from approval until the reviewer records an `ownership_source` and resolves every signal.** |
-| `RESOLVED` | A `CHECK` whose signals are all resolved and whose `ownership_source` is recorded. Approve is now available. This chip exists so a reviewer can see at a glance which checks are still outstanding. |
+| `CLEAR` | No deny-list hit and no **escalating** ownership signals. Still requires a recorded `ownership_source` before approval (§1.4.5). |
+| `CHECK` | An escalating signal was extracted, or a determination was inconclusive. **Blocked from approval until the reviewer records an `ownership_source` and resolves every escalating signal.** |
+| `RESOLVED` | A `CHECK` whose escalating signals are all resolved and whose `ownership_source` is recorded. Approve is now available. This chip exists so a reviewer can see at a glance which checks are still outstanding. |
+
+**Amended 2026-08-07 (Gate 5), signed off.** These three rows said "signals were extracted" without qualification, which is how the code behaved: any populated signal escalated to `CHECK`. That made `CLEAR` structurally unreachable, because `PROMPTS/harvester.md` instructs the `statements` key to capture ownership claims *in either direction*, so a page positively naming its owning family was escalated for saying so — penalising the exact evidence §1.4.5 and SCHEMA.md §4.2 require. Basket Range Wine was the case that exposed it.
+
+Four of the five `ownership_signals` keys now escalate on their own: `parent_company_mentions`, `abn`, `shared_address`, `shared_contact_domain`. `statements` escalates only when a fixed lexicon in `ownership.PARENT_PATTERNS` finds group phrasing in it. **All five are still extracted, still rendered as rows in §1.4.2's table, and still written to the sidecar** — nothing stops being evidence, and a non-escalating `statements` row may still be resolved, it simply does not block approval. The Harvester's own `check` still tightens and still routes silence to a human, and rule 3 below is unchanged: a `CLEAR` cannot be approved without a recorded source.
 
 `REJECT` never appears in this queue. An ownership reject aborts before a draft is written (CLAUDE.md Gate 5) and appears in the Blocked list instead (§1.4.4).
 
@@ -212,8 +216,12 @@ The ownership panel is the first thing in the review pane, above the producer's 
 **The basis, in one line.** Which check produced the verdict:
 
 - `Clear: no deny-list match on name, domain or ABN, and no ownership signals extracted.`
+- `Clear: no deny-list match on name, domain or ABN, and the extracted statement names no parent.`
 - `Check: 2 ownership signals extracted.`
 - `Check: ABN could not be read from the page.`
+- `Check: an extracted statement names a group or a corporate owner — "…".`
+
+The second and fifth lines were added with the 2026-08-07 amendment above. The basis is the durable public record — it is what answers a producer who disputes the determination (§1.4.6) — so it may never claim "no ownership signals extracted" over a determination that extracted one, and where a statement caused the escalation it is quoted rather than counted.
 
 **The deny-list result, as three named checks, always all three, whether they hit or not.**
 

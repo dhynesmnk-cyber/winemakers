@@ -353,6 +353,8 @@ Pure retailers · restaurants · large corporate portfolio brands · and the hig
 
 The Harvester extracts `ownership_signals` and emits `independence: clear | check | reject`. **It never decides alone.** The admin review pane surfaces the flag and the underlying signals; `check` never auto-publishes.
 
+**Amended 2026-08-07 (Gate 5), signed off.** Not every extracted signal escalates. `parent_company_mentions`, `abn`, `shared_address` and `shared_contact_domain` each move the verdict to `check` on their own — each is a sign of a relationship the page is not stating plainly. `statements` does not, because §5 instructs it to capture ownership claims *in either direction*, and escalating on its presence penalised the positive statement §4.2 route 2 asks for. It escalates only when a fixed lexicon (`ownership.PARENT_PATTERNS`) finds group phrasing in it — a deterministic list in code, not a judgement about prose, so §4's first principle and CLAUDE.md rule 8 both hold. All five keys are extracted, rendered and retained regardless. The Harvester's own verdict can still only tighten, never relax.
+
 ---
 
 ## 5. Harvester JSON output

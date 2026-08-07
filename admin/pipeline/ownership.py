@@ -15,8 +15,31 @@ corporate. Any test based on tone fails systematically in both directions.
 
 Nothing in this module reads marketing copy. It compares names, domains and
 ABNs against a hand-maintained register, and it counts the ownership signals the
-Harvester extracted. Signals are *weighed*, never *judged*: an extracted signal
+Harvester extracted. Signals are *weighed*, never *judged*: an escalating signal
 moves the verdict to `check`, which is a request for a human, not a finding.
+
+**Amended 2026-08-07 (Gate 5), signed off.** Until this date *any* populated
+signal escalated to `check`. That made `clear` structurally unreachable, because
+`PROMPTS/harvester.md` instructs the `statements` key to capture ownership
+claims *in either direction* — so a page that positively named its owning family
+populated `statements` and was escalated for it. The evidence a reviewer is told
+to look for (SCHEMA.md §4.2 route 2, "it must positively state ownership") was
+the same thing that forced the review. Basket Range Wine was the case that
+exposed it: three clean deny-list rows, no ABN, and one quoted sentence naming
+the Brodericks. `SEED.md` row 4 had predicted `clear` before the code existed.
+
+The five keys are now partitioned by `ESCALATING_SIGNAL_KEYS`. Four of them are
+signals of a *concealed* relationship and still escalate alone. `statements` is
+bidirectional, so it escalates only when `statements_name_a_group` finds group
+phrasing in it. All five are still extracted, still rendered and still written
+to the sidecar — nothing stops being evidence, and a reviewer sees every row.
+
+Three things keep the old rule's protection. The Harvester's own `check` still
+tightens and never relaxes, and its prompt already routes silence and a family
+claim naming nobody to `check`. `ownership_source` is still required before
+approval on a `clear` (UX.md §1.4.5 rule 3). And `statements_name_a_group` is a
+fixed lexicon in code, so the guard against a misfiled "part of the X group" is
+deterministic — CLAUDE.md rule 8 holds, because no agent judges anything here.
 
 `SEED.md` row 1 is the proof the deny-list has to exist. The Wolf Blass site
 names no parent company anywhere — not in the footer, not in the copyright line.
@@ -104,6 +127,76 @@ SIGNAL_KEYS = (
     "shared_address",
     "shared_contact_domain",
     "statements",
+)
+
+#: Which of the five escalate to `check` on their own. Amended 2026-08-07, see
+#: the module docstring for why and for what still holds the line.
+#:
+#: Each of these four is a signal of a relationship the page is not stating
+#: plainly: a named group, an address shared with another label, a contact
+#: address on someone else's domain, an ABN that will not parse. None of them
+#: has an innocent reading that a reviewer should not see.
+#:
+#: `statements` is deliberately absent. It is the one bidirectional key —
+#: "part of the X group" and "owned by the Broderick family since 1980" both
+#: land in it — so escalating on its mere presence penalises exactly the
+#: evidence SCHEMA.md §4.2 asks for. It escalates via `statements_name_a_group`
+#: instead, and it is still rendered, resolvable and retained either way.
+ESCALATING_SIGNAL_KEYS = (
+    "parent_company_mentions",
+    "abn",
+    "shared_address",
+    "shared_contact_domain",
+)
+
+#: The nouns that make a relationship corporate rather than familial. Used to
+#: qualify the ambiguous stems below.
+_GROUP_TERM = (
+    r"(?:group|portfolio|holdings?|compan(?:y|ies)|corporation|conglomerate|"
+    r"pty\.?\s*l(?:td|imited)|proprietary|brands|estates|partners|"
+    r"investors?|investment|capital|equity|consortium)"
+)
+
+#: The deterministic guard on `statements`. Fixed patterns, matched
+#: case-insensitively against each extracted statement.
+#:
+#: This is not a tone test and it is not an agent reading prose (CLAUDE.md rule
+#: 8). It is a fixed list of the phrasings by which a corporate relationship is
+#: actually written down, and it exists for one failure: a Harvester that files
+#: "part of the Treasury portfolio" under `statements` rather than under
+#: `parent_company_mentions`. Before the 2026-08-07 amendment the any-signal
+#: rule caught that misfiling by accident. This catches it on purpose.
+#:
+#: The ambiguous stems are **qualified, never bare**. "Owned by" and "part of"
+#: are the two commonest openings of a positive family-ownership statement —
+#: "owned by the Broderick family" — so matching them on their own would
+#: reintroduce the very penalty this amendment removes. They fire only when a
+#: `_GROUP_TERM` follows within the same clause. "Family" is deliberately not a
+#: group term: a family is who the strict rule is trying to publish, and a
+#: family *group* is caught by the register, which is where an ownership fact
+#: belongs (SCHEMA.md §4.1).
+PARENT_PATTERNS = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        # Unambiguous on their own — no innocent reading in a producer's own copy.
+        r"\bsubsidiar(?:y|ies)\b",
+        r"\bparent\s+(?:company|group|entity)\b",
+        r"\bdivision\s+of\b",
+        r"\bacquir(?:ed|ition)\s+by\b",
+        r"\b(?:majority|minority)\s+(?:stake|shareholding|interest|owner)",
+        r"\bshareholding\b",
+        r"\bjoint\s+venture\b",
+        r"\bunder\s+the\s+umbrella\b",
+        r"\bwholly[\s-]owned\b",
+        r"\bgroup\s+of\s+companies\b",
+        # Qualified stems — the group term must follow within the clause.
+        rf"\bpart\s+of\s+(?:the\s+)?[\w'’&.\s-]{{0,40}}?{_GROUP_TERM}\b",
+        rf"\bowned\s+by\s+(?:the\s+)?[\w'’&.\s-]{{0,40}}?{_GROUP_TERM}\b",
+        rf"\bmember\s+of\s+(?:the\s+)?[\w'’&.\s-]{{0,40}}?{_GROUP_TERM}\b",
+        rf"\bbelongs\s+to\s+(?:the\s+)?[\w'’&.\s-]{{0,40}}?{_GROUP_TERM}\b",
+        rf"\bbacked\s+by\s+(?:the\s+)?[\w'’&.\s-]{{0,40}}?{_GROUP_TERM}\b",
+        rf"\bportfolio\s+of\s+[\w'’&.\s-]{{0,40}}?(?:wines?|brands|labels|estates)\b",
+    )
 )
 
 #: How each signal is named in copy. Lives here beside the keys rather than
@@ -698,10 +791,53 @@ def populated_signals(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [row for row in rows if row.get("populated")]
 
 
+def statements_name_a_group(rows: list[dict[str, Any]]) -> list[str]:
+    """The `statements` items that match `PARENT_PATTERNS`, verbatim.
+
+    Returns the offending statements rather than a bool so the basis line and
+    the review pane can quote what fired. A reviewer must be able to see the
+    sentence that escalated the verdict without opening a JSON file (UX.md
+    §1.4.2, "the panel never says only 'matched'").
+    """
+    hits: list[str] = []
+    for row in rows:
+        if row.get("key") != "statements":
+            continue
+        for item in row.get("items") or []:
+            text = str(item)
+            if any(pattern.search(text) for pattern in PARENT_PATTERNS):
+                hits.append(text)
+    return hits
+
+
+def escalating_signals(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Populated rows that move the verdict on their own. Amended 2026-08-07.
+
+    The four `ESCALATING_SIGNAL_KEYS`, plus `statements` when and only when
+    `statements_name_a_group` found group phrasing in it. A `statements` row
+    that names an owning family is evidence *for* independence and is recorded
+    without escalating (module docstring; SCHEMA.md §4.2 route 2).
+    """
+    flagged = bool(statements_name_a_group(rows))
+    return [
+        row
+        for row in populated_signals(rows)
+        if row.get("key") in ESCALATING_SIGNAL_KEYS
+        or (row.get("key") == "statements" and flagged)
+    ]
+
+
 def unresolved_signals(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Populated rows with no resolution, or with one that still needs a note."""
+    """Escalating rows with no resolution, or with one that still needs a note.
+
+    Amended 2026-08-07 alongside `escalating_signals`: a non-escalating
+    `statements` row is rendered and may be resolved, but never blocks approval.
+    Blocking on it was the cost this amendment exists to remove. A `statements`
+    row that *did* escalate blocks exactly like any other, so a false positive
+    in `PARENT_PATTERNS` costs a reviewer one `Not relevant` click.
+    """
     pending = []
-    for row in populated_signals(rows):
+    for row in escalating_signals(rows):
         resolution = str(row.get("resolution") or "")
         if resolution not in RESOLUTIONS:
             pending.append(row)
@@ -770,11 +906,34 @@ def _basis_line(verdict: str, rows: list[Row], signals: list[dict[str, Any]]) ->
     if abn_row is not None and abn_row.state == "unreadable":
         return "Check: ABN could not be read from the page."
 
-    count = len(populated_signals(signals))
+    # Amended 2026-08-07. The basis is the durable public record: it is written
+    # to `ownership_source` and it is what answers a producer who disputes the
+    # determination (UX.md §1.4.6). It must therefore never claim "no ownership
+    # signals extracted" over a determination that extracted one, which is what
+    # a `clear` carrying a family-ownership statement would have said.
+    flagged = statements_name_a_group(signals)
+    if flagged:
+        return (
+            f"Check: an extracted statement names a group or a corporate "
+            f'owner — "{flagged[0]}".'
+        )
+
+    count = len(escalating_signals(signals))
     if count:
         return f"Check: {count} ownership signal{'s' if count != 1 else ''} extracted."
 
     if verdict == "clear":
+        recorded = len(populated_signals(signals))
+        if recorded == 1:
+            return (
+                "Clear: no deny-list match on name, domain or ABN, and the "
+                "extracted statement names no parent."
+            )
+        if recorded:
+            return (
+                "Clear: no deny-list match on name, domain or ABN, and the "
+                f"{recorded} extracted statements name no parent."
+            )
         return (
             "Clear: no deny-list match on name, domain or ABN, and no ownership "
             "signals extracted."
@@ -822,7 +981,10 @@ def determine(
         abn_row = next((row for row in rows if row.check == "abn"), None)
         if abn_row is not None and abn_row.state == "unreadable":
             verdict = "check"
-        elif populated_signals(signal_table):
+        elif escalating_signals(signal_table):
+            # Amended 2026-08-07: escalating, not merely populated. A statement
+            # naming an owning family is the evidence SCHEMA.md §4.2 asks for
+            # and no longer forces the review it is supposed to satisfy.
             verdict = "check"
 
     # The Harvester's own verdict can only tighten. It never relaxes one the
@@ -971,8 +1133,11 @@ def approval_blocks(data: dict[str, Any], sidecar: dict[str, Any] | None) -> lis
         )
 
     # Rules 1 and 3 — `clear` and `check` alike require a recorded source, with
-    # the missing element named. A `clear` verdict is an absence of signals, and
-    # absence of signals is not evidence of a negative (SCHEMA.md §4.2).
+    # the missing element named. A `clear` verdict is an absence of *escalating*
+    # signals, and absence is not evidence of a negative (SCHEMA.md §4.2). This
+    # is the rule that carries the weight after the 2026-08-07 amendment: a
+    # `clear` is now reachable on a producer whose page states its ownership, so
+    # the recorded source is what stands behind that determination.
     ownership = data.get("ownership_source")
     if not isinstance(ownership, dict):
         blocks.append(

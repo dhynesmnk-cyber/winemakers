@@ -119,6 +119,15 @@ the date, and to approve the entry. Where the automated checks raise anything
 ambiguous, the entry cannot be approved until that specific point has been
 resolved in writing.
 
+What counts as ambiguous is drawn narrowly on purpose. A page that names the
+family or the people who own the business is evidence, and it is the evidence we
+ask for. It is recorded, and it does not by itself make an entry ambiguous. A
+mention of a parent company, an address shared with another label, a contact
+address on a different label's domain, a trading number that will not resolve,
+or wording that places the business inside a group: each of those holds the
+entry until a person has answered it. The distinction is drawn against a fixed
+list of phrases, not against how a page reads.
+
 This is stated because the alternative is what a reader will reasonably assume.
 
 ## Where the facts come from

@@ -725,8 +725,30 @@ function signalRow(row, panel) {
   });
 
   // UX.md §1.4.3: every populated row carries a resolution control and a
-  // one-line note. While any row is unresolved, Approve is disabled and the
-  // reason is stated in text beside the button, not only as a tooltip.
+  // one-line note. While any escalating row is unresolved, Approve is disabled
+  // and the reason is stated in text beside the button, not only as a tooltip.
+  //
+  // Amended 2026-08-07: a populated row that does not escalate says so. Without
+  // this the reviewer sees a resolution control on a row that never blocks and
+  // has no way to tell it apart from one that does.
+  const escalates = (panel.escalating_keys || []).includes(row.key);
+  if (!escalates) {
+    cell.append(
+      el("p", {
+        class: "note faded",
+        text:
+          "Recorded as evidence. This statement names no parent, so it does " +
+          "not hold the entry. Resolve it if you want the reasoning kept.",
+      }),
+    );
+  } else if (row.key === "statements") {
+    cell.append(
+      el("p", {
+        class: "note warn",
+        text: "This statement places the business inside a group. Resolve it before approving.",
+      }),
+    );
+  }
   cell.append(resolutionControls(row.key, row.resolution, row.note, panel.resolutions));
 
   return el("tr", {}, [el("td", { class: "mono", text: label }), cell]);

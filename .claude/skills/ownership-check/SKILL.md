@@ -112,12 +112,26 @@ verdict is `check`, not `clear`.
    evidence routes above. Record the URL, the method and the date.
 
 5. **Set the verdict.**
-   - `clear` — the deny-list is silent, the signals are clean, and there is a
-     dated source that positively states ownership with no corporate parent.
+   - `clear` — the deny-list is silent, no escalating signal fired, and there is
+     a dated source that positively states ownership with no corporate parent.
    - `check` — anything ambiguous. A parent-company mention you cannot resolve, a
-     shared address, an ownership page that names nobody, a `check`-verdict
-     deny-list hit. **`check` never auto-publishes. That is the whole point of
-     the state.**
+     shared address, a contact address on another label's domain, an ABN that
+     will not parse, a statement placing the business inside a group, an
+     ownership page that names nobody, a `check`-verdict deny-list hit.
+     **`check` never auto-publishes. That is the whole point of the state.**
+
+   **Amended 2026-08-07 (Gate 5), signed off.** "The signals are clean" used to
+   mean *no signal was extracted at all*, which made `clear` structurally
+   unreachable: the Harvester is told to record ownership claims in either
+   direction, so a page naming its owning family was escalated for naming it.
+   That penalised the route-2 evidence step 4 above exists to find. Of the five
+   `ownership_signals` keys, four escalate on their own — `parent_company_mentions`,
+   `abn`, `shared_address`, `shared_contact_domain`. `statements` escalates only
+   when `ownership.PARENT_PATTERNS`, a fixed lexicon in code, finds group
+   phrasing in it. Every key is still extracted, still shown to you, and still
+   retained in the sidecar. **Nothing about steps 1 to 4 changed**, and the
+   sentence that does the most work above is untouched: silence is still not
+   `clear`, and a `clear` still cannot publish without a dated source.
    - `reject` — a documented corporate parent, or a `reject`-verdict deny-list
      hit, or one of the §4.4 categories below.
 

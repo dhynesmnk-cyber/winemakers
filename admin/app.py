@@ -379,11 +379,17 @@ def _ownership_panel(slug: str) -> dict[str, Any] | None:
     if not sidecar:
         return None
     signals = sidecar.get("signals") or []
+    # Amended 2026-08-07 (UX.md §1.4.2): the pane must say which rows hold the
+    # entry and which are recorded as evidence, or a reviewer cannot tell why a
+    # populated row carries no obligation. Computed here, beside the rule.
+    escalating = {row["key"] for row in ownership.escalating_signals(signals)}
     return {
         **sidecar,
         "chip": ownership.chip_for(sidecar),
         "unresolved": len(ownership.unresolved_signals(signals)),
         "populated": len(ownership.populated_signals(signals)),
+        "escalating_keys": sorted(escalating),
+        "flagged_statements": ownership.statements_name_a_group(signals),
         "unresolved_hits": len(
             ownership.unresolved_hits(sidecar.get("hits_to_resolve") or [])
         ),
