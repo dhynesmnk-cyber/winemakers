@@ -430,6 +430,45 @@ def _selftest() -> list[str]:
         check((h.staging / "fixture-wines.ownership.json").is_file(),
               "row 8: no determination sidecar was written beside the draft")
 
+    # ── Silence is not independence ───────────────────────────────────────
+    #
+    # A page that says nothing about who owns it. Every deny-list row is clean
+    # and no signal escalates, which until 2026-08-08 returned `clear` — a
+    # positive finding resting on nothing, and the reading SCHEMA.md §4.2, this
+    # module's docstring and the ownership-check skill all forbid: "a source
+    # that merely fails to mention a parent is not evidence of absence".
+    #
+    # This is the Wolf Blass shape without the deny-list entry. SEED.md row 1
+    # is caught by the register; a portfolio label not yet in it, on an equally
+    # silent site, was publishable as independent. SEED.md row 3 found it.
+    with Harness() as h:
+        silent = {"parent_company_mentions": [], "abn": None, "shared_address": None,
+                  "shared_contact_domain": None, "statements": []}
+        result, lines = _harvest([
+            harvester_json(ownership_signals=silent), DRAFT_MDX, DRAFT_MDX
+        ])
+        check(result.state == harvest.STAGED,
+              "silence: the draft was not written for a human to complete")
+        check(result.determination.verdict == "check",
+              "SILENCE WAS READ AS INDEPENDENCE: a source stating no ownership "
+              f"returned {result.determination.verdict!r}, not 'check'")
+        # And the provenance must not claim evidence that was never extracted.
+        staged = (h.staging / "fixture-wines.mdx").read_text(encoding="utf-8")
+        check("method: producer_statement" not in staged,
+              "silence: the draft claims a producer_statement that does not exist")
+        blocks = ownership.approval_blocks(
+            {"parent_company": None}, {"verdict": "check"}
+        )
+        check(any("ownership_source" in block for block in blocks),
+              "silence: approval is not blocked on the missing ownership_source")
+
+    # The positive case the 2026-08-07 amendment exists to protect must still
+    # reach `clear`, or the fix above has simply re-broken it the other way.
+    with Harness() as h:
+        result, lines = _harvest([harvester_json(), DRAFT_MDX, DRAFT_MDX])
+        check(result.determination.verdict == "clear",
+              "a statement naming the owners no longer reaches 'clear'")
+
     # ── Row 9: slug collision halts before drafting ───────────────────────
     with Harness() as h:
         (h.published / "fixture-wines.mdx").write_text("---\nname: x\n---\n", encoding="utf-8")
