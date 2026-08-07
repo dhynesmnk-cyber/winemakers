@@ -120,16 +120,23 @@ const verificationRows = Object.entries(data.verification ?? {}).filter(
       <Content components={{ Pull, TippedPhoto }} />
     </div>
 
-    {
-      data.image && data.image_caption && data.image_source && (
-        <TippedPhoto
-          src={data.image}
-          caption={data.image_caption}
-          source={data.image_source}
-          transitionName={`plate-${producer.id}`}
-        />
-      )
-    }
+    {/*
+      CORRECTED 2026-08-07, Gate 5. A `<TippedPhoto>` was rendered here from the
+      frontmatter, after the body. Two rules made that wrong, and Gate 5's image
+      publish action is what surfaced it:
+
+        1. UX.md §4 step 3: "the producer page renders a photograph exclusively
+           from the body tag." The publish action writes the three frontmatter
+           fields AND the body tag in one write, so rendering from both surfaces
+           put the same photograph on the page twice.
+        2. DESIGN.md §4 and TippedPhoto's own contract: the plate is placed
+           MID-ARTICLE. Rendering after `<Content />` put it below the whole
+           entry, which is the one position it is not allowed to hold.
+
+      `TippedPhoto` stays in the `components` map above, which is what lets the
+      body tag render. Doc precedence: UX.md over TRD.md for interface
+      (CLAUDE.md rule 3). Flagged at the gate exit rather than silently fixed.
+    */}
 
     {
       data.faq && data.faq.length > 0 && (
