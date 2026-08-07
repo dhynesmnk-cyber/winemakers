@@ -106,6 +106,17 @@ SIGNAL_KEYS = (
     "statements",
 )
 
+#: How each signal is named in copy. Lives here beside the keys rather than
+#: being derived at the template, so the approval-block message and the panel
+#: heading call the same row the same thing.
+SIGNAL_LABELS = {
+    "parent_company_mentions": "parent company mentions",
+    "abn": "ABN",
+    "shared_address": "shared address",
+    "shared_contact_domain": "shared contact domain",
+    "statements": "statements",
+}
+
 #: UX.md §1.4.3's three resolutions. `Explained` and `Confirms a parent` require
 #: a note; `Not relevant` may be recorded without one.
 RESOLUTIONS = ("explained", "confirms_parent", "not_relevant")
@@ -992,10 +1003,35 @@ def approval_blocks(data: dict[str, Any], sidecar: dict[str, Any] | None) -> lis
     if verdict == "check":
         pending = unresolved_signals((sidecar or {}).get("signals") or [])
         if pending:
-            blocks.append(
-                f"{len(pending)} ownership signal{'s are' if len(pending) != 1 else ' is'} "
-                f"unresolved."
-            )
+            # Two different states reach here and they need different actions.
+            # Saying "unresolved" for both sends a reviewer who HAS chosen a
+            # resolution looking for a control they already used, with nothing
+            # on screen naming the note they actually owe. Observed live on the
+            # first real draft: `statements` resolved as `explained`, note
+            # empty, and the only feedback was "1 ownership signal is
+            # unresolved". UX.md §1.5 row 16 asks for the reason in text, and
+            # the wrong reason does not satisfy it.
+            unchosen = [
+                row for row in pending if str(row.get("resolution") or "") not in RESOLUTIONS
+            ]
+            noteless = [row for row in pending if row not in unchosen]
+            if unchosen:
+                names = ", ".join(SIGNAL_LABELS.get(r["key"], r["key"]) for r in unchosen)
+                blocks.append(
+                    f"{len(unchosen)} ownership signal"
+                    f"{'s are' if len(unchosen) != 1 else ' is'} unresolved ({names}). "
+                    f"Choose a resolution for each."
+                )
+            if noteless:
+                names = ", ".join(SIGNAL_LABELS.get(r["key"], r["key"]) for r in noteless)
+                labels = ", ".join(
+                    sorted({RESOLUTION_LABELS.get(r.get("resolution"), "") for r in noteless})
+                )
+                blocks.append(
+                    f"{len(noteless)} ownership signal"
+                    f"{'s need' if len(noteless) != 1 else ' needs'} a note ({names}). "
+                    f"'{labels}' requires you to record why."
+                )
         hits = unresolved_hits((sidecar or {}).get("hits_to_resolve") or [])
         if hits:
             named = ", ".join(sorted({hit.get("parent", "") for hit in hits if hit.get("parent")}))

@@ -405,7 +405,7 @@ def _ownership_panel(slug: str) -> dict[str, Any] | None:
             }
             for value in ownership.RESOLUTIONS
         ],
-        "signal_labels": {key: key.replace("_", " ") for key in ownership.SIGNAL_KEYS},
+        "signal_labels": dict(ownership.SIGNAL_LABELS),
         "check_labels": ownership.CHECK_LABELS,
     }
 
