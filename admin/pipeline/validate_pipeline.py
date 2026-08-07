@@ -145,6 +145,20 @@ Everything else is purchased. Production sits under a thousand cases.
 """
 
 
+#: What the Architect actually returns: its prompt asks for an
+#: `ownership_source` with a `method`, so the model supplies one — on a page
+#: stating no ownership at all it still chose `producer_statement`. The field
+#: is a PIPELINE_OWNED_FIELD and that value must not survive the stamp.
+DRAFT_MDX_CLAIMING_STATEMENT = DRAFT_MDX.replace(
+    "name: Fixture Wines\n",
+    "name: Fixture Wines\n"
+    "ownership_source:\n"
+    "  source: https://fixture.test/\n"
+    "  method: producer_statement\n"
+    "  date: 2026-08-08\n",
+)
+
+
 #: The Architect's real failure on SEED.md row 2, reduced: an unquoted FAQ
 #: answer whose own text contains a colon. YAML reads the first `: ` as a key
 #: separator, and the document stops parsing there. Kept faithful to what the
@@ -445,7 +459,8 @@ def _selftest() -> list[str]:
         silent = {"parent_company_mentions": [], "abn": None, "shared_address": None,
                   "shared_contact_domain": None, "statements": []}
         result, lines = _harvest([
-            harvester_json(ownership_signals=silent), DRAFT_MDX, DRAFT_MDX
+            harvester_json(ownership_signals=silent),
+            DRAFT_MDX_CLAIMING_STATEMENT, DRAFT_MDX_CLAIMING_STATEMENT,
         ])
         check(result.state == harvest.STAGED,
               "silence: the draft was not written for a human to complete")
@@ -453,9 +468,15 @@ def _selftest() -> list[str]:
               "SILENCE WAS READ AS INDEPENDENCE: a source stating no ownership "
               f"returned {result.determination.verdict!r}, not 'check'")
         # And the provenance must not claim evidence that was never extracted.
+        # DRAFT_MDX carries an `ownership_source` naming `producer_statement`,
+        # because the Architect's prompt asks it for a method and the model
+        # supplies one. `ownership_source` is a PIPELINE_OWNED_FIELD, so that
+        # value must be overwritten, not deferred to. Observed on SEED.md row 3,
+        # where the first fix left the Architect's invented method standing.
         staged = (h.staging / "fixture-wines.mdx").read_text(encoding="utf-8")
-        check("method: producer_statement" not in staged,
-              "silence: the draft claims a producer_statement that does not exist")
+        check("producer_statement" not in staged,
+              "SILENCE: the draft claims a producer_statement that does not "
+              "exist. An agent's ownership_source survived the pipeline stamp.")
         blocks = ownership.approval_blocks(
             {"parent_company": None}, {"verdict": "check"}
         )

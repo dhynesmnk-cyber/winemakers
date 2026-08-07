@@ -463,33 +463,31 @@ def _finalize_frontmatter(
     data["parent_company"] = None
     if determination is not None:
         source = getattr(determination, "basis", "") or ""
-        existing = data.get("ownership_source")
-        if not isinstance(existing, dict) or not str(existing.get("source") or "").strip():
-            # `producer_statement` is a claim that the source names who owns
-            # the business, and it is only true when the Harvester extracted
-            # such a statement. Until 2026-08-08 it was written unconditionally,
-            # so a page silent on ownership published carrying a record
-            # asserting the producer had stated it — a fabricated provenance
-            # claim in the one field whose whole purpose is auditability, on
-            # the axis this site claims authority over.
-            #
-            # With no statement there is no route the pipeline can honestly
-            # name, so the field is left for a human, exactly as UX.md §1.5 row
-            # 12 leaves empty `regions`. Approval is blocked until it is filled
-            # (`approval_blocks`, UX.md §1.4.5 rule 3).
-            if ownership_module.states_ownership(getattr(determination, "signals", []) or []):
-                data["ownership_source"] = {
-                    "source": source_url,
-                    "method": "producer_statement",
-                    "date": today,
-                }
-            else:
-                data.pop("ownership_source", None)
-                log(
-                    "warn",
-                    "no ownership statement extracted, so ownership_source is "
-                    "left for a human to record. Approval is blocked until it is.",
-                )
+        # `ownership_source` is in PIPELINE_OWNED_FIELDS: no agent's output
+        # survives here. It was nonetheless deferring to whatever the Architect
+        # wrote whenever that carried a source, and the Architect's prompt asks
+        # it for a `method` — so the model picked one. On a page that states no
+        # ownership it picked `producer_statement`, which is the determination
+        # deciding itself from prose, the one thing CLAUDE.md rule 8 forbids.
+        #
+        # `producer_statement` claims the source names who owns the business.
+        # It is true only when the Harvester extracted such a statement. With
+        # no statement there is no route to name honestly, so the field is left
+        # for a human exactly as UX.md §1.5 row 12 leaves empty `regions`, and
+        # approval stays blocked until it is filled (`approval_blocks`).
+        if ownership_module.states_ownership(getattr(determination, "signals", []) or []):
+            data["ownership_source"] = {
+                "source": source_url,
+                "method": "producer_statement",
+                "date": today,
+            }
+        else:
+            data.pop("ownership_source", None)
+            log(
+                "warn",
+                "no ownership statement extracted, so ownership_source is left "
+                "for a human to record. Approval is blocked until it is.",
+            )
         if source:
             log("info", f"ownership determination recorded: {source}")
 
