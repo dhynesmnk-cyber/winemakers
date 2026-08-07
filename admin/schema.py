@@ -480,6 +480,18 @@ def read_mdx(path: Path) -> tuple[dict[str, Any], str]:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         raise FrontmatterError(str(exc)) from exc
+    return parse_mdx_text(text)
+
+
+def parse_mdx_text(text: str) -> tuple[dict[str, Any], str]:
+    """`(frontmatter, body)` from MDX already in memory.
+
+    Extracted from `read_mdx` at Gate 5 so the pipeline can validate what an
+    agent returned without writing it to disk first. Same parser, same errors,
+    same leniency about content: a draft that fails here failed to be an MDX
+    file at all, which is the content tier's business, while a draft with a bad
+    *value* is the reviewer's and must reach them.
+    """
     if not text.startswith("---"):
         raise FrontmatterError("missing frontmatter delimiter")
     parts = text.split("---", 2)
