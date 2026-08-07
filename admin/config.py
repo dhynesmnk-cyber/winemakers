@@ -397,5 +397,65 @@ SEARCH_INDEX_INLINE_MAX = 500
 MIN_COMPARISON_PRODUCERS = 4
 MIN_AGGREGATION_LINKS = 3
 
-#: UX.md §1.4. The approve action's undo window, in seconds.
-UNDO_WINDOW_SECONDS = 3
+
+# =============================================================================
+# 5. The admin hub — UX.md §1
+#
+# Admin-only, so these live in the Python half alone. `site/src/config.ts` has
+# no use for them and mirroring them there would create a drift surface with no
+# consumer. `/validate` check 13's config-pair diff walks the SCHEMA.md §1
+# vocabularies, which is the pair that has to agree.
+# =============================================================================
+
+#: UX.md §1.1. One URL per line in the batch textarea. UX.md's own worked
+#: example is a forty-URL run surviving a page reload, so the cap sits above it.
+BATCH_MAX_URLS = 50
+
+#: UX.md §1.2. The log pane holds this many lines and drops from the top.
+MAX_LOG_LINES = 500
+
+#: UX.md §1.3. A queue row older than this shows its age in the warn colour and
+#: the word `stale`. An unresolved ownership check left sitting is the thing
+#: this is watching for.
+STALE_DRAFT_DAYS = 7
+
+#: SCHEMA.md §2. Mirrors the zod schema's `summary: z.string().min(1).max(160)`.
+#: `/validate` check 13 diffs the two, so this cannot drift silently.
+SUMMARY_MAX_CHARS = 160
+
+#: SCHEMA.md §2 / §7 and DESIGN.md §4: body copy is 350 to 700 words. Outside
+#: that range the draft is chipped FLAGGED rather than blocked (UX.md §1.3).
+MIN_PROSE_WORDS = 350
+MAX_PROSE_WORDS = 700
+
+#: SCHEMA.md §2: 3 to 6 pairs recommended, hard cap 8. The cap is the zod one.
+FAQ_MAX_ITEMS = 8
+
+#: UX.md §1.4, "undo, not confirmation". The SERVER window is deliberately wider
+#: than the client's 3-second offer, so a click at the boundary succeeds rather
+#: than racing the timer it is trying to beat.
+UNDO_WINDOW_SECONDS = 10
+UNDO_CLIENT_SECONDS = 3
+
+#: The admin's own assets. Hand-written, no build step, no CDN (TRD.md §3).
+TEMPLATES_DIR = ADMIN_DIR / "templates"
+STATIC_DIR = ADMIN_DIR / "static"
+
+#: The built public site. The review pane's preview links the real shipped CSS
+#: from here rather than restating it (UX.md §1.4): reviewing in a different
+#: skin from what ships is how errors slip through.
+SITE_DIST_DIR = SITE_DIR / "dist"
+
+#: UX.md §1.4.4 and §1.4.6. Both are Gate 4's to fill: the blocked record is
+#: written by the pipeline's ownership abort, and the determination sidecar is
+#: what the approve action retains. Gate 3 defines the paths and moves the
+#: sidecar when one is present, so the approve action does not have to change
+#: shape later.
+#:
+#: FLAGGED FOR THE RECORD (2026-08-07): TRD.md §3's repository tree names
+#: neither directory, while UX.md §1.4.4 and §1.4.6 both require them by name.
+#: They are placed under `content-staging/` because that is gitignored volume
+#: state and because the deploy allow-list (TRD.md §6.5) does not carry either
+#: one, which settles that they are working files rather than published record.
+BLOCKED_DIR = CONTENT_STAGING_DIR / "_blocked"
+DETERMINATIONS_DIR = CONTENT_STAGING_DIR / "_determinations"

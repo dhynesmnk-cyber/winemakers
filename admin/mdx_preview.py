@@ -1,0 +1,510 @@
+"""mdx_preview.py — the review pane's rendered preview. Gate 3.
+
+UX.md §1.4: the preview renders the staged MDX **using the actual public
+producer-page styles, by importing the same CSS the site ships**. Reviewing in a
+different skin from what ships is how errors slip through, so nothing here
+restates a rule from `global.css` or `tokens.css`. The document this module
+builds links the built stylesheet out of `site/dist/` and is served into an
+iframe, so the site's `body`, `html` and `:root` rules apply to the preview and
+to nothing else on the admin screen.
+
+── Why this renders the page rather than the file ────────────────────────────
+
+The reviewer is deciding whether a page is fit to publish. A syntax-highlighted
+MDX file does not answer that question: the fact row, the dateline, the appendix
+and the provenance close are all assembled from the structured fields, and they
+are most of what a reader sees. So this mirrors `pages/producer/[slug].astro`,
+in the same order DESIGN.md §7 fixes: name, dateline, fact row, prose, plate,
+FAQ, appendix, provenance.
+
+── The two things read out of the site rather than duplicated ────────────────
+
+1. **The stylesheet**, from the last `npm run build`. No build, no styles, and
+   the preview says so plainly rather than rendering unstyled and looking
+   broken.
+2. **Astro's scoped-style attributes.** Astro compiles a component's `<style>`
+   block to `[data-astro-cid-xxxx]` selectors. The hash is derived from the
+   component's path and is stable between builds, so it is read off a built
+   producer page and stamped back onto the matching elements here. Without it
+   the scoped half of the page's styling silently would not apply.
+
+── The honesty rule (CLAUDE.md rule 6) ───────────────────────────────────────
+
+This module renders what the draft says and adds nothing. There is no synthetic
+sample text, no placeholder tasting note, no filler where a field is empty.
+Present-only display is the same rule the public page follows: a field the
+producer does not state renders nothing at all.
+"""
+
+from __future__ import annotations
+
+import html
+import re
+import sys
+from pathlib import Path
+from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from admin import schema  # noqa: E402
+from admin.config import (  # noqa: E402
+    PRACTICE_KEYS,
+    ROOT,
+    SITE_DIST_DIR,
+)
+
+ICON_PATHS_TS = ROOT / "site" / "src" / "icons" / "paths.ts"
+
+#: DESIGN.md §6's size table, for the two contexts this preview renders.
+_ICON_SIZE_FACT_ROW = 18
+_ICON_SIZE_CHIP = 14
+
+
+# =============================================================================
+# 1. What is read out of the built site
+# =============================================================================
+
+
+def stylesheet_hrefs() -> list[str]:
+    """The built stylesheets, as URLs under the admin's `/site-dist` mount."""
+    astro_dir = SITE_DIST_DIR / "_astro"
+    if not astro_dir.is_dir():
+        return []
+    return [f"/site-dist/_astro/{path.name}" for path in sorted(astro_dir.glob("*.css"))]
+
+
+def _built_producer_page() -> str:
+    """Any built producer page, as the donor for the scoped-style attributes."""
+    for path in sorted((SITE_DIST_DIR / "producer").glob("*/index.html")):
+        try:
+            return path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+    return ""
+
+
+def _cid_for_class(built: str, class_name: str) -> str:
+    """The `data-astro-cid-*` attribute on the built element with this class.
+
+    Fails soft to an empty string: a preview missing a scoped margin is worth
+    having, and a preview that raises because the site has not been built is
+    not.
+    """
+    match = re.search(
+        rf'<\w+[^>]*class="[^"]*\b{re.escape(class_name)}\b[^"]*"([^>]*)>', built
+    )
+    if not match:
+        return ""
+    cid = re.search(r"data-astro-cid-[a-z0-9]+", match.group(1))
+    return f" {cid.group(0)}" if cid else ""
+
+
+def _read_icon_paths() -> dict[str, list[str]]:
+    """`ICON_PATHS` out of `paths.ts`. The glyph set is hand-authored TypeScript.
+
+    Python cannot import it and the file loads without a build step by design
+    (CONSTANTS-REQUIRED.md §1), so it is read as text — the same approach
+    `schema_surfaces.py` takes to `glossary.ts`.
+    """
+    try:
+        text = ICON_PATHS_TS.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    block = text.split("export const ICON_PATHS", 1)[-1]
+    paths: dict[str, list[str]] = {}
+    # Bracket-depth scanned rather than matched to a closing line: the set mixes
+    # one-line and multi-line entries, and a line-anchored pattern silently
+    # swallows the entry after a one-liner.
+    for match in re.finditer(r"^  (\w+): \[", block, re.MULTILINE):
+        depth = 0
+        for index in range(match.end() - 1, len(block)):
+            if block[index] == "[":
+                depth += 1
+            elif block[index] == "]":
+                depth -= 1
+                if depth == 0:
+                    paths[match.group(1)] = re.findall(
+                        r'"([^"]+)"', block[match.end() : index]
+                    )
+                    break
+    return paths
+
+
+_ICON_PATHS = _read_icon_paths()
+
+
+def _icon(key: str, size: int = _ICON_SIZE_FACT_ROW) -> str:
+    """One glyph, in DESIGN.md §6's grammar. Decorative: it sits beside its word."""
+    paths = _ICON_PATHS.get(key)
+    if not paths:
+        return ""
+    drawn = "".join(f'<path d="{html.escape(d, quote=True)}" />' for d in paths)
+    return (
+        f'<svg class="icon" width="{size}" height="{size}" viewBox="0 0 24 24" '
+        f'fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" '
+        f'stroke-linejoin="round" aria-hidden="true">{drawn}</svg>'
+    )
+
+
+# =============================================================================
+# 2. The MDX body
+#
+# A deliberately small subset: the constructs SCHEMA.md §7's sample body and the
+# Architect's prompt actually produce. Anything else is passed through as a
+# paragraph rather than swallowed, so an unexpected construct is visible to the
+# reviewer instead of vanishing from the preview.
+# =============================================================================
+
+_INLINE = (
+    (re.compile(r"\[([^\]]+)\]\(([^)]+)\)"), r'<a href="\2">\1</a>'),
+    (re.compile(r"\*\*([^*]+)\*\*"), r"<b>\1</b>"),
+    (re.compile(r"(?<!\*)\*([^*]+)\*(?!\*)"), r"<i>\1</i>"),
+)
+
+
+def _inline(text: str) -> str:
+    out = html.escape(text.strip())
+    for pattern, replacement in _INLINE:
+        out = pattern.sub(replacement, out)
+    return out
+
+
+def render_body(body: str) -> str:
+    """The MDX body as HTML, with the two components the entries use."""
+    # JSX comments — `{/* … */}` — are not rendered by MDX and are not here.
+    body = re.sub(r"\{/\*.*?\*/\}", "", body, flags=re.DOTALL)
+
+    def pull(match: re.Match[str]) -> str:
+        attribution = match.group("attribution")
+        cite = (
+            f'<cite class="pull__attribution">{html.escape(attribution)}</cite>'
+            if attribution
+            else ""
+        )
+        return (
+            f'\n\n<<<blockquote class="pull">{_inline(match.group("text"))}{cite}'
+            f"</blockquote>>>\n\n"
+        )
+
+    body = re.sub(
+        r'<Pull(?:\s+attribution="(?P<attribution>[^"]*)")?\s*>(?P<text>.*?)</Pull>',
+        pull,
+        body,
+        flags=re.DOTALL,
+    )
+
+    def tipped(match: re.Match[str]) -> str:
+        attributes = dict(re.findall(r'(\w+)="([^"]*)"', match.group(0)))
+        return (
+            '\n\n<<<figure class="tipped-photo"><div class="tipped-photo__mount">'
+            f'<img src="{html.escape(attributes.get("src", ""), quote=True)}" alt="" />'
+            '</div><figcaption class="tipped-photo__caption mono mono-caps">'
+            f'{html.escape(attributes.get("caption", ""))}'
+            "</figcaption></figure>>>\n\n"
+        )
+
+    body = re.sub(r"<TippedPhoto\b[^>]*/>", tipped, body)
+
+    rendered: list[str] = []
+    for block in re.split(r"\n\s*\n", body):
+        block = block.strip()
+        if not block:
+            continue
+        if block.startswith("<<<") and block.endswith(">>>"):
+            rendered.append(block[3:-3])
+        elif block.startswith("## "):
+            rendered.append(f"<h2>{_inline(block[3:])}</h2>")
+        elif block.startswith("### "):
+            rendered.append(f"<h3>{_inline(block[4:])}</h3>")
+        else:
+            rendered.append(f"<p>{_inline(block)}</p>")
+    return "\n".join(rendered)
+
+
+def prose_word_count(body: str) -> int:
+    """Words a reader sees: components and JSX comments removed first."""
+    text = re.sub(r"\{/\*.*?\*/\}", "", body, flags=re.DOTALL)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return len(text.split())
+
+
+# =============================================================================
+# 3. The structured fields, in DESIGN.md §7's order
+# =============================================================================
+
+
+def _fact_row(data: dict[str, Any], cid: str) -> str:
+    """The present-only glyph row, mirroring `FactRow.astro`.
+
+    PRESENT-ONLY, and practices render only the true ones. There is no row
+    reading "not unfined": an absent practice is absence of evidence and this
+    page does not assert it either way.
+    """
+    facts: list[tuple[str, str]] = []
+
+    for key in PRACTICE_KEYS:
+        if (data.get("practices") or {}).get(key) is True:
+            facts.append((f"practice_{key}", schema.label_for("practice", key)))
+
+    for subject in ("organic", "biodynamic"):
+        state = data.get(subject)
+        if not state or state == "none":
+            continue
+        certifier = data.get(f"{subject}_certifier")
+        if state == "certified" and not certifier:
+            continue
+        label = (
+            f"Certified {subject} ({certifier})"
+            if state == "certified"
+            else f"{schema.label_for('certification', state)} {subject}"
+        )
+        facts.append((subject, label))
+
+    if data.get("fruit_source"):
+        facts.append(("fruit_source", schema.label_for("fruit-source", data["fruit_source"])))
+
+    band = data.get("production_band")
+    if band and band != "unknown":
+        facts.append(("production", schema.label_for("production-band", band)))
+
+    for style in data.get("wine_styles") or []:
+        facts.append((f"style_{style}", schema.label_for("wine-style", style)))
+    for vessel in data.get("vessels") or []:
+        facts.append((f"vessel_{vessel}", schema.label_for("vessel", vessel)))
+
+    if not facts:
+        return ""
+    items = "".join(
+        f'<li class="fact">{_icon(key)}<span>{html.escape(label)}</span></li>'
+        for key, label in facts
+    )
+    return f'<ul class="fact-row"{cid}>{items}</ul>'
+
+
+def _dateline(data: dict[str, Any]) -> str:
+    location = data.get("location") or {}
+    parts: list[str] = []
+    if location.get("suburb"):
+        parts.append(str(location["suburb"]))
+    if location.get("state"):
+        parts.append(schema.label_for("state", location["state"]))
+    if data.get("primary_region"):
+        parts.append(schema.region_name(data["primary_region"]))
+    for slug in data.get("subregions") or []:
+        parts.append(schema.subregion_name(slug))
+    if data.get("category"):
+        parts.append(schema.label_for("category", data["category"]))
+    if data.get("founded_year"):
+        parts.append(f"Founded {data['founded_year']}")
+    return " · ".join(html.escape(str(part)) for part in parts)
+
+
+def _appendix(data: dict[str, Any], cid: str) -> str:
+    location = data.get("location") or {}
+    rows: list[str] = []
+
+    where = [
+        location.get("address"),
+        location.get("suburb"),
+        schema.label_for("state", location["state"]) if location.get("state") else None,
+    ]
+    where = [str(part) for part in where if part]
+    if where:
+        rows.append(f"<dt>Where</dt><dd>{html.escape(', '.join(where))}</dd>")
+
+    cellar_door = data.get("cellar_door")
+    sentence = {
+        "none": "No cellar door. Wine is sold direct rather than on site.",
+        "by_appointment": "Open by appointment.",
+        "open": "Open during published hours.",
+    }.get(cellar_door or "", "")
+    if sentence:
+        hours = data.get("cellar_door_hours")
+        extra = f"<br />{html.escape(str(hours))}" if hours else ""
+        rows.append(f"<dt>Cellar door</dt><dd>{sentence}{extra}</dd>")
+
+    if data.get("cost"):
+        rows.append(f"<dt>Cost</dt><dd>{html.escape(str(data['cost']))}</dd>")
+    if data.get("minimum_age"):
+        rows.append(f"<dt>Minimum age</dt><dd>{html.escape(str(data['minimum_age']))}</dd>")
+    if data.get("ships_nationally"):
+        rows.append("<dt>Delivery</dt><dd>Ships nationally.</dd>")
+
+    actions = ""
+    if data.get("website"):
+        actions += (
+            f'<a class="visit-btn" href="{html.escape(str(data["website"]), quote=True)}" '
+            f'rel="noopener">Producer\'s own site</a>'
+        )
+    if data.get("buy_online") and data.get("shop_url"):
+        actions += (
+            f'<a class="visit-btn" href="{html.escape(str(data["shop_url"]), quote=True)}" '
+            f'rel="noopener">Buy direct</a>'
+        )
+
+    return (
+        f'<section class="appendix"{cid}><dl>{"".join(rows)}</dl>'
+        f'<p class="appendix__actions"{cid}>{actions}</p></section>'
+    )
+
+
+def _provenance(data: dict[str, Any], cid: str) -> str:
+    """The provenance close — always present, set in words and dates.
+
+    DESIGN.md §7: never a badge, tick, shield, seal, meter, score or percentage.
+    It must read as a citation. Its absence would be read as "unknown", and an
+    undetermined producer is not publishable, so it renders even while a field
+    it cites is still empty in the draft.
+    """
+    ownership = data.get("ownership_source") or {}
+    source = str(ownership.get("source") or "")
+    ownership_date = schema.as_date(ownership.get("date"))
+    method = ownership.get("method")
+    source_html = (
+        f'<a href="{html.escape(source, quote=True)}" rel="noopener">{html.escape(source)}</a>'
+        if source.startswith("http")
+        else html.escape(source)
+    )
+
+    lines = ['<p><a href="/methodology/">Independent</a>. No parent company.</p>']
+    if source and ownership_date and method:
+        lines.append(
+            f"<p>Ownership checked on {ownership_date.isoformat()} against {source_html} "
+            f"({html.escape(schema.label_for('ownership-evidence', method).lower())}).</p>"
+        )
+    else:
+        lines.append(
+            '<p class="preview-missing">No ownership source recorded yet. '
+            "This draft cannot be approved without one.</p>"
+        )
+
+    drafted = schema.as_date(data.get("drafted"))
+    verified = schema.as_date(data.get("verified"))
+    source_url = str(data.get("source_url") or "")
+    if drafted and verified and source_url:
+        lines.append(
+            f"<p>Entry drafted {drafted.isoformat()}. Verified {verified.isoformat()}. "
+            f'Source: <a href="{html.escape(source_url, quote=True)}" rel="noopener">'
+            f"{html.escape(source_url)}</a>.</p>"
+        )
+
+    records = data.get("verification") or {}
+    if records:
+        items = ""
+        for field, record in records.items():
+            if not isinstance(record, dict):
+                continue
+            record_date = schema.as_date(record.get("date"))
+            items += (
+                f"<li>{html.escape(field.replace('_', ' '))} · "
+                f'<a href="{html.escape(str(record.get("source", "")), quote=True)}" '
+                f'rel="noopener">{html.escape(str(record.get("source", "")))}</a> · '
+                f"{html.escape(schema.label_for('confidence-tier', str(record.get('tier'))).lower())} · "
+                f"{record_date.isoformat() if record_date else ''}</li>"
+            )
+        lines.append(f'<ul class="provenance__fields"{cid}>{items}</ul>')
+
+    return f'<footer class="provenance mono"{cid}>{"".join(lines)}</footer>'
+
+
+# =============================================================================
+# 4. The document
+# =============================================================================
+
+
+def render_document(data: dict[str, Any], body: str) -> str:
+    """A complete HTML document for the preview iframe.
+
+    No `data-theme` attribute: DESIGN.md §8 gives the admin automatic theming
+    only, so `tokens.css`'s `prefers-color-scheme` block is what decides, and the
+    preview follows the hub around it.
+    """
+    built = _built_producer_page()
+    page = _cid_for_class(built, "reading-spine")
+    # `FactRow.astro` carries no `<style>` block — `.fact-row` and `.fact` are
+    # global — so its elements carry no scoped attribute and must not be given
+    # one.
+    fact_row_cid = ""
+
+    styles = "".join(
+        f'<link rel="stylesheet" href="{href}" />' for href in stylesheet_hrefs()
+    )
+    unbuilt = (
+        ""
+        if styles
+        else (
+            '<p class="preview-missing">The site has not been built, so the real '
+            "stylesheet is not available. Run npm run build in site/ to preview "
+            "this draft in the styles it will ship with.</p>"
+        )
+    )
+
+    varieties = data.get("varieties") or []
+    varieties_html = ""
+    if varieties:
+        listed = " · ".join(
+            f'<a href="/variety/{html.escape(str(slug), quote=True)}/">'
+            f"{html.escape(schema.label_for('variety', str(slug)))}</a>"
+            for slug in varieties
+        )
+        varieties_html = f'<p class="varieties mono"{page}>{_icon("variety")}{listed}</p>'
+
+    faq_html = ""
+    pairs = data.get("faq") or []
+    if pairs:
+        blocks = "".join(
+            f'<div class="faq__pair"{page}><h3>{html.escape(str(pair.get("question", "")))}</h3>'
+            f'<p>{html.escape(str(pair.get("answer", "")))}</p></div>'
+            for pair in pairs
+            if isinstance(pair, dict)
+        )
+        faq_html = (
+            f'<section class="faq section-gap"{page}>'
+            f'<p class="section-opener">Questions</p>{blocks}</section>'
+        )
+
+    plate = ""
+    if data.get("image") and data.get("image_caption"):
+        plate = (
+            '<figure class="tipped-photo"><div class="tipped-photo__mount">'
+            f'<img src="{html.escape(str(data["image"]), quote=True)}" alt="" />'
+            '</div><figcaption class="tipped-photo__caption mono mono-caps">'
+            f'{html.escape(str(data["image_caption"]))}</figcaption></figure>'
+        )
+
+    return f"""<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{html.escape(str(data.get("name") or "Untitled draft"))}</title>
+{styles}
+<style>
+  /* The preview's own two rules, and no more. Everything else on this page is
+     the site's shipped CSS. */
+  body {{ padding: 1.5rem 0 4rem; }}
+  .preview-missing {{ color: var(--warn, #8a5a00); font-style: italic; }}
+</style>
+</head>
+<body>
+<div class="page-frame">
+<main id="main">
+{unbuilt}
+<article class="reading-spine"{page}>
+  <header{page}>
+    <h1{page}>{html.escape(str(data.get("name") or "Untitled draft"))}</h1>
+    <p class="dateline mono mono-caps"{page}>{_dateline(data)}</p>
+  </header>
+  <div class="fact-row-wrap"{page}>{_fact_row(data, fact_row_cid)}</div>
+  {varieties_html}
+  <div class="prose"{page}>{render_body(body)}</div>
+  {plate}
+  {faq_html}
+  {_appendix(data, page)}
+  {_provenance(data, page)}
+</article>
+</main>
+</div>
+</body>
+</html>
+"""
