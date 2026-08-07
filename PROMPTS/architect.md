@@ -66,6 +66,17 @@ the whole thing.
 Emit exactly these keys. Required keys are always present, including when the
 value is `null`.
 
+**Quote any string value containing a colon**, in frontmatter and in every FAQ
+`question` and `answer`. YAML reads the first `: ` in an unquoted value as a key
+separator and the file stops parsing. Rule 2 below tells you to replace em
+dashes with a colon, so this is the ordinary case, not a rare one:
+
+```yaml
+answer: "The sparkling wine is the stated exception: the fruit is bought in."
+```
+
+Use double quotes and escape any double quote inside the value as `\"`.
+
 | Key | Rule |
 |---|---|
 | `name` | The producer's trading name, from the record. |
@@ -163,7 +174,9 @@ prompt, which is the stage that checks your work; what you need are the rules.
    `quintessential`, `showcase`, `elevate`, `tapestry`. If a phrase would be at
    home in a tourism brochure, cut it.
 2. **No em dashes.** Use a comma, a full stop, or a colon. This applies to the
-   character itself, in body, frontmatter and FAQ alike.
+   character itself, in body, frontmatter and FAQ alike. A colon inside a
+   frontmatter or FAQ string means that value must be quoted: see Frontmatter
+   above.
 3. **No not-X-but-Y.** No "not just a winery but a…", no "it isn't about X, it's
    about Y", no "more than just". State what the thing is.
 4. **No hedges.** No `arguably`, `perhaps`, `possibly`, `somewhat`, `fairly`,

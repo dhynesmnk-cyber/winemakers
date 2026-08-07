@@ -262,8 +262,13 @@ def harvest_one(
     # ── 6. Architect ──────────────────────────────────────────────────────
     import json as _json
 
+    # `validate` is the stage's contract and it is what arms the content tier.
+    # Passing an identity here and parsing afterwards disabled UX.md §1.5 row
+    # 4's re-ask for the one stage that writes the most text: an unparseable
+    # frontmatter line failed the URL outright instead of being re-asked once.
+    # Observed on SEED.md row 2, 2026-08-08.
     try:
-        draft_text = agents.call(
+        draft_text, (data, body) = agents.call(
             "architect",
             MODEL_ARCHITECT,
             agents.load_prompt(
@@ -275,19 +280,14 @@ def harvest_one(
                 SUBREGION_SLUGS=", ".join(schema.SUBREGION_SLUGS),
                 VARIETY_SLUGS=", ".join(orchestrator.VARIETY_KEYS),
             ),
-            validate=lambda text: text,
+            validate=lambda text: (text, orchestrator._validate_mdx(text)),
             log=log,
             ledger=ledger,
             slug=slug,
         )
-        data, body = orchestrator._validate_mdx(agents.strip_fence(draft_text))
     except (agents.AgentError, agents.MalformedOutput) as exc:
+        # `agents.call` has already saved the raw output and logged its path.
         log("error", f"architect failed: {exc}")
-        return HarvestResult(FAILED, url, slug=slug, detail=f"architect: {exc}", ledger=ledger)
-    except ValueError as exc:
-        log("error", f"architect returned unusable MDX: {exc}")
-        path = agents.save_failed("architect", slug, draft_text)
-        log("info", f"raw output saved to {path.parent.name}/{path.name}")
         return HarvestResult(FAILED, url, slug=slug, detail=f"architect: {exc}", ledger=ledger)
 
     log("info", f"architect agent ({MODEL_ARCHITECT})  ok, {len(body.split())} words")
