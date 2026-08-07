@@ -2,6 +2,47 @@
   {
     "biodynamic": "none",
     "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": true,
+    "name": "Basket Range Wine",
+    "organic": "practising",
+    "organic_certifier": null,
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "basket-range-wine",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Basket Range",
+    "summary": "Second-generation Broderick family winery at Basket Range in the Adelaide Hills, with 4.5 hectares of estate vines.",
+    "varieties": [
+      "cabernet-sauvignon",
+      "chardonnay",
+      "merlot",
+      "petit-verdot",
+      "pinot-noir"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "rose",
+      "skin_contact",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
     "category": "garagiste",
     "cellar_door": "by_appointment",
     "fruit_source": "mixed",
