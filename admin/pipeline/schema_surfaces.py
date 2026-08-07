@@ -59,11 +59,7 @@ CONFIG_TS_PATH = ROOT / "site" / "src" / "config.ts"
 GLOSSARY_TS_PATH = ROOT / "site" / "src" / "data" / "glossary.ts"
 
 #: Surfaces that land at a later gate. Reported as pending, never as agreement.
-PENDING_SURFACES = {
-    "admin/pipeline/orchestrator.py": ("the Harvester JSON validator", 5),
-    "PROMPTS/architect.md": ("the Architect prompt", 5),
-    "PROMPTS/gatekeeper.md": ("the Gatekeeper prompt", 5),
-}
+PENDING_SURFACES: dict[str, tuple[str, int]] = {}
 
 #: Surfaces whose gate HAS shipped. Absence is a failure here, not a pending
 #: note. A surface that ships and then disappears would otherwise be waved
@@ -72,9 +68,16 @@ PENDING_SURFACES = {
 #:
 #: 2026-08-07, Gate 3: `admin/schema.py` and `admin/mdx_preview.py` moved here
 #: from PENDING_SURFACES on the gate that wrote them.
+#: 2026-08-07, Gate 5: the last three moved here on the gate that wrote them.
+#: PENDING_SURFACES is now empty, which is the intended end state — every
+#: surface named in this module's header is built and is compared, not merely
+#: counted.
 SHIPPED_SURFACES = {
     "admin/schema.py": ("KNOWN_FIELDS, the admin frontmatter editor", 3),
     "admin/mdx_preview.py": ("the review-pane preview", 3),
+    "admin/pipeline/orchestrator.py": ("the Harvester JSON validator", 5),
+    "PROMPTS/architect.md": ("the Architect prompt", 5),
+    "PROMPTS/gatekeeper.md": ("the Gatekeeper prompt", 5),
 }
 
 
@@ -185,6 +188,34 @@ def _ddl_tables() -> dict[str, list[str]]:
                 columns.append(column.group(1))
         tables[table] = columns
     return tables
+
+
+def _schema_md_required_fields() -> set[str]:
+    """Fields SCHEMA.md §2's table marks required with a tick in the `Req` column.
+
+    These are the ones the Architect must be told to emit: a required field the
+    prompt never names is a field every draft omits, which surfaces as a wall of
+    identical validation errors at approve time rather than as a schema failure.
+    """
+    text = (ROOT / "SCHEMA.md").read_text(encoding="utf-8")
+    section = text.split("## 2. MDX Frontmatter", 1)[-1].split(
+        "### Fields deliberately absent", 1
+    )[0]
+    required = set()
+    for line in section.splitlines():
+        match = re.match(r"^\| `(\w+)` \| [^|]* \| ([^|]*) \|", line)
+        if match and "✓" in match.group(2):
+            required.add(match.group(1))
+    return required
+
+
+def _schema_md_harvester_keys() -> list[str]:
+    """`HARVESTER_REQUIRED_KEYS` as SCHEMA.md §5 declares it."""
+    text = (ROOT / "SCHEMA.md").read_text(encoding="utf-8")
+    match = re.search(r"HARVESTER_REQUIRED_KEYS\s*=\s*\((.*?)\)", text, re.DOTALL)
+    if not match:
+        return []
+    return re.findall(r'"([^"]+)"', match.group(1))
 
 
 def _ts_tuple(text: str, name: str) -> list[str] | None:
@@ -452,6 +483,71 @@ def _compare_config_pair(failures: list[str]) -> None:
         )
 
 
+def _compare_orchestrator(failures: list[str]) -> None:
+    """Surface 3: the Harvester JSON validator (Gate 5).
+
+    Until Gate 5 this surface was reported as pending, which only ever asserted
+    that the file did not exist. Existing is not agreeing, so these are the
+    comparisons that make it a real consumer.
+    """
+    try:
+        from admin.pipeline import orchestrator
+    except ImportError as exc:
+        failures.append(f"admin/pipeline/orchestrator.py will not import: {exc}")
+        return
+
+    from admin import schema as admin_schema
+
+    known = set(admin_schema.KNOWN_FIELDS)
+
+    stray = [f for f in orchestrator.PIPELINE_OWNED_FIELDS if f not in known]
+    if stray:
+        failures.append(
+            "orchestrator.PIPELINE_OWNED_FIELDS names field(s) that are not in "
+            "admin/schema.py KNOWN_FIELDS: " + ", ".join(sorted(stray))
+        )
+
+    stray = [f for f in orchestrator.DETERMINATION_FIELDS.values() if f not in known]
+    if stray:
+        failures.append(
+            "orchestrator.DETERMINATION_FIELDS maps to field(s) that are not in "
+            "admin/schema.py KNOWN_FIELDS: " + ", ".join(sorted(stray))
+        )
+
+    declared = _schema_md_harvester_keys()
+    if not declared:
+        failures.append("SCHEMA.md §5: HARVESTER_REQUIRED_KEYS could not be parsed")
+    elif declared != list(orchestrator.HARVESTER_REQUIRED_KEYS):
+        failures.append(
+            "HARVESTER_REQUIRED_KEYS: SCHEMA.md §5 and orchestrator.py disagree.\n"
+            f"      SCHEMA.md §5:    {declared}\n"
+            f"      orchestrator.py: {list(orchestrator.HARVESTER_REQUIRED_KEYS)}"
+        )
+
+
+def _compare_prompts(failures: list[str]) -> None:
+    """The Architect prompt must name every required frontmatter field.
+
+    This is the drift that costs the most and shows up latest: add a required
+    field, forget the prompt, and every draft from then on is missing it. The
+    schema catches it at approve time, one producer at a time, after the tokens
+    are spent.
+    """
+    path = ROOT / "PROMPTS" / "architect.md"
+    if not path.is_file():
+        failures.append("PROMPTS/architect.md is missing")
+        return
+    text = path.read_text(encoding="utf-8")
+    missing = sorted(
+        field for field in _schema_md_required_fields() if f"`{field}`" not in text
+    )
+    if missing:
+        failures.append(
+            "PROMPTS/architect.md does not name required frontmatter field(s): "
+            + ", ".join(missing)
+        )
+
+
 def run() -> tuple[list[str], list[str]]:
     """Returns (failures, pending surfaces)."""
     failures: list[str] = []
@@ -461,6 +557,8 @@ def run() -> tuple[list[str], list[str]]:
     _compare_storage(failures)
     _compare_config_pair(failures)
     _compare_numeric_bounds(failures)
+    _compare_orchestrator(failures)
+    _compare_prompts(failures)
 
     for relative, (what, gate) in sorted(PENDING_SURFACES.items()):
         if not (ROOT / relative).is_file():
@@ -589,6 +687,52 @@ def _selftest() -> list[str]:
         if len(failures) != len(NUMERIC_BOUNDS):
             errors.append(
                 "selftest: a bound the zod schema no longer states was NOT reported"
+            )
+
+        # ── Gate 5 surfaces: the Harvester validator and the prompts ───────
+        from admin.pipeline import orchestrator
+
+        # 7. A pipeline-owned field that is not a real frontmatter field. This
+        #    is what a renamed field looks like from this side.
+        saved_owned = orchestrator.PIPELINE_OWNED_FIELDS
+        orchestrator.PIPELINE_OWNED_FIELDS = (*saved_owned, "vintage_chart")  # type: ignore[misc]
+        failures = []
+        _compare_orchestrator(failures)
+        if not any("vintage_chart" in f for f in failures):
+            errors.append(
+                "selftest: a pipeline-owned field absent from KNOWN_FIELDS was NOT caught"
+            )
+        orchestrator.PIPELINE_OWNED_FIELDS = saved_owned  # type: ignore[misc]
+
+        # 8. The Harvester contract drifting from SCHEMA.md §5. Dropping a key
+        #    from the validator is the realistic direction: the JSON keeps
+        #    arriving, the missing key just stops being required.
+        saved_keys = orchestrator.HARVESTER_REQUIRED_KEYS
+        orchestrator.HARVESTER_REQUIRED_KEYS = tuple(  # type: ignore[misc]
+            key for key in saved_keys if key != "confidence_notes"
+        )
+        failures = []
+        _compare_orchestrator(failures)
+        if not any("HARVESTER_REQUIRED_KEYS" in f for f in failures):
+            errors.append(
+                "selftest: a Harvester contract drifted from SCHEMA.md §5 was NOT caught"
+            )
+        orchestrator.HARVESTER_REQUIRED_KEYS = saved_keys  # type: ignore[misc]
+
+        # 9. A required frontmatter field the Architect prompt never names.
+        #    Introduced on the SCHEMA.md side, because that is the direction the
+        #    drift actually travels: the contract gains a field, the prompt does
+        #    not, and every draft from then on is missing it.
+        saved_reader = globals()["_schema_md_required_fields"]
+        globals()["_schema_md_required_fields"] = lambda: saved_reader() | {
+            "vintage_chart"
+        }
+        failures = []
+        _compare_prompts(failures)
+        globals()["_schema_md_required_fields"] = saved_reader
+        if not any("vintage_chart" in f for f in failures):
+            errors.append(
+                "selftest: a required field missing from the Architect prompt was NOT caught"
             )
     finally:
         FIELD_DISPOSITION.clear()
