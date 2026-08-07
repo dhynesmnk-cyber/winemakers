@@ -456,6 +456,27 @@ def _selftest() -> list[str]:
         check(result.unmatched.get("varieties") == ["Invented Grape"],
               "row 11: the unmatched value is not carried to the review pane")
 
+    # Row 11 must fire for a grape that is genuinely absent, and must NOT fire
+    # for one whose only difference from its key is a diacritic. The §1 slugs
+    # are ASCII, so an accented spelling has to fold to the same key. Until
+    # 2026-08-08 `slugify` swept accents into hyphens, so `Albariño` became
+    # `albari-o` and five varieties already in the vocabulary were unreachable
+    # by their correct names — reported as unmatched and dropped from the
+    # field, which is how a producer's actual varieties disappear.
+    for spelling, key in (
+        ("Albariño", "albarino"),
+        ("Gewürztraminer", "gewurztraminer"),
+        ("Grüner Veltliner", "gruner-veltliner"),
+        ("Pedro Ximénez", "pedro-ximenez"),
+        ("Blaufränkisch", "blaufrankisch"),
+        # Already ASCII, and must stay working.
+        ("Nero d'Avola", "nero-davola"),
+    ):
+        got = orchestrator.slugify(spelling)
+        check(got == key, f"slugify({spelling!r}) is {got!r}, not the vocabulary key {key!r}")
+        check(key in orchestrator.VARIETY_KEYS,
+              f"fixture is stale: {key!r} is no longer a variety key")
+
     # ── Certification integrity: certified with no certifier is downgraded ─
     with Harness() as h:
         result, lines = _harvest([
