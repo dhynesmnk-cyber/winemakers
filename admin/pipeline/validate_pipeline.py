@@ -371,6 +371,15 @@ def _selftest() -> list[str]:
         check(h.drafts == [], "row 7: A DRAFT WAS WRITTEN DESPITE independence: reject")
         check(list(h.blocked.glob("*.json")), "row 7: no blocked record was written")
         check(any(lvl == "error" for lvl, _ in lines), "row 7: no error-level log line")
+        # UX.md §1.5 row 7 asks for the first statement quoted, not just counted.
+        # The reader of that log is deciding whether the reject was right, and a
+        # count tells them nothing. This assertion is here because the line read
+        # `row.get("values")` where signal_rows emits `items`, so it silently
+        # printed nothing at all from the day it was written.
+        check(
+            any('first signal: "A division of Example Group"' in msg for _, msg in lines),
+            "row 7: the first extracted signal was not quoted in the log",
+        )
 
     # ── Row 8: an ownership check writes the draft and flags it ───────────
     with Harness() as h:

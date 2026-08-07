@@ -230,11 +230,15 @@ def harvest_one(
         path = ownership.write_blocked_record(url, name, determination)
         log("error", f"blocked before drafting — {reason}")
         if source_of_reject == "harvester" and populated:
+            # `signal_rows` emits `items`. This read `values` and so always
+            # found None, which meant UX.md §1.5 row 7's "first statement
+            # quoted" never once printed on a Harvester reject — the log said
+            # a signal count and withheld the sentence behind it.
             first = next(
-                (row for row in populated if row.get("values")), None
+                (row for row in populated if row.get("items")), None
             )
-            if first and first.get("values"):
-                log("info", f'  first signal: "{first["values"][0]}"')
+            if first and first.get("items"):
+                log("info", f'  first signal: "{first["items"][0]}"')
         log("info", f"blocked record written to {path.parent.name}/{path.name}")
         return HarvestResult(
             BLOCKED, url, slug=slug, detail=reason, ledger=ledger, determination=determination
