@@ -134,6 +134,34 @@
         </form>
       </div>
 
+      {#
+        Candidate images — UX.md §4. A thumbnail strip BELOW the frontmatter
+        editor, each candidate showing its source URL as visible text so the
+        reviewer can see it came from the producer's own site before publishing
+        it. That judgement is only possible here.
+
+        Publishing an image is a separate deliberate action from approving the
+        prose, and approving with no image is the normal path. The strip never
+        nags, never sorts imageless drafts differently, and never shows a
+        placeholder frame where a photograph would be.
+      #}
+      <div id="images-pane" class="subpane" hidden>
+        <h3 class="mono mono-caps">Candidate images</h3>
+        <p id="images-empty" class="empty">
+          No candidate images. This producer publishes without a photograph,
+          which is the normal case.
+        </p>
+        <ul id="image-strip" class="image-strip"></ul>
+        <div id="image-publish" class="image-publish" hidden>
+          <label for="image-caption">Caption</label>
+          <input type="text" id="image-caption" />
+          <label for="image-alt">Alt text</label>
+          <input type="text" id="image-alt" placeholder="Empty if the caption describes it fully" />
+          <button type="button" id="publish-image" class="btn">Publish image</button>
+        </div>
+        <button type="button" id="remove-image" class="btn btn-danger" hidden>Remove image</button>
+      </div>
+
       <div class="actions">
         <p id="action-reason" class="note" aria-live="polite"></p>
         <div class="action-buttons">

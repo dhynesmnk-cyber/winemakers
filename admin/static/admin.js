@@ -39,6 +39,11 @@ const el = (tag, attrs = {}, children = []) => {
     if (value === null || value === undefined || value === false) continue;
     if (key === "text") node.textContent = value;
     else if (key === "class") node.className = value;
+    /* A function under an `on*` key is a real listener, not an attribute.
+       Without this branch it would be stringified into the markup, where the
+       closure it needs is out of scope and the handler silently does nothing. */
+    else if (key.startsWith("on") && typeof value === "function")
+      node.addEventListener(key.slice(2), value);
     else node.setAttribute(key, value === true ? "" : String(value));
   }
   for (const child of [].concat(children)) {
@@ -178,6 +183,48 @@ function renderHarvestQueue(data) {
       item.url.length > 44
         ? `${item.url.slice(0, 24)}…${item.url.slice(-16)}`
         : item.url;
+
+    /* A STAGED row shows its slug as a link that selects the draft (UX.md
+       §1.1). Getting from "that one finished" to reviewing it should not
+       require finding it again in a second list. */
+    let staged = null;
+    if (item.state === "STAGED" && item.slug) {
+      staged = el("button", {
+        class: "linkish mono",
+        type: "button",
+        text: item.slug,
+        onclick: () => {
+          const row = $(`#review-queue [data-slug="${item.slug}"]`);
+          if (row) selectRow(row);
+        },
+      });
+    }
+
+    /* UX.md §1.5 row 3. Offered ONLY on an item the server marked thin, and
+       only ever by a person clicking it. Nothing escalates automatically. */
+    let playwright = null;
+    if (item.offer_playwright) {
+      playwright = el("button", {
+        class: "btn btn-quiet",
+        type: "button",
+        text: "Retry with Playwright",
+        onclick: async (event) => {
+          const button = event.currentTarget;
+          button.disabled = true;
+          const response = await fetch("/api/harvest/playwright", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: item.url }),
+          });
+          if (response.ok) {
+            renderHarvestQueue(await response.json());
+          } else {
+            button.disabled = false;
+          }
+        },
+      });
+    }
+
     list.append(
       el("li", { class: "harvest-row" }, [
         el("p", { class: "mono", title: item.url }, [
@@ -185,6 +232,8 @@ function renderHarvestQueue(data) {
           el("span", { text: ` ${index + 1}. ${shortened}` }),
         ]),
         item.detail ? el("p", { class: "mono warn", text: item.detail }) : null,
+        staged,
+        playwright,
       ]),
     );
   });
@@ -315,7 +364,111 @@ async function loadDraft(slug) {
   renderEditor(data);
   $("#preview").src = `/preview/${slug}`;
   state.loaded = true;
+  loadImages(slug);
 }
+
+/* ── Candidate images — UX.md §4 ───────────────────────────────────────── */
+
+let selectedImage = null;
+
+const hostOf = (url) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+};
+
+const fileOf = (url) => {
+  try {
+    return decodeURIComponent(new URL(url).pathname.split("/").pop() || url);
+  } catch {
+    return url;
+  }
+};
+
+async function loadImages(slug) {
+  selectedImage = null;
+  const pane = $("#images-pane");
+  const strip = $("#image-strip");
+  const publish = $("#image-publish");
+  const remove = $("#remove-image");
+  pane.hidden = false;
+  strip.replaceChildren();
+  publish.hidden = true;
+
+  const data = await fetch(`/api/draft/${slug}/images`).then((r) => r.json());
+
+  /* An already-published image offers only its reverse. UX.md §4 step 4 makes
+     Remove one action, on a staged draft or a published producer alike, because
+     a takedown request is not the moment to be assembling a procedure. */
+  remove.hidden = !data.published;
+
+  const images = data.images || [];
+  $("#images-empty").hidden = images.length > 0;
+  if (images.length === 0) return;
+
+  images.forEach((image) => {
+    const thumb = el("li", { class: "image-candidate" }, [
+      el("img", {
+        src: `/api/draft/${slug}/images/${image.file}`,
+        alt: "",
+        loading: "lazy",
+      }),
+      el("p", { class: "mono faded", text: `${image.width}×${image.height}` }),
+      /* The source is VISIBLE TEXT, not a tooltip. This is the only step where
+         a reviewer can tell a producer's own photograph from a stock library's
+         or another label's, and a tooltip is not a place people look.
+
+         The HOST is on its own line and carries the weight, because the host is
+         the thing being judged. Printing the whole URL as one run wrapped these
+         to six lines each and buried the only part that answers the question.
+         The full value stays in `title` and is one hover away. */
+      el("p", { class: "mono image-host", text: hostOf(image.source_url) }),
+      el("p", {
+        class: "mono image-source",
+        text: fileOf(image.source_url),
+        title: image.source_url,
+      }),
+    ]);
+    thumb.addEventListener("click", () => {
+      selectedImage = image.file;
+      $$(".image-candidate").forEach((node) =>
+        node.classList.toggle("is-selected", node === thumb),
+      );
+      publish.hidden = false;
+      if (!$("#image-caption").value) {
+        $("#image-caption").value = data.suggested_caption || "";
+      }
+    });
+    strip.append(thumb);
+  });
+}
+
+$("#publish-image").addEventListener("click", async () => {
+  if (!selectedImage || !state.slug) return;
+  const response = await fetch(`/api/draft/${state.slug}/image`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      file: selectedImage,
+      caption: $("#image-caption").value,
+      alt: $("#image-alt").value,
+    }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    $("#action-reason").textContent = error.detail || "Could not publish the image.";
+    return;
+  }
+  await loadDraft(state.slug);
+});
+
+$("#remove-image").addEventListener("click", async () => {
+  if (!state.slug) return;
+  await fetch(`/api/draft/${state.slug}/image`, { method: "DELETE" });
+  await loadDraft(state.slug);
+});
 
 function setValue(path, value) {
   // `path` is `field` or `field.subfield`. Frontmatter has one level of nesting.

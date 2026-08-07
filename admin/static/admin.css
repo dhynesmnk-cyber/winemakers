@@ -893,3 +893,90 @@ dialog dt {
 .review-split > * {
   min-width: 0;
 }
+
+/* ── Candidate images — UX.md §4 ──────────────────────────────────────────
+   A thumbnail strip below the frontmatter editor. Deliberately plain: no
+   placeholder frame where a photograph would be, no nagging, no visual weight
+   suggesting an imageless entry is incomplete. Pages are designed to be
+   complete with zero images and this pane must not argue otherwise.
+
+   DESIGN.md's bans apply here as everywhere: no radius, no shadow, no lift on
+   hover. Selection is a hairline and a background, the same language the
+   review queue already uses for its selected row. */
+
+.image-strip {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.6rem;
+}
+
+.image-candidate {
+  padding: 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--ink-faded) 24%, transparent);
+  background: var(--paper-raised);
+  cursor: pointer;
+}
+
+.image-candidate.is-selected {
+  box-shadow: inset 2px 0 0 var(--vine);
+  border-color: var(--vine);
+}
+
+.image-candidate img {
+  display: block;
+  width: 100%;
+  height: 96px;
+  object-fit: cover;
+}
+
+.image-candidate p {
+  margin: 0.3rem 0 0;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+/* The host answers the question the strip exists to ask, so it gets the ink. */
+.image-host {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+.image-source {
+  overflow-wrap: anywhere;
+  color: var(--ink-faded);
+}
+
+/* Any author `display` beats the UA stylesheet's `[hidden] { display: none }`,
+   so a `display: grid` rule silently un-hides an element the markup and the JS
+   both believe is hidden. Caught by screenshot: the publish controls rendered
+   with no candidate selected. Global, because every future pane with a display
+   rule and a hidden attribute has the same trap waiting in it. */
+[hidden] {
+  display: none !important;
+}
+
+.image-publish {
+  margin-top: 0.7rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.image-publish label {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faded);
+}
+
+.harvest-row .linkish {
+  margin-top: 0.3rem;
+  font-size: 11px;
+}
+
+.harvest-row .btn {
+  margin-top: 0.4rem;
+}

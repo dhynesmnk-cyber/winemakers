@@ -79,7 +79,14 @@ from admin.config import (  # noqa: E402
     VESSEL_KEYS,
     WINE_STYLE_KEYS,
 )
-from admin.pipeline import ownership, staging  # noqa: E402
+from admin.pipeline import (  # noqa: E402
+    fetcher,
+    harvest as harvest_module,
+    images,
+    ownership,
+    queue as queue_module,
+    staging,
+)
 
 _logger = logging.getLogger("admin.app")
 
@@ -109,6 +116,18 @@ class LogBus:
         self.capacity = capacity
         self.lines: list[dict[str, str]] = []
         self.subscribers: set[asyncio.Queue] = set()
+        #: Set at startup. The pipeline runs on a worker thread (it is blocking
+        #: by design, TRD.md §7.4), and `asyncio.Queue` is not thread-safe, so a
+        #: log line emitted off-loop is hopped back onto it. Without this the
+        #: SSE fan-out corrupts under exactly the load it exists to show.
+        self.loop: asyncio.AbstractEventLoop | None = None
+
+    def _fanout(self, line: dict[str, str]) -> None:
+        for queue in list(self.subscribers):
+            try:
+                queue.put_nowait(line)
+            except asyncio.QueueFull:  # pragma: no cover - a stalled reader
+                self.subscribers.discard(queue)
 
     def emit(self, level: str, message: str) -> None:
         line = {
@@ -120,11 +139,15 @@ class LogBus:
         if len(self.lines) > self.capacity:
             # Drops from the top, per UX.md §1.2.
             del self.lines[: len(self.lines) - self.capacity]
-        for queue in list(self.subscribers):
-            try:
-                queue.put_nowait(line)
-            except asyncio.QueueFull:  # pragma: no cover - a stalled reader
-                self.subscribers.discard(queue)
+
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        if self.loop is not None and running is not self.loop:
+            self.loop.call_soon_threadsafe(self._fanout, line)
+        else:
+            self._fanout(line)
 
     def subscribe(self) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue(maxsize=self.capacity * 2)
@@ -140,105 +163,33 @@ def log(level: str, message: str) -> None:
 
 
 # =============================================================================
-# 2. The harvest queue — UX.md §1.1
+# 2. The harvest queue — UX.md §1.1, TRD.md §7.4
 #
 # Server-held, not browser state, so a forty-URL run survives a page reload, a
 # closed tab and a restarted browser. One job at a time, serial, never
 # concurrent.
 #
-# THE RUNNER IS A STUB AT THIS GATE. It reports what it would do and ends the
-# item. It never writes a draft: inventing a producer entry would break the one
-# rule this project cannot break (CLAUDE.md rule 6).
+# WIRED AT GATE 5. `admin.pipeline.queue` owns the state machine and the
+# persistence; this module owns the HTTP surface and the thread the runner
+# occupies. `run_sync` blocks by design, so it is dispatched with
+# `asyncio.to_thread` and the log bus hops its lines back onto the loop.
 # =============================================================================
 
-_URL_LINE = re.compile(r"^https?://\S+$")
+
+#: The one queue. Loaded from disk at startup so a restart reattaches to the
+#: run rather than losing it (TRD.md §7.4).
+QUEUE = queue_module.HarvestQueue()
 
 
-class HarvestQueue:
-    def __init__(self) -> None:
-        self.items: list[dict[str, Any]] = []
-        self.paused = False
-        self._running = False
-        #: url -> the verdict ceiling for this run. Set only by UX.md §1.4.4's
-        #: `Re-harvest as check`, and consumed once so a later ordinary harvest
-        #: of the same URL is decided on its merits again.
-        self.floors: dict[str, str] = {}
+def _start_runner() -> None:
+    """Dispatch the blocking runner onto a worker thread, once.
 
-    def add(self, urls: list[str]) -> int:
-        for url in urls:
-            self.items.append({"url": url, "state": "QUEUED", "detail": "", "slug": ""})
-        return len(urls)
-
-    def summary(self) -> str:
-        counts: dict[str, int] = {}
-        for item in self.items:
-            counts[item["state"]] = counts.get(item["state"], 0) + 1
-        order = ("QUEUED", "RUNNING", "STAGED", "BLOCKED", "FAILED", "SKIPPED")
-        parts = [f"{counts[state]} {state.lower()}" for state in order if counts.get(state)]
-        return ", ".join(parts)
-
-    async def run(self) -> None:
-        """Serial runner. One item at a time; a failure ends that item only."""
-        if self._running:
-            return
-        self._running = True
-        try:
-            while True:
-                if self.paused:
-                    log("info", "queue paused after the current item")
-                    return
-                item = next((row for row in self.items if row["state"] == "QUEUED"), None)
-                if item is None:
-                    return
-                item["state"] = "RUNNING"
-                await self._run_one(item)
-        finally:
-            self._running = False
-
-    async def _run_one(self, item: dict[str, Any]) -> None:
-        # ── The independence screen, first and before any fetch (Gate 4) ──
-        #
-        # SCHEMA.md §4.5 and TRD.md §7.5: the deny-list runs BEFORE a draft
-        # enters the queue, and a `reject` aborts before any draft is written.
-        # Running it here rather than after the fetch is the cheap end of that
-        # rule — a portfolio-owned domain costs zero API calls, not three.
-        #
-        # Only the domain can be screened at this point, because a URL is all
-        # that exists yet. The name and ABN rows report `not checked` rather
-        # than pretending, and Gate 5's Harvester calls `screen_candidate`
-        # again with what it actually read from the page.
-        floor = self.floors.pop(item["url"], None)
-        determination = ownership.screen_url(item["url"], floor=floor)
-        if floor:
-            log(
-                "warn",
-                f"harvest: {item['url']} — machine verdict floored at {floor}; "
-                f"the draft carries verdict_overridden_from and every check rule applies",
-            )
-        if determination.verdict == "reject":
-            source_of_reject, reason = ownership.reject_reason(determination)
-            path = ownership.write_blocked_record(item["url"], "", determination)
-            item["state"] = "BLOCKED"
-            item["detail"] = reason
-            item["slug"] = path.stem
-            log("warn", f"harvest: {item['url']} blocked before drafting — {reason}")
-            log("info", f"blocked record written to {BLOCKED_DIR.name}/{path.name}")
-            return
-
-        log("info", f"fetching {item['url']}")
-        await asyncio.sleep(0)
-        # Per-URL isolation is the rule of the batch: any failure ends that item
-        # and advances to the next. Nothing partial is ever left in _staging.
-        item["state"] = "FAILED"
-        item["detail"] = "harvest pipeline is not wired yet, it lands at Gate 5"
-        log(
-            "error",
-            f"harvest: {item['url']} — the pipeline is stubbed at Gate 3. "
-            f"Harvester, Architect and Gatekeeper land at Gate 5.",
-        )
-
-
-QUEUE = HarvestQueue()
+    `run_sync` guards itself against a second concurrent runner, so calling
+    this while a run is in flight is a no-op rather than a race.
+    """
+    if QUEUE.running:
+        return
+    asyncio.create_task(asyncio.to_thread(QUEUE.run_sync, log=log))
 
 
 # =============================================================================
@@ -664,12 +615,12 @@ async def api_harvest(request: Request, _: None = Depends(require_auth)) -> JSON
     """Single URL and batch share one runner (UX.md §1.1)."""
     payload = await request.json()
     raw = payload.get("urls") or payload.get("url") or ""
-    lines = raw.splitlines() if isinstance(raw, str) else list(raw)
-    urls = [line.strip() for line in lines if line.strip()]
-    valid = [url for url in urls if _URL_LINE.match(url)]
-    ignored = len(urls) - len(valid)
-    over = max(len(valid) - BATCH_MAX_URLS, 0)
-    valid = valid[:BATCH_MAX_URLS]
+    if not isinstance(raw, str):
+        raw = "\n".join(str(line) for line in raw)
+
+    valid, ignored = queue_module.parse_urls(raw)
+    submitted = len([line for line in raw.splitlines() if line.strip()])
+    over = max(submitted - ignored - len(valid), 0)
 
     notes: list[str] = []
     if ignored:
@@ -682,10 +633,56 @@ async def api_harvest(request: Request, _: None = Depends(require_auth)) -> JSON
     if valid:
         QUEUE.add(valid)
         log("info", f"queued {len(valid)} URL{'s' if len(valid) != 1 else ''}")
-        asyncio.create_task(QUEUE.run())
+        _start_runner()
     return JSONResponse(
         {"queued": len(valid), "notes": notes, "items": QUEUE.items, "summary": QUEUE.summary()}
     )
+
+
+@app.post("/api/harvest/playwright")
+async def api_harvest_playwright(
+    request: Request, _: None = Depends(require_auth)
+) -> JSONResponse:
+    """UX.md §1.5 row 3. The ONLY path that reaches Playwright.
+
+    User-triggered per URL, never automatic (CLAUDE.md stack constraints). The
+    row must actually be offering it, which means the item ended thin: this is
+    not a general "fetch harder" button, and offering it anywhere else would
+    make a headless browser the default way this project reads a website.
+    """
+    payload = await request.json()
+    url = str(payload.get("url") or "").strip()
+    item = next((row for row in QUEUE.items if row["url"] == url), None)
+    if item is None or not item.get("offer_playwright"):
+        raise HTTPException(
+            status_code=400,
+            detail="Playwright is offered only on an item that ended with a thin extraction",
+        )
+    if QUEUE.running:
+        raise HTTPException(status_code=409, detail="a harvest is already running")
+
+    item.update(state="RUNNING", detail="", offer_playwright=False)
+    QUEUE.save()
+
+    def run() -> None:
+        try:
+            fetched = fetcher.fetch(url, log=log, use_playwright=True)
+        except Exception as exc:  # noqa: BLE001
+            log("error", f"Playwright fetch failed: {exc}")
+            item.update(state="FAILED", detail=f"playwright: {exc}")
+            QUEUE.save()
+            return
+        result = harvest_module.harvest_one(url, log=log, fetched=fetched)
+        item.update(
+            state=result.state,
+            detail=result.detail,
+            slug=result.slug,
+            offer_playwright=result.offer_playwright,
+        )
+        QUEUE.save()
+
+    asyncio.create_task(asyncio.to_thread(run))
+    return JSONResponse({"items": QUEUE.items, "summary": QUEUE.summary()})
 
 
 @app.get("/api/harvest/queue")
@@ -696,26 +693,24 @@ async def api_harvest_queue(_: None = Depends(require_auth)) -> JSONResponse:
 @app.post("/api/harvest/control/{action}")
 async def api_harvest_control(action: str, _: None = Depends(require_auth)) -> JSONResponse:
     if action == "pause":
-        QUEUE.paused = True
+        QUEUE.pause()
         log("info", "queue will pause after the current item")
     elif action == "resume":
-        QUEUE.paused = False
+        QUEUE.cancelled = False
+        QUEUE.resume()
         log("info", "queue resumed")
-        asyncio.create_task(QUEUE.run())
+        _start_runner()
     elif action == "retry-failed":
         # BLOCKED rows are left alone: a block is a determination, not a
         # transient error (UX.md §1.1).
-        retried = 0
-        for item in QUEUE.items:
-            if item["state"] == "FAILED":
-                item.update(state="QUEUED", detail="")
-                retried += 1
+        retried = QUEUE.retry_failed()
         log("info", f"requeued {retried} failed URL(s)")
-        asyncio.create_task(QUEUE.run())
+        _start_runner()
     elif action == "clear-finished":
-        QUEUE.items = [
-            item for item in QUEUE.items if item["state"] not in ("STAGED", "SKIPPED")
-        ]
+        QUEUE.clear_finished()
+    elif action == "cancel":
+        QUEUE.cancel()
+        log("warn", "queue cancelled after the current item")
     else:
         raise HTTPException(status_code=404, detail=f"no such queue control: {action}")
     return JSONResponse({"items": QUEUE.items, "summary": QUEUE.summary(), "paused": QUEUE.paused})
@@ -836,13 +831,121 @@ async def api_blocked_reharvest(
     QUEUE.add([url])
     if action == "reharvest-as-check":
         QUEUE.floors[url] = "check"
+        QUEUE.save()
         log("warn", f"re-harvesting {url} with the machine verdict floored at check")
     else:
         log("info", f"re-harvesting {url} against the current deny-list")
-    asyncio.create_task(QUEUE.run())
+    _start_runner()
     return JSONResponse(
         {"queued": url, "action": action, "rows": ownership.blocked_rows()}
     )
+
+
+@app.on_event("startup")
+async def _startup() -> None:
+    """Reattach to whatever the last process was doing.
+
+    UX.md §1.1: "Reopening the hub reattaches to the running job and replays the
+    log buffer for the current item." A restart mid-batch must not lose the
+    other thirty-nine URLs.
+    """
+    BUS.loop = asyncio.get_running_loop()
+    QUEUE.load()
+    outstanding = sum(1 for item in QUEUE.items if item["state"] == "QUEUED")
+    if outstanding:
+        log("info", f"reattached to a queue with {outstanding} URL(s) still to run")
+        if not QUEUE.paused:
+            _start_runner()
+
+
+# =============================================================================
+# 8. Images — UX.md §4
+#
+# Publishing an image is a separate deliberate action from approving the prose,
+# and it is one write: the three frontmatter fields AND the body tag.
+# =============================================================================
+
+
+@app.get("/api/draft/{slug}/images")
+async def api_images(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    """The candidate strip. Each entry carries its source URL as visible text."""
+    manifest = images.read_manifest(slug)
+    data = None
+    try:
+        data, _body = staging.load_draft(slug)
+    except Exception:  # noqa: BLE001 - a published producer has no staged draft
+        data = None
+    return JSONResponse(
+        {
+            "images": manifest.get("images", []),
+            "suggested_caption": images.suggest_caption(data or {}),
+            "published": bool((data or {}).get("image")),
+        }
+    )
+
+
+@app.get("/api/draft/{slug}/images/{filename}")
+async def api_image_file(
+    slug: str, filename: str, _: None = Depends(require_auth)
+) -> Any:
+    """Serve one candidate thumbnail out of gitignored temp_data."""
+    from fastapi.responses import FileResponse
+
+    # A candidate name is generated by the pipeline as `NN.ext`; anything else
+    # is not ours and must not be used to walk out of the directory.
+    if not re.fullmatch(r"[0-9]{2}\.[a-z]{3,4}", filename):
+        raise HTTPException(status_code=404, detail="no such candidate image")
+    path = images.candidate_dir(slug) / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="no such candidate image")
+    return FileResponse(path)
+
+
+@app.post("/api/draft/{slug}/image")
+async def api_publish_image(
+    slug: str, request: Request, _: None = Depends(require_auth)
+) -> JSONResponse:
+    """UX.md §4 step 3. One action: resize, three fields, and the body tag.
+
+    Blocked while the ownership determination is unresolved (UX.md §4 step 7).
+    Approve is blocked in that state anyway; stating it here closes the path
+    where an image is published to a draft that then never publishes.
+    """
+    payload = await request.json()
+    filename = str(payload.get("file") or "")
+    caption = str(payload.get("caption") or "").strip()
+    alt = str(payload.get("alt") or "").strip()
+
+    try:
+        data, _body = staging.load_draft(slug)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=404, detail=f"no staged draft for {slug}") from exc
+
+    blocks = ownership.approval_blocks(data, ownership.read_sidecar(slug))
+    if blocks:
+        raise HTTPException(
+            status_code=409,
+            detail="the ownership determination is unresolved: " + "; ".join(blocks),
+        )
+
+    try:
+        result = images.publish_image(
+            slug, filename, caption=caption, alt=alt, log=log
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return JSONResponse(result)
+
+
+@app.delete("/api/draft/{slug}/image")
+async def api_remove_image(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    """UX.md §4 step 4. The exact reverse, staged or published, one action."""
+    try:
+        result = images.remove_image(slug, log=log)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    staging._rebuild_derived(log)
+    return JSONResponse(result)
 
 
 @app.get("/healthz")
