@@ -173,6 +173,8 @@ One repo, two clearly separated applications sharing a content directory. **No P
   /factchecks                    # committed per-article claim audits (Gate 11)
 /content-staging                 # OUTSIDE site/src/content so Astro never builds a draft
   /_staging  /_rejected  /_deleted  /_blog_staging  /_article_staging
+  /_blocked                      # AMENDED 2026-08-07 — see below
+  /_determinations               # AMENDED 2026-08-07 — see below
 /temp_data                       # GITIGNORED — never edited by hand (CLAUDE.md rule 5)
   /images  /failed  harvest_queue.json  geocode_cache.json
 /.claude
@@ -180,9 +182,24 @@ One repo, two clearly separated applications sharing a content directory. **No P
   /commands/validate.md
   /skills/gate-exit  /skills/schema-change  /skills/producer-entry
 CLAUDE.md  SCHEMA.md  TRD.md  UX.md  DESIGN.md  SEED.md  README.md
+METHODOLOGY.md                   # AMENDED 2026-08-07 — see below
 Dockerfile  docker-entrypoint.sh  fly.toml  netlify.toml
 .env  .env.example  .gitignore
 ```
+
+### Amendment, 2026-08-07 (Gate 4): three paths this tree did not name
+
+UX.md §1.4.4 and §1.4.6 require `BLOCKED_DIR` and `DETERMINATIONS_DIR` by name, and CLAUDE.md's Gate 4 requires the methodology page to be drafted. None of the three appeared in the tree above. They are added here with their placement and its consequence, rather than left as an undocumented decision in `config.py`.
+
+**`content-staging/_blocked/`.** One `<slug>.json` per producer stopped by the ownership rule before a draft was written, carrying the URL, the extracted name, the verdict, the full `ownership_signals`, the deny-list result including any matched record, and a timestamp. Working state: it belongs with `_staging` and `_rejected`, it is gitignored, and the deploy allow-list (§6.5) does not carry it. Records are never deleted (UX.md §1.4.4).
+
+**`content-staging/_determinations/`.** The retained ownership sidecar, one `<slug>.json` per published producer, moved there by the approve action (UX.md §1.4.6). Same placement, same posture, and **the same consequence, which is load-bearing and is stated here because it changed a `/validate` check**: a gitignored determination does not travel with the repository, so `/validate` check 8 **reports** a missing determination and does not fail on it. Failing would fail the check on every fresh clone, which trains whoever runs it to ignore the result.
+
+That is an acceptable trade only because the durable public record lives elsewhere and is committed: `ownership_source` in the frontmatter, asserted by check 8, and `verification.parent_company` as a `{source, tier, date}` block, asserted by check 14. The sidecar holds the working evidence behind those, including signals resolved as `Not relevant` that would otherwise vanish.
+
+*If the sidecar is ever needed as the answer to a producer's dispute months later, on a machine that is not the one that approved the entry, this placement is wrong and `DETERMINATIONS_DIR` moves to `data/determinations/`, committed, alongside `ownership.json` and `data/factchecks/`. That is a live question, not a settled one, and it is recorded here so the decision gets made deliberately rather than discovered.*
+
+**`METHODOLOGY.md`, at the repository root.** The authored source for `/methodology/`, drafted at Gate 4 alongside the system it describes and rendered into a page at Gate 10 (§4.2's route table already carries the route). It sits with the other authored prose documents rather than in `site/` because building it now would ship it before Gate 10, and Gate 10's done-condition is that the page is live **and linked**.
 
 **Why `_staging` and `_rejected` sit outside `site/src/content`.** Astro content collections glob everything in a collection directory; keeping drafts out of the tree entirely is more robust than relying on an underscore-prefix exclusion. The collection loader points at `_published` only. The approve action moves the file across into `site/src/content/producers/_published/`; nothing else writes there (CLAUDE.md rule 5).
 
