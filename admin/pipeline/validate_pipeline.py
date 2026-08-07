@@ -145,6 +145,21 @@ Everything else is purchased. Production sits under a thousand cases.
 """
 
 
+#: The Architect's real failure on SEED.md row 2, reduced: an unquoted FAQ
+#: answer whose own text contains a colon. YAML reads the first `: ` as a key
+#: separator, and the document stops parsing there. Kept faithful to what the
+#: model actually emitted rather than invented, because the point of the
+#: fixture is that this shape occurs unprompted — PROMPTS/architect.md tells
+#: the model to use a colon in place of an em dash.
+UNPARSEABLE_MDX = DRAFT_MDX.replace(
+    "---\n\nThe operation began",
+    "faq:\n"
+    "  - question: Where does the fruit come from?\n"
+    "    answer: Two growers, with one exception: the sparkling fruit is bought in.\n"
+    "---\n\nThe operation began",
+)
+
+
 def _stub_fetch(text: str = "x" * 4000, html: str = "<html></html>"):
     """Stub the network, but NOT the content gates.
 
@@ -336,6 +351,27 @@ def _selftest() -> list[str]:
         result, lines = _harvest(["not json", harvester_json(), DRAFT_MDX, DRAFT_MDX])
         check(result.state == harvest.STAGED,
               "row 4: a recovered re-ask did not produce a draft")
+
+    # Row 4 again, for the ARCHITECT's MDX rather than the Harvester's JSON.
+    #
+    # These were separate paths until 2026-08-08: the Architect was called with
+    # an identity `validate` and its output parsed afterwards, so the content
+    # tier never saw the error and the re-ask never fired. The stage that emits
+    # the most text was the one stage with no second chance. SEED.md row 2 hit
+    # it on a real page and failed the whole URL on one unquoted colon, which
+    # is the exact shape of the fixture below.
+    with Harness() as h:
+        result, lines = _harvest([harvester_json(), UNPARSEABLE_MDX, UNPARSEABLE_MDX])
+        check(result.state == harvest.FAILED, "row 4: unparseable MDX did not FAIL")
+        check("re-asking once" in _text(lines),
+              "row 4: THE ARCHITECT DID NOT RE-ASK on unparseable MDX")
+        check("failed/" in _text(lines), "row 4: the raw MDX path was not logged")
+        check(h.drafts == [], "row 4: a draft was written from unparseable MDX")
+
+    with Harness() as h:
+        result, lines = _harvest([harvester_json(), UNPARSEABLE_MDX, DRAFT_MDX, DRAFT_MDX])
+        check(result.state == harvest.STAGED,
+              "row 4: an Architect re-ask that parsed did not produce a draft")
 
     # ── Row 5: name null is not an error state ────────────────────────────
     with Harness() as h:
