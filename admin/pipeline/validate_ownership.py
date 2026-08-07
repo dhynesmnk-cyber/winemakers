@@ -288,6 +288,70 @@ def _selftest() -> list[str]:
     if ownership.chip_for(resolved) != "RESOLVED":
         errors.append("selftest: a fully resolved check did not chip RESOLVED")
 
+    # ── The 2026-08-07 escalating-signal split (SCHEMA.md §4.5, UX.md §1.4.2).
+    #
+    #    The rule this guards has two halves and both fail silently. Losing the
+    #    first re-imposes a hand resolution on every producer that states its
+    #    ownership, which is the cost the amendment removed. Losing the second
+    #    lets a corporate relationship through in the one key that no longer
+    #    escalates on its presence alone — a wrong `clear`, which is the failure
+    #    the whole module exists to prevent.
+    positive = ownership.determine(
+        name="Genuine Independent Wines",
+        website="https://genuine.example",
+        signals={"statements": ["Owned by the Broderick family since 1980"]},
+        register=register,
+    )
+    if positive.verdict != "clear":
+        errors.append(
+            f"selftest: a statement naming an owning family returned "
+            f"{positive.verdict!r}, not clear. The split has regressed and every "
+            f"producer that states its ownership now needs a hand resolution."
+        )
+    if ownership.unresolved_signals(positive.signals):
+        errors.append("selftest: a non-escalating statement blocked approval")
+    if "no parent" not in positive.basis:
+        errors.append(
+            f"selftest: a clear carrying a statement must not claim no signals "
+            f"were extracted. Basis was {positive.basis!r}"
+        )
+
+    for label, statement in (
+        ("group phrasing", "Part of the Fixture Portfolio Group"),
+        ("wholly-owned", "A wholly-owned venture since 2011"),
+        ("subsidiary", "Fixture Ridge is a subsidiary of the group"),
+        ("acquired", "The estate was acquired by Example Holdings in 2019"),
+    ):
+        flagged = ownership.determine(
+            name="Genuine Independent Wines",
+            website="https://genuine.example",
+            signals={"statements": [statement]},
+            register=register,
+        )
+        if flagged.verdict != "check":
+            errors.append(
+                f"selftest: a statement with {label} returned {flagged.verdict!r}, "
+                f"not check: {statement!r}"
+            )
+        if not ownership.unresolved_signals(flagged.signals):
+            errors.append(
+                f"selftest: an escalating statement ({label}) did not require a resolution"
+            )
+
+    # Each of the four escalating keys still moves the verdict on its own.
+    for key, value in (
+        ("parent_company_mentions", ["Example Group"]),
+        ("shared_address", "1 Fixture Road, Nowhere"),
+        ("shared_contact_domain", "sales@otherlabel.example"),
+    ):
+        alone = verdict(
+            name="Genuine Independent Wines",
+            website="https://genuine.example",
+            signals={key: value},
+        )
+        if alone != "check":
+            errors.append(f"selftest: {key} alone returned {alone!r}, not check")
+
     # ── A non-null parent_company blocks unconditionally, with no override.
     owned = {**complete, "parent_company": "Fixture Portfolio Group"}
     if not any("parent_company" in block for block in ownership.approval_blocks(owned, resolved)):
