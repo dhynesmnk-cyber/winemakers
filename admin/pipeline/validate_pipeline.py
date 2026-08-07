@@ -146,9 +146,19 @@ Everything else is purchased. Production sits under a thousand cases.
 
 
 def _stub_fetch(text: str = "x" * 4000, html: str = "<html></html>"):
+    """Stub the network, but NOT the content gates.
+
+    The thin and boilerplate rules run here exactly as they do in production,
+    via the same function, so a fixture cannot pass by taking a code path the
+    real pipeline does not have.
+    """
+
     def fake(url: str, **kwargs: Any) -> fetcher.Fetched:
-        return fetcher.Fetched(url=url, final_url=url, status=200, html=html,
-                               text=text, byte_length=len(html))
+        fetched = fetcher.Fetched(url=url, final_url=url, status=200, html=html,
+                                  text=text, byte_length=len(html))
+        fetcher.enforce_extraction_rules(fetched)
+        return fetched
+
     return fake
 
 
@@ -258,6 +268,42 @@ def _selftest() -> list[str]:
         check("thin extraction: 220 chars" in _text(lines),
               "row 3: the log does not state the character count")
         check(h.drafts == [], "row 3: a draft was written from a thin page")
+
+    # ── Boilerplate: a privacy policy must never become a producer ────────
+    #    Not a UX.md §1.5 row. Added at Gate 5 against d'Arenberg's homepage,
+    #    which extracts to 9,039 characters of privacy policy and no winery.
+    with Harness() as h:
+        legal = (
+            "This privacy policy sets out how we use and protect any personal "
+            "information that you give us when you use this website. "
+            "We may update our Privacy Policy from time to time. "
+            "We collect personal information in accordance with data protection law. "
+            "We do not sell your personal information to third parties. "
+            "These terms and conditions are governed by the laws of South Australia. "
+        ) * 6
+        fetcher.fetch = _stub_fetch(text=legal)
+        result, lines = _harvest([harvester_json(), DRAFT_MDX, DRAFT_MDX])
+        check(result.state == harvest.FAILED,
+              "boilerplate: a privacy-policy extraction did not FAIL")
+        check(h.drafts == [], "boilerplate: A DRAFT WAS WRITTEN FROM A PRIVACY POLICY")
+        check("boilerplate" in _text(lines).lower(),
+              "boilerplate: the log does not say why")
+        check(not result.offer_playwright,
+              "boilerplate: Playwright was offered, but the page rendered fine "
+              "and the fix is a different URL")
+
+    # Producer prose that merely mentions a privacy policy must NOT trip it.
+    with Harness() as h:
+        prose = (
+            "The estate block is a little over a hectare of chardonnay, planted in "
+            "the 1990s on ironstone over clay. Everything else is purchased fruit. "
+            "Fermentation is spontaneous and the wines are bottled without fining. "
+            "Production sits under a thousand cases a year. "
+        ) * 8 + "See our privacy policy for how we handle your personal information."
+        fetcher.fetch = _stub_fetch(text=prose)
+        result, _ = _harvest([harvester_json(), DRAFT_MDX, DRAFT_MDX])
+        check(result.state == harvest.STAGED,
+              "boilerplate: a false positive on producer prose mentioning a privacy policy")
 
     # ── Row 4: malformed agent JSON, one re-ask, then saved and reported ──
     with Harness() as h:
@@ -459,8 +505,8 @@ def main() -> int:
         return 1
     print(
         "PIPELINE FIXTURES PASS — failure table rows 1, 2, 3, 4, 5, 7, 8, 9 and 11, "
-        "certification downgrade, token ledger, Gatekeeper fallback, "
-        "and a ten-URL batch with two isolated failures"
+        "boilerplate refusal both ways, certification downgrade, token ledger, "
+        "Gatekeeper fallback, and a ten-URL batch with two isolated failures"
     )
     return 0
 

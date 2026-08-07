@@ -7,7 +7,7 @@ Gate 5's done-condition runs against these URLs. Each is chosen for a **distinct
 | # | Producer | URL | Region | The failure mode it tests |
 |---|---|---|---|---|
 | 1 | Wolf Blass | `https://www.wolfblass.com/en-au/` | Barossa | **Corporate portfolio label that must be REJECTED.** The most important row. |
-| 2 | d'Arenberg | `https://www.darenberg.com.au/` | McLaren Vale | Florid marketing copy and the winery's own tasting notes. Banned-word and descriptor stress. |
+| 2 | d'Arenberg | `https://www.darenberg.com.au/the-story` | McLaren Vale | Florid marketing copy and the winery's own tasting notes. Banned-word and descriptor stress. **Playwright-only, see below.** |
 | 3 | Gemtree Wines | `https://gemtreewines.com/` | McLaren Vale | Certification claimed, certifier not named. Weak ownership evidence. |
 | 4 | Basket Range Wine | `https://basketrangewine.com.au/` | Adelaide Hills | Clean independent baseline. Practising, not certified. |
 | 5 | Myrtaceae | `https://www.myrtaceae.com.au/` | Mornington Peninsula | Thin page. Appointment-gated cellar door. Fee with unstated waiver. |
@@ -30,6 +30,14 @@ Wolf Blass is publicly documented as a Treasury Wine Estates brand. Its own site
 **This run fails the gate if the draft is written at all.** A tone-based test passes this site comfortably, which is precisely why the pipeline must not use one. Seed `ownership.json` with the TWE label list, the domain, and this ABN before running Gate 4.
 
 ### 2. d'Arenberg — publishes, but only after the prose is stripped to facts
+
+**Amended 2026-08-07 (Gate 5), against two things observed live.** The row's URL was `https://www.darenberg.com.au/` and is now `/the-story`. Both changes are recorded here rather than made quietly, because a fixture that was silently repointed is a fixture nobody can audit.
+
+**It needs the Playwright fallback.** Plain httpx gets Cloudflare `403` from this site, while the site's own `robots.txt` permits crawling and asks for `Crawl-delay: 1`. So the published policy allows us and a WAF heuristic does not. The fallback clears it **with our own descriptive user agent unchanged** — no browser-agent spoofing, which would be evading a block rather than honouring a policy. This is the one SEED row that exercises the user-triggered Playwright path end to end.
+
+**The homepage was the wrong target.** Its extraction is 9,039 characters of privacy policy and *zero* words about the winery, on every trafilatura setting — not an extractor bug, but the honest consequence of a marketing homepage where the longest run of continuous prose genuinely is the legal boilerplate. That extraction is well over `THIN_EXTRACTION_CHARS`, so nothing would have stopped it reaching the Harvester. `fetcher.BoilerplateExtraction` now refuses it, and this row is the fixture behind that guard.
+
+`/the-story` extracts 62,304 characters and carries the copy quoted below, which is what the row exists to test.
 
 Family-owned since 1912, fourth generation, no parent company. It should pass the independence check cleanly. The test is the writing.
 

@@ -154,6 +154,17 @@ def harvest_one(
             return HarvestResult(
                 FAILED, url, detail=f"thin extraction: {exc.chars} chars", offer_playwright=True
             )
+        except fetcher.BoilerplateExtraction as exc:
+            # No Playwright offer: the page rendered fine, it is the wrong page.
+            log("warn", f"{exc} ({len(exc.fetched.text)} chars)")
+            log(
+                "info",
+                "no draft written. Harvest a content-bearing page instead, such as "
+                "the About or Our Story page.",
+            )
+            return HarvestResult(
+                FAILED, url, detail=f"boilerplate extraction ({exc.ratio:.0%} legal text)"
+            )
         except fetcher.FetchError as exc:
             log("error", f"fetch failed: {exc.reason}")
             return HarvestResult(FAILED, url, detail=f"fetch failed: {exc.reason}")

@@ -28,6 +28,7 @@ at the right seam (TRD.md §2.2).
 
 from __future__ import annotations
 
+import re
 import sys
 import time
 from dataclasses import dataclass
@@ -91,6 +92,35 @@ class RobotsDisallowed(Exception):
         super().__init__(f"robots.txt disallows {url} ({rule})")
         self.url = url
         self.rule = rule
+
+
+class BoilerplateExtraction(Exception):
+    """The extraction is a privacy policy or terms page, not producer content.
+
+    NOT ANTICIPATED BY UX.md §1.5, added at Gate 5 against a real observation.
+    d'Arenberg's homepage extracts to 9,039 characters of privacy policy and
+    zero words about the winery, on every trafilatura setting. That is not a
+    bug in the extractor: on a marketing homepage the longest run of continuous
+    prose genuinely IS the legal boilerplate, because everything else is hero
+    fragments and navigation.
+
+    It matters because the extraction is well over THIN_EXTRACTION_CHARS, so
+    nothing else would stop it, and what reaches the Harvester is a document
+    about cookies. The honest outcomes from there are a wasted call or an
+    invented producer, and the second one is the honesty rule broken by
+    machinery rather than by anyone's intent.
+
+    Playwright does not help and is not offered: the page rendered fine. The
+    fix is to harvest a content-bearing page instead, which is what the message
+    says.
+    """
+
+    def __init__(self, fetched: "Fetched", ratio: float):
+        super().__init__(
+            f"extraction is {ratio:.0%} legal boilerplate, not producer content"
+        )
+        self.fetched = fetched
+        self.ratio = ratio
 
 
 class ThinExtraction(Exception):
@@ -225,6 +255,65 @@ def extract_text(html: str) -> str:
 
 
 # =============================================================================
+# 3a. Boilerplate detection
+# =============================================================================
+
+#: Phrases that only appear in legal boilerplate. Chosen to be things a winery
+#: does not say about its wine, so a producer page mentioning "privacy policy"
+#: once in a footer sentence cannot trip the ratio on its own.
+_BOILERPLATE_MARKERS = (
+    "privacy policy",
+    "personal information",
+    "terms and conditions",
+    "terms of sale",
+    "terms of service",
+    "this website uses cookies",
+    "cookie policy",
+    "third parties",
+    "we may update",
+    "governed by the laws",
+    "liability",
+    "intellectual property",
+    "unsubscribe",
+    "data protection",
+    "your consent",
+    "we collect",
+)
+
+#: Above this share of sentences carrying a marker, the extraction is the legal
+#: page rather than the producer.
+#:
+#: MEASURED, and the separation is wide:
+#:
+#:     d'Arenberg homepage      26%   <- the offender, must be refused
+#:     d'Arenberg /the-story     0%
+#:     Basket Range              0%
+#:     Gemtree                   0%
+#:     Myrtaceae                 0%
+#:
+#: 0.15 sits below the offender with room and a full 15 points above every
+#: legitimate page in the corpus, all of which score zero rather than merely
+#: low. An earlier value of 0.30 was written before measuring and would have
+#: passed the exact page this guard exists for, which is the second threshold
+#: in this gate that an estimate got wrong: see THIN_EXTRACTION_CHARS. These
+#: numbers are cheap to measure and are not reliably guessable.
+BOILERPLATE_RATIO = 0.15
+
+
+def boilerplate_ratio(text: str) -> float:
+    """Share of sentences that carry a legal-boilerplate marker."""
+    sentences = [s.strip() for s in re.split(r"[.\n]+", text) if len(s.strip()) > 30]
+    if not sentences:
+        return 0.0
+    hits = sum(
+        1
+        for sentence in sentences
+        if any(marker in sentence.lower() for marker in _BOILERPLATE_MARKERS)
+    )
+    return hits / len(sentences)
+
+
+# =============================================================================
 # 4. The fetch
 # =============================================================================
 
@@ -325,7 +414,20 @@ def fetch(
     fetched.text = extract_text(html)
     log("info", f"extracting text (trafilatura)  ok ({fetched.text_kb})")
 
+    enforce_extraction_rules(fetched)
+    return fetched
+
+
+def enforce_extraction_rules(fetched: Fetched) -> None:
+    """The two content gates, in one place so a caller cannot skip half of them.
+
+    Split out of `fetch` because the fixture harness stubs the network and would
+    otherwise be testing a code path the real pipeline does not have. A guard
+    that only the production path runs is a guard the tests cannot regress.
+    """
     if len(fetched.text) < THIN_EXTRACTION_CHARS:
         raise ThinExtraction(fetched)
 
-    return fetched
+    ratio = boilerplate_ratio(fetched.text)
+    if ratio >= BOILERPLATE_RATIO:
+        raise BoilerplateExtraction(fetched, ratio)
