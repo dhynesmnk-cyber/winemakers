@@ -1,0 +1,203 @@
+{#
+  index.html — the single-screen control hub. UX.md §1, DESIGN.md §8.
+
+  The screen is a left-to-right pipeline that mirrors the workflow: harvest,
+  review queue, review pane, with the log and the deploy strip as one unified
+  footer band running the full width. The log is never nested inside the harvest
+  column, so pipeline output stays visible whichever column has focus.
+
+  Server-rendered first paint. The queue, every empty state and every control
+  are in this HTML; the editor form is built by admin.js from the field contract
+  in admin/schema.py, which is where the field list has to live anyway.
+
+  Copy here is user-facing (CLAUDE.md rule 9): Australian English, no banned
+  words, no em dashes, no hedges.
+#}
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{ site_name }} — control hub</title>
+<link rel="stylesheet" href="/static/admin.css" />
+</head>
+<body>
+
+<header class="hub-header">
+  <h1>{{ site_name }}</h1>
+  <nav>
+    <a href="{{ site_url }}" rel="noopener">Public site</a>
+    <button type="button" id="ownership-open" class="linkish">
+      Deny-list{% if ownership_updated %}, updated {{ ownership_updated }}{% endif %}
+    </button>
+    <button type="button" id="shortcuts-open" class="linkish">Shortcuts</button>
+    <span class="header-count mono">{{ published_count }} published</span>
+  </nav>
+</header>
+
+<div class="hub">
+
+  {# ── Column 1: harvest ─────────────────────────────────────────────── #}
+  <section class="col col-harvest" aria-labelledby="harvest-heading">
+    <h2 id="harvest-heading" class="col-heading mono mono-caps">Harvest</h2>
+
+    <form id="harvest-single" class="stack">
+      <label for="harvest-url">Producer URL</label>
+      <input type="url" id="harvest-url" name="url" placeholder="https://" autocomplete="off" />
+      <button type="submit" class="btn">Harvest producer</button>
+    </form>
+
+    <form id="harvest-batch" class="stack">
+      <label for="harvest-urls">Batch, one URL per line, up to {{ batch_max }}</label>
+      <textarea id="harvest-urls" name="urls" rows="4" spellcheck="false"></textarea>
+      <button type="submit" class="btn btn-quiet">Queue batch</button>
+    </form>
+
+    <p id="harvest-notes" class="note warn" hidden></p>
+
+    <div class="subpane">
+      <h3 class="mono mono-caps">Queue <span id="queue-summary" class="mono faded">{{ queue_summary }}</span></h3>
+      <div class="queue-controls">
+        <button type="button" class="btn btn-quiet" data-queue-control="pause">Pause after current</button>
+        <button type="button" class="btn btn-quiet" data-queue-control="resume">Resume</button>
+        <button type="button" class="btn btn-quiet" data-queue-control="retry-failed">Retry failed</button>
+        <button type="button" class="btn btn-quiet" data-queue-control="clear-finished">Clear finished</button>
+      </div>
+      <ul id="harvest-queue" class="rows">
+        {% if not queue_items %}
+        <li class="empty">No URLs queued. Paste one URL, or a list of them, to begin.</li>
+        {% endif %}
+      </ul>
+    </div>
+
+    <div class="subpane">
+      <h3 class="mono mono-caps">Blocked</h3>
+      <ul class="rows">
+        <li class="empty">Nothing blocked. Producers stopped by the ownership rule appear here with their evidence.</li>
+      </ul>
+      <p class="note faded">The ownership determination lands at Gate 4.</p>
+    </div>
+  </section>
+
+  {# ── Column 2: review queue ────────────────────────────────────────── #}
+  <section class="col col-queue" aria-labelledby="queue-heading">
+    <h2 id="queue-heading" class="col-heading mono mono-caps">
+      Review queue <span id="queue-counts" class="faded">{{ counts }}</span>
+    </h2>
+
+    <ul id="review-queue" class="rows" role="listbox" aria-label="Staged drafts" tabindex="0">
+      {% for row in rows %}
+      <li class="draft-row" role="option" aria-selected="false" data-slug="{{ row.slug }}" tabindex="-1">
+        <p class="draft-name">{{ row.name }}</p>
+        <p class="draft-meta mono">
+          {{ row.slug }}{% if row.where %} · {{ row.where }}{% endif %}{% if row.category %} · {{ row.category }}{% endif %}
+        </p>
+        <p class="chips">
+          <span class="chip chip-{{ row.status|lower|replace(' ', '-') }}">{{ row.status }}</span>
+          <span class="chip chip-{{ row.ownership|lower|replace(' ', '-') }}">{{ row.ownership }}</span>
+          <span class="age mono {% if row.stale %}warn{% endif %}">{{ row.age }}{% if row.stale %} stale{% endif %}</span>
+        </p>
+        {% if row.detail %}<p class="draft-detail mono">{{ row.detail }}</p>{% endif %}
+      </li>
+      {% else %}
+      <li class="empty">No drafts staged. Harvest a producer URL to begin.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {# ── Column 3: review pane ─────────────────────────────────────────── #}
+  <section class="col col-review" aria-labelledby="review-heading">
+    <h2 id="review-heading" class="col-heading mono mono-caps">
+      Review <span id="save-state" class="mono faded"></span>
+    </h2>
+
+    <p id="review-empty" class="empty">Select a draft from the queue to review it.</p>
+
+    <div id="review-body" hidden>
+      <div class="review-split">
+        <div class="preview-wrap">
+          <iframe id="preview" title="Rendered preview" src="about:blank"></iframe>
+        </div>
+
+        <form id="editor" class="editor" autocomplete="off">
+          <div id="editor-groups"></div>
+        </form>
+      </div>
+
+      <div class="actions">
+        <p id="action-reason" class="note" aria-live="polite"></p>
+        <div class="action-buttons">
+          <button type="button" id="approve" class="btn">Approve</button>
+          <button type="button" id="reject-open" class="btn btn-quiet">Reject</button>
+          <button type="button" id="undo" class="btn btn-quiet" hidden>Undo</button>
+          <button type="button" id="unpublish" class="btn btn-danger" hidden>Unpublish</button>
+        </div>
+
+        <div id="reject-panel" class="reject-panel" hidden>
+          <label for="reject-reason">Reason</label>
+          <ul class="reasons">
+            {% for reason in reject_reasons %}
+            <li><button type="button" class="linkish" data-reason="{{ reason }}">
+              <span class="initial">{{ reason[0] }}</span>{{ reason[1:] }}
+            </button></li>
+            {% endfor %}
+          </ul>
+          <input type="text" id="reject-reason" placeholder="Or write a reason" />
+          <button type="button" id="reject-confirm" class="btn btn-danger">Reject this draft</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+{# ── The unified footer band: log on top, deploy below ────────────────── #}
+<section class="band" aria-labelledby="log-heading">
+  <div class="band-row">
+    <h2 id="log-heading" class="col-heading mono mono-caps">Progress</h2>
+    <div class="band-controls">
+      <button type="button" id="log-copy" class="linkish">Copy log</button>
+      <button type="button" id="log-jump" class="linkish" hidden>Jump to latest</button>
+    </div>
+  </div>
+  <ol id="log" class="log mono" aria-live="polite">
+    <li class="empty">Idle. The log fills as the pipeline runs.</li>
+  </ol>
+</section>
+
+<section class="band band-deploy" aria-labelledby="deploy-heading">
+  <div class="band-row">
+    <h2 id="deploy-heading" class="col-heading mono mono-caps">Deploy</h2>
+    <p class="mono faded">
+      {% if published_count %}{{ published_count }} published on disk. The deploy strip lands at Gate 7.
+      {% else %}Nothing to publish. Approve a draft first.{% endif %}
+    </p>
+  </div>
+</section>
+
+<dialog id="shortcuts">
+  <h2>Keyboard</h2>
+  <dl class="mono">
+    <dt>↑ ↓</dt><dd>move queue selection</dd>
+    <dt>A</dt><dd>approve</dd>
+    <dt>R</dt><dd>reject, and focus the reason field</dd>
+    <dt>U</dt><dd>undo</dd>
+    <dt>O</dt><dd>jump to the ownership panel</dd>
+    <dt>E</dt><dd>focus the first editor field</dd>
+    <dt>/</dt><dd>focus the harvest URL input</dd>
+    <dt>Esc</dt><dd>close this, or cancel a reject</dd>
+    <dt>?</dt><dd>open this list</dd>
+  </dl>
+  <button type="button" class="btn btn-quiet" data-close>Close</button>
+</dialog>
+
+<dialog id="ownership-viewer">
+  <h2>data/ownership.json</h2>
+  <p class="note">Read-only. The deny-list is edited in a text editor and committed like any other data change.</p>
+  <pre id="ownership-json" class="mono"></pre>
+  <button type="button" class="btn btn-quiet" data-close>Close</button>
+</dialog>
+
+<script id="editor-config" type="application/json">{{ editor_config | tojson }}</script>
+<script src="/static/admin.js"></script>
+</body>
+</html>

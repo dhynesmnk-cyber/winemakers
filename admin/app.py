@@ -1,0 +1,622 @@
+"""app.py — the admin control hub. Gate 3. UX.md §1, TRD.md §6.
+
+FastAPI, Jinja2 and hand-written vanilla JS. No React, no SPA framework, no
+bundler, no CDN script tag (TRD.md §2.1). One screen, not a set of pages the
+reviewer navigates between: reviewing 300 producers is the job this interface
+exists for, and a click-per-producer navigation gets abandoned at forty.
+
+── What is wired at this gate, and what is deliberately not ──────────────────
+
+Gate 3 is the hub shell and the staging queue. The harvest pipeline is stubbed:
+the panel, the queue and the log pane are real and the runner reports that the
+pipeline itself lands at Gate 5, rather than pretending to draft anything. The
+independence panel (UX.md §1.4.1 to §1.4.6), the Blocked list and the deploy
+strip's actions are Gates 4 and 7; their panes render with their empty states so
+the screen's shape is right and nothing silently goes missing later.
+
+── The one rule that is enforced in the server, not the template ─────────────
+
+UX.md §1.4.5 rule 2: there is no API route that publishes without passing the
+same gate the UI enforces. `staging.approve` is that gate. Every publish path in
+this file goes through it, and there is no force flag.
+
+── Auth ──────────────────────────────────────────────────────────────────────
+
+HTTP Basic via `ADMIN_USERNAME` / `ADMIN_PASSWORD`, compared with
+`hmac.compare_digest`. Both blank means no prompt, which is the local-dev case
+only; credentials are mandatory whenever the app is reachable beyond localhost
+(TRD.md §6.7).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hmac
+import json
+import logging
+import re
+import sys
+from datetime import date, datetime
+from pathlib import Path
+from typing import Any
+
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from admin import mdx_preview, schema  # noqa: E402
+from admin.config import (  # noqa: E402
+    ADMIN_PASSWORD,
+    ADMIN_USERNAME,
+    BATCH_MAX_URLS,
+    CATEGORIES,
+    CELLAR_DOOR_STATES,
+    CERTIFICATION_STATES,
+    CONTENT_STAGING_DIR,
+    FAQ_MAX_ITEMS,
+    FRUIT_SOURCE,
+    LOGISTICS_KEYS,
+    MAX_LOG_LINES,
+    OWNERSHIP_EVIDENCE_METHODS,
+    OWNERSHIP_JSON_PATH,
+    PRACTICE_KEYS,
+    PRODUCTION_BANDS,
+    PUBLISHED_DIR,
+    SITE_DIST_DIR,
+    SITE_URL,
+    STAGING_DIR,
+    STATES,
+    STATIC_DIR,
+    SUMMARY_MAX_CHARS,
+    TEMPLATES_DIR,
+    UNDO_CLIENT_SECONDS,
+    VARIETY_KEYS,
+    VESSEL_KEYS,
+    WINE_STYLE_KEYS,
+)
+from admin.pipeline import staging  # noqa: E402
+
+_logger = logging.getLogger("admin.app")
+
+#: UX.md §1: the hub header carries the site name. `SITE_NAME` is a placeholder
+#: until the brand is chosen, and it is never guessed here.
+SITE_NAME = "Independent Australian Winemakers"
+
+
+# =============================================================================
+# 1. The log bus — UX.md §1.2
+#
+# "Trust in the pipeline comes from visibility. Never replace this with a
+# spinner." One pane for harvest, approve, image publish and deploy: there is
+# one log, not four.
+# =============================================================================
+
+
+class LogBus:
+    """A ring buffer plus a fan-out to every open SSE connection.
+
+    The buffer is what makes a reopened hub useful: reattaching to a running job
+    and replaying the current item's log is the difference between a tool you
+    can close and one you have to babysit.
+    """
+
+    def __init__(self, capacity: int = MAX_LOG_LINES) -> None:
+        self.capacity = capacity
+        self.lines: list[dict[str, str]] = []
+        self.subscribers: set[asyncio.Queue] = set()
+
+    def emit(self, level: str, message: str) -> None:
+        line = {
+            "at": datetime.now().strftime("%H:%M:%S"),
+            "level": level if level in ("info", "warn", "error") else "info",
+            "message": message,
+        }
+        self.lines.append(line)
+        if len(self.lines) > self.capacity:
+            # Drops from the top, per UX.md §1.2.
+            del self.lines[: len(self.lines) - self.capacity]
+        for queue in list(self.subscribers):
+            try:
+                queue.put_nowait(line)
+            except asyncio.QueueFull:  # pragma: no cover - a stalled reader
+                self.subscribers.discard(queue)
+
+    def subscribe(self) -> asyncio.Queue:
+        queue: asyncio.Queue = asyncio.Queue(maxsize=self.capacity * 2)
+        self.subscribers.add(queue)
+        return queue
+
+
+BUS = LogBus()
+
+
+def log(level: str, message: str) -> None:
+    BUS.emit(level, message)
+
+
+# =============================================================================
+# 2. The harvest queue — UX.md §1.1
+#
+# Server-held, not browser state, so a forty-URL run survives a page reload, a
+# closed tab and a restarted browser. One job at a time, serial, never
+# concurrent.
+#
+# THE RUNNER IS A STUB AT THIS GATE. It reports what it would do and ends the
+# item. It never writes a draft: inventing a producer entry would break the one
+# rule this project cannot break (CLAUDE.md rule 6).
+# =============================================================================
+
+_URL_LINE = re.compile(r"^https?://\S+$")
+
+
+class HarvestQueue:
+    def __init__(self) -> None:
+        self.items: list[dict[str, Any]] = []
+        self.paused = False
+        self._running = False
+
+    def add(self, urls: list[str]) -> int:
+        for url in urls:
+            self.items.append({"url": url, "state": "QUEUED", "detail": "", "slug": ""})
+        return len(urls)
+
+    def summary(self) -> str:
+        counts: dict[str, int] = {}
+        for item in self.items:
+            counts[item["state"]] = counts.get(item["state"], 0) + 1
+        order = ("QUEUED", "RUNNING", "STAGED", "BLOCKED", "FAILED", "SKIPPED")
+        parts = [f"{counts[state]} {state.lower()}" for state in order if counts.get(state)]
+        return ", ".join(parts)
+
+    async def run(self) -> None:
+        """Serial runner. One item at a time; a failure ends that item only."""
+        if self._running:
+            return
+        self._running = True
+        try:
+            while True:
+                if self.paused:
+                    log("info", "queue paused after the current item")
+                    return
+                item = next((row for row in self.items if row["state"] == "QUEUED"), None)
+                if item is None:
+                    return
+                item["state"] = "RUNNING"
+                await self._run_one(item)
+        finally:
+            self._running = False
+
+    async def _run_one(self, item: dict[str, Any]) -> None:
+        log("info", f"fetching {item['url']}")
+        await asyncio.sleep(0)
+        # Per-URL isolation is the rule of the batch: any failure ends that item
+        # and advances to the next. Nothing partial is ever left in _staging.
+        item["state"] = "FAILED"
+        item["detail"] = "harvest pipeline is not wired yet, it lands at Gate 5"
+        log(
+            "error",
+            f"harvest: {item['url']} — the pipeline is stubbed at Gate 3. "
+            f"Harvester, Architect and Gatekeeper land at Gate 5.",
+        )
+
+
+QUEUE = HarvestQueue()
+
+
+# =============================================================================
+# 3. The app
+# =============================================================================
+
+app = FastAPI(title=f"{SITE_NAME} — control hub", docs_url=None, redoc_url=None)
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+_basic = HTTPBasic(auto_error=False)
+
+
+def require_auth(credentials: HTTPBasicCredentials | None = Depends(_basic)) -> None:
+    """Both blank means no prompt, which is the local-dev case only."""
+    if not ADMIN_USERNAME and not ADMIN_PASSWORD:
+        return
+    supplied_user = credentials.username if credentials else ""
+    supplied_password = credentials.password if credentials else ""
+    ok_user = hmac.compare_digest(supplied_user, ADMIN_USERNAME)
+    ok_password = hmac.compare_digest(supplied_password, ADMIN_PASSWORD)
+    if not (ok_user and ok_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorised",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+
+for directory in (STAGING_DIR, CONTENT_STAGING_DIR):
+    directory.mkdir(parents=True, exist_ok=True)
+
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# DESIGN.md §8: the hub inherits the palette, both modes. `tokens.css` is served
+# straight out of the site rather than copied, so the admin cannot drift from the
+# six tokens the public site uses. Its `@theme` block is a Tailwind directive a
+# browser ignores, and the admin has no use for the aliases in it.
+_SITE_STYLES_DIR = SITE_DIST_DIR.parent / "src" / "styles"
+if _SITE_STYLES_DIR.is_dir():
+    app.mount("/site-styles", StaticFiles(directory=str(_SITE_STYLES_DIR)), name="site-styles")
+
+if SITE_DIST_DIR.is_dir():
+    # The preview links the real shipped CSS out of the last build (UX.md §1.4).
+    # `/fonts` is mounted as well because `global.css` addresses the three faces
+    # absolutely, and a preview in fallback faces is a preview in a different
+    # skin.
+    app.mount("/site-dist", StaticFiles(directory=str(SITE_DIST_DIR)), name="site-dist")
+    if (SITE_DIST_DIR / "fonts").is_dir():
+        app.mount("/fonts", StaticFiles(directory=str(SITE_DIST_DIR / "fonts")), name="fonts")
+
+
+def _json_safe(value: Any) -> Any:
+    """Dates as ISO strings. JSON has no date type and YAML hands back real ones."""
+    if isinstance(value, dict):
+        return {key: _json_safe(inner) for key, inner in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(inner) for inner in value]
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    return value
+
+
+# =============================================================================
+# 4. The screen
+# =============================================================================
+
+
+def _editor_config() -> dict[str, Any]:
+    """Everything `admin.js` needs to build the editor, from the field contract.
+
+    The field list, its groups and its vocabularies come from `admin/schema.py`
+    (consumer 4 of 4). Nothing about the contract is retyped in JavaScript: a
+    field added there appears in the editor, and a field removed there
+    disappears from it.
+    """
+    # A LIST, not a dict. Jinja's `tojson` sorts object keys, so a dict would
+    # reach the browser in alphabetical order and the editor would render
+    # `ownership_source` above `parent_company` and the rest of every group out
+    # of SCHEMA.md §2's order. A list keeps the contract's order.
+    fields: list[dict[str, Any]] = []
+    for group, _title in schema.GROUPS:
+        for name, spec in schema.fields_in_group(group):
+            fields.append(
+                {
+                    "name": name,
+                    "group": spec["group"],
+                    "label": spec["label"],
+                    "widget": spec["widget"],
+                    "required": bool(spec.get("required")),
+                    "help": spec.get("help", ""),
+                    "values": list(spec.get("values", ())),
+                }
+            )
+    return {
+        "groups": [{"key": key, "title": title} for key, title in schema.GROUPS],
+        "fields": fields,
+        "summaryMax": SUMMARY_MAX_CHARS,
+        "faqMax": FAQ_MAX_ITEMS,
+        "undoSeconds": UNDO_CLIENT_SECONDS,
+        "practiceKeys": schema.options_for("practice", PRACTICE_KEYS),
+        "logisticsKeys": schema.options_for("logistics", LOGISTICS_KEYS),
+        "options": {
+            "category": schema.options_for("category", CATEGORIES),
+            "cellar_door": schema.options_for("cellar-door", CELLAR_DOOR_STATES),
+            "certification": schema.options_for("certification", CERTIFICATION_STATES),
+            "fruit_source": schema.options_for("fruit-source", FRUIT_SOURCE),
+            "production_band": schema.options_for("production-band", PRODUCTION_BANDS),
+            "state": schema.options_for("state", STATES),
+            "vessels": schema.options_for("vessel", VESSEL_KEYS),
+            "varieties": schema.options_for("variety", VARIETY_KEYS),
+            "wine_styles": schema.options_for("wine-style", WINE_STYLE_KEYS),
+            "ownership_method": schema.options_for(
+                "ownership-evidence", OWNERSHIP_EVIDENCE_METHODS
+            ),
+            "regions": [
+                {"value": slug, "label": schema.region_name(slug)}
+                for slug in schema.REGION_SLUGS
+            ],
+            "subregions": [
+                {
+                    "value": slug,
+                    "label": schema.subregion_name(slug),
+                    "region": schema.SUBREGION_PARENT[slug],
+                }
+                for slug in schema.SUBREGION_SLUGS
+            ],
+        },
+    }
+
+
+@app.get("/", response_class=HTMLResponse)
+async def hub(request: Request, _: None = Depends(require_auth)) -> HTMLResponse:
+    rows = staging.queue_rows()
+    ownership_updated = ""
+    if OWNERSHIP_JSON_PATH.is_file():
+        try:
+            ownership_updated = str(
+                json.loads(OWNERSHIP_JSON_PATH.read_text(encoding="utf-8")).get("updated", "")
+            )
+        except (OSError, json.JSONDecodeError):
+            ownership_updated = ""
+
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {
+            "site_name": SITE_NAME,
+            "site_url": SITE_URL,
+            "rows": rows,
+            "counts": staging.queue_counts(rows),
+            "queue_summary": QUEUE.summary(),
+            "queue_items": QUEUE.items,
+            "batch_max": BATCH_MAX_URLS,
+            "reject_reasons": staging.REJECT_REASONS,
+            "ownership_updated": ownership_updated,
+            "published_count": (
+                len(list(PUBLISHED_DIR.glob("*.mdx"))) if PUBLISHED_DIR.is_dir() else 0
+            ),
+            "editor_config": _editor_config(),
+        },
+    )
+
+
+def _derived_hints(data: dict[str, Any]) -> dict[str, Any]:
+    """The two figures the editor displays beside an input rather than computes.
+
+    Both live in Python: the dollar-amount regex is shared with `/validate`
+    check 10 (SCHEMA.md §2a rule 8, one regex one home), and the band ranges are
+    a config constant. The admin's JavaScript displays them and reimplements
+    neither.
+    """
+    return {
+        "cost_amounts": schema.dollar_amounts(data.get("cost")),
+        "implied_band": schema.band_for_cases(data.get("annual_production_cases")),
+    }
+
+
+@app.get("/api/queue")
+async def api_queue(_: None = Depends(require_auth)) -> JSONResponse:
+    rows = staging.queue_rows()
+    return JSONResponse({"rows": rows, "counts": staging.queue_counts(rows)})
+
+
+@app.get("/api/draft/{slug}")
+async def api_draft(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    try:
+        data, body = staging.load_draft(slug)
+    except schema.FrontmatterError as exc:
+        return JSONResponse({"slug": slug, "unreadable": str(exc)}, status_code=200)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"{slug} is not in the staging queue") from None
+
+    return JSONResponse(
+        {
+            "slug": slug,
+            "frontmatter": _json_safe(data),
+            "body": body,
+            "errors": schema.validate_frontmatter(data),
+            "ownership_blocks": staging.ownership_gate(data),
+            "ownership_chip": staging.ownership_chip(slug),
+            "flags": staging.flags_for(data, body),
+            "duplicate": staging.duplicate_of(slug, data),
+            "words": mdx_preview.prose_word_count(body),
+            **_derived_hints(data),
+        }
+    )
+
+
+@app.put("/api/draft/{slug}")
+async def api_save(slug: str, request: Request, _: None = Depends(require_auth)) -> JSONResponse:
+    """Debounced autosave. A save that fails says so; it never fails silently."""
+    payload = await request.json()
+    frontmatter = payload.get("frontmatter")
+    if not isinstance(frontmatter, dict):
+        raise HTTPException(status_code=400, detail="frontmatter must be an object")
+    body = payload.get("body")
+    if body is None:
+        _, body = staging.load_draft(slug)
+    try:
+        staging.save_draft(slug, frontmatter, str(body))
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"save failed: {exc}") from exc
+
+    data, body_text = staging.load_draft(slug)
+    return JSONResponse(
+        {
+            "saved": datetime.now().strftime("%H:%M"),
+            "errors": schema.validate_frontmatter(data),
+            "ownership_blocks": staging.ownership_gate(data),
+            "flags": staging.flags_for(data, body_text),
+            "words": mdx_preview.prose_word_count(body_text),
+            **_derived_hints(data),
+        }
+    )
+
+
+@app.get("/preview/{slug}", response_class=HTMLResponse)
+async def preview(slug: str, _: None = Depends(require_auth)) -> HTMLResponse:
+    """The draft in the public site's real styles, for the review pane iframe."""
+    try:
+        data, body = staging.load_draft(slug)
+    except (schema.FrontmatterError, FileNotFoundError) as exc:
+        return HTMLResponse(
+            f"<!doctype html><meta charset='utf-8'><body style='font:14px system-ui;padding:2rem'>"
+            f"<p>This draft cannot be rendered: {exc}</p></body>",
+            status_code=200,
+        )
+    return HTMLResponse(mdx_preview.render_document(data, body))
+
+
+# =============================================================================
+# 5. The actions
+# =============================================================================
+
+
+def _action_response(result: dict[str, Any]) -> JSONResponse:
+    rows = staging.queue_rows()
+    return JSONResponse({**result, "rows": rows, "counts": staging.queue_counts(rows)})
+
+
+@app.post("/api/draft/{slug}/approve")
+async def api_approve(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    try:
+        return _action_response(staging.approve(slug, log))
+    except staging.ActionBlocked as exc:
+        return JSONResponse(
+            {"blocked": str(exc), "errors": exc.errors, "ownership_blocks": exc.blocks},
+            status_code=422,
+        )
+
+
+@app.post("/api/draft/{slug}/reject")
+async def api_reject(slug: str, request: Request, _: None = Depends(require_auth)) -> JSONResponse:
+    payload = await request.json()
+    try:
+        return _action_response(staging.reject(slug, str(payload.get("reason", "")), log))
+    except staging.ActionBlocked as exc:
+        return JSONResponse({"blocked": str(exc)}, status_code=422)
+
+
+@app.post("/api/draft/{slug}/undo")
+async def api_undo(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    try:
+        return _action_response(staging.undo(slug, log))
+    except staging.ActionBlocked as exc:
+        # UX.md §1.5 row 17: say so, and offer Unpublish rather than pretend.
+        return JSONResponse({"blocked": str(exc), "offer_unpublish": True}, status_code=409)
+
+
+@app.post("/api/draft/{slug}/unpublish")
+async def api_unpublish(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    try:
+        return _action_response(staging.unpublish(slug, log))
+    except staging.ActionBlocked as exc:
+        return JSONResponse({"blocked": str(exc)}, status_code=422)
+
+
+# =============================================================================
+# 6. Harvest
+# =============================================================================
+
+
+@app.post("/api/harvest")
+async def api_harvest(request: Request, _: None = Depends(require_auth)) -> JSONResponse:
+    """Single URL and batch share one runner (UX.md §1.1)."""
+    payload = await request.json()
+    raw = payload.get("urls") or payload.get("url") or ""
+    lines = raw.splitlines() if isinstance(raw, str) else list(raw)
+    urls = [line.strip() for line in lines if line.strip()]
+    valid = [url for url in urls if _URL_LINE.match(url)]
+    ignored = len(urls) - len(valid)
+    over = max(len(valid) - BATCH_MAX_URLS, 0)
+    valid = valid[:BATCH_MAX_URLS]
+
+    notes: list[str] = []
+    if ignored:
+        notes.append(f"{ignored} line{'s' if ignored != 1 else ''} ignored: not URLs")
+    if over:
+        notes.append(f"{over} beyond the {BATCH_MAX_URLS} URL cap were not queued")
+    for note in notes:
+        log("warn", note)
+
+    if valid:
+        QUEUE.add(valid)
+        log("info", f"queued {len(valid)} URL{'s' if len(valid) != 1 else ''}")
+        asyncio.create_task(QUEUE.run())
+    return JSONResponse(
+        {"queued": len(valid), "notes": notes, "items": QUEUE.items, "summary": QUEUE.summary()}
+    )
+
+
+@app.get("/api/harvest/queue")
+async def api_harvest_queue(_: None = Depends(require_auth)) -> JSONResponse:
+    return JSONResponse({"items": QUEUE.items, "summary": QUEUE.summary(), "paused": QUEUE.paused})
+
+
+@app.post("/api/harvest/control/{action}")
+async def api_harvest_control(action: str, _: None = Depends(require_auth)) -> JSONResponse:
+    if action == "pause":
+        QUEUE.paused = True
+        log("info", "queue will pause after the current item")
+    elif action == "resume":
+        QUEUE.paused = False
+        log("info", "queue resumed")
+        asyncio.create_task(QUEUE.run())
+    elif action == "retry-failed":
+        # BLOCKED rows are left alone: a block is a determination, not a
+        # transient error (UX.md §1.1).
+        retried = 0
+        for item in QUEUE.items:
+            if item["state"] == "FAILED":
+                item.update(state="QUEUED", detail="")
+                retried += 1
+        log("info", f"requeued {retried} failed URL(s)")
+        asyncio.create_task(QUEUE.run())
+    elif action == "clear-finished":
+        QUEUE.items = [
+            item for item in QUEUE.items if item["state"] not in ("STAGED", "SKIPPED")
+        ]
+    else:
+        raise HTTPException(status_code=404, detail=f"no such queue control: {action}")
+    return JSONResponse({"items": QUEUE.items, "summary": QUEUE.summary(), "paused": QUEUE.paused})
+
+
+# =============================================================================
+# 7. The log stream and the deny-list viewer
+# =============================================================================
+
+
+@app.get("/events")
+async def events(request: Request, _: None = Depends(require_auth)) -> StreamingResponse:
+    """SSE. The client falls back to polling `/api/log` if this drops."""
+    queue = BUS.subscribe()
+    replay = list(BUS.lines)
+
+    async def stream():
+        try:
+            for line in replay:
+                yield f"data: {json.dumps(line)}\n\n"
+            while True:
+                if await request.is_disconnected():
+                    return
+                try:
+                    line = await asyncio.wait_for(queue.get(), timeout=15)
+                except asyncio.TimeoutError:
+                    yield ": keep-alive\n\n"
+                    continue
+                yield f"data: {json.dumps(line)}\n\n"
+        finally:
+            BUS.subscribers.discard(queue)
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/api/log")
+async def api_log(_: None = Depends(require_auth)) -> JSONResponse:
+    return JSONResponse({"lines": BUS.lines})
+
+
+@app.get("/api/ownership")
+async def api_ownership(_: None = Depends(require_auth)) -> JSONResponse:
+    """Read-only. The hub never edits `data/ownership.json` (UX.md §1.4.5 rule 7)."""
+    if not OWNERSHIP_JSON_PATH.is_file():
+        raise HTTPException(status_code=404, detail="data/ownership.json is not present")
+    return JSONResponse(json.loads(OWNERSHIP_JSON_PATH.read_text(encoding="utf-8")))
+
+
+@app.get("/healthz")
+async def healthz() -> JSONResponse:
+    return JSONResponse({"ok": True, "staged": len(staging.queue_rows())})
