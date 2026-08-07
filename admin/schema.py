@@ -442,7 +442,25 @@ def fields_in_group(group: str) -> list[tuple[str, dict[str, Any]]]:
 # =============================================================================
 
 
-class _BlockSequenceDumper(yaml.SafeDumper):
+class _NoAliasDumper(yaml.SafeDumper):
+    """Never emit YAML anchors or aliases.
+
+    PyYAML deduplicates equal objects by reference, so the single `date.today()`
+    shared across `verification`, `drafted` and `verified` came out as
+    `date: &id001 2026-08-07` followed by eight `date: *id001` and
+    `drafted: *id001`. That is valid YAML and it round-trips correctly, but the
+    frontmatter is the canonical record of this project and a reviewer edits it
+    by hand in the review pane. A date they cannot read is a date they cannot
+    check, and `verified: *id001` invites someone to "fix" it into nonsense.
+
+    Observed on the first real draft the pipeline produced.
+    """
+
+    def ignore_aliases(self, data):  # noqa: ANN001, ANN201
+        return True
+
+
+class _BlockSequenceDumper(_NoAliasDumper):
     """Indents block sequences under their key, as every hand-written file does.
 
     PyYAML's default writes a sequence flush with its parent key. The sample

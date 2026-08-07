@@ -168,6 +168,12 @@ colon, a full stop, or a restructured sentence, whichever the sentence actually
 wants. An en dash `–` used as an em dash goes the same way. An en dash inside a
 numeric or date range is fine.
 
+**Except inside a `<Pull>`.** A quotation is reproduced as the source wrote it,
+punctuation included. "What you must not touch" above outranks this section, and
+where the two appear to disagree the quotation wins: silently repunctuating
+somebody's published words is a small falsification, and this directory's whole
+claim is that it does not do those.
+
 The one exception is the image caption register (`LOT I. — THE HOME BLOCK,
 LOOKING WEST.`), which is set by a separate action and will not be in your input.
 

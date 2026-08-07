@@ -51,6 +51,7 @@ from admin.config import (  # noqa: E402
     CERTIFICATION_STATES,
     FRUIT_SOURCE,
     PRACTICE_KEYS,
+    STATES,
     VARIETY_KEYS,
 )
 from admin import schema  # noqa: E402
@@ -109,6 +110,28 @@ HARVESTER_FACT_KEYS = (
 
 #: SCHEMA.md §4.5.
 INDEPENDENCE_VERDICTS = ("clear", "check", "reject")
+
+#: Full state names and the common long forms, to the `STATES` codes. Keys are
+#: lower-cased with spaces and full stops stripped, so "South Australia",
+#: "south australia" and "S.A." all land.
+_STATE_NAMES = {
+    "victoria": "VIC",
+    "newsouthwales": "NSW",
+    "queensland": "QLD",
+    "southaustralia": "SA",
+    "westernaustralia": "WA",
+    "tasmania": "TAS",
+    "northernterritory": "NT",
+    "australiancapitalterritory": "ACT",
+    "vic": "VIC",
+    "nsw": "NSW",
+    "qld": "QLD",
+    "sa": "SA",
+    "wa": "WA",
+    "tas": "TAS",
+    "nt": "NT",
+    "act": "ACT",
+}
 
 #: SCHEMA.md §6: which frontmatter fields the Harvester's `determinations`
 #: block owns outright. `determinations` key -> frontmatter field.
@@ -407,6 +430,19 @@ def _finalize_frontmatter(
 
     # ── Coordinates come from the geocoder alone (TRD.md §7.6) ────────────
     location = dict(data.get("location") or {})
+
+    # `state` is a closed vocabulary and a full state name maps to it with no
+    # ambiguity, so normalise rather than hand the reviewer a validation error
+    # they can only fix one way. Observed live: the first real draft came back
+    # with `South Australia`, which fails check 1 on a value that was correct in
+    # substance. The prompt now names the codes as well; this is the belt.
+    state = str(location.get("state") or "").strip()
+    if state and state not in STATES:
+        normalised = _STATE_NAMES.get(state.lower().replace(".", "").replace(" ", ""))
+        if normalised:
+            log("info", f"state normalised: {state!r} -> {normalised!r}")
+            location["state"] = normalised
+
     latitude, longitude = coordinates
     location["latitude"] = latitude
     location["longitude"] = longitude

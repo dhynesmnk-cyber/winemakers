@@ -116,6 +116,12 @@ _OVERRIDES = {
     # `the kind of evidence` is nominal. `kind of good` is the hedge.
     "kind of": r"(?<!the )(?<!this )(?<!that )(?<!what )(?<!a )\bkind of\b",
     "sort of": r"(?<!the )(?<!this )(?<!that )(?<!what )(?<!a )\bsort of\b",
+    # The tasting sense of `finish` is a NOUN and takes a determiner or an
+    # adjective: "a long finish", "the finish". The verb is ordinary
+    # viticulture — "the heat a Bordeaux variety needs to finish", "picking
+    # starts after the plains have finished — and fires constantly on correct
+    # copy. Observed on the first real draft this pipeline produced.
+    "finish": r"\b(?:the|a|an|its|long|short|clean|dry|crisp|lingering|tannic)\s+finish\b",
 }
 
 
@@ -265,6 +271,8 @@ def _selftest() -> list[str]:
          "the wine is rather good."),
         ("a person records the kind of evidence relied on.",
          "the cellar door is kind of hard to find."),
+        ("the west-facing blocks get the heat a Bordeaux variety needs to finish.",
+         "the wine has a long finish."),
     ):
         if lint_text(clean, lists):
             errors.append(f"selftest: a false positive on {clean!r}")

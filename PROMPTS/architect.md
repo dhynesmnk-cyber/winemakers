@@ -74,7 +74,7 @@ value is `null`.
 | `category` | One of `estate_winery`, `urban_winery`, `negociant`, `garagiste`, `cooperative`, `other`. |
 | `founded_year` | Four-digit year, or omit if the record has none. |
 | `website` | The producer's own site. |
-| `location` | `{address?, suburb?, state, latitude: null, longitude: null}`. Only `state` is required. **Leave both coordinates null** — they are geocoded after you. |
+| `location` | `{address?, suburb?, state, latitude: null, longitude: null}`. Only `state` is required, and it must be one of the codes `VIC`, `NSW`, `QLD`, `SA`, `WA`, `TAS`, `NT`, `ACT` — never a full state name. **Leave both coordinates null** — they are geocoded after you. |
 | `regions` | At least one region slug, from the list above. Where the **fruit** comes from. |
 | `primary_region` | One slug, and it must also appear in `regions`. |
 | `subregions` | Slugs from the list above, or omit. Each must belong to a region you listed. |
