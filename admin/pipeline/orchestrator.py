@@ -40,6 +40,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import unicodedata
 from datetime import date as date_type
 from pathlib import Path
 from typing import Any, Callable
@@ -282,6 +283,15 @@ _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 def slugify(value: Any) -> str:
     text = str(value or "").strip().lower()
     text = text.replace("'", "").replace("’", "")
+    # Fold diacritics before the non-alphanumeric sweep. The §1 vocabularies
+    # are ASCII slugs — `albarino`, `gewurztraminer`, `gruner-veltliner`,
+    # `pedro-ximenez`, `blaufrankisch` — so a correctly spelled name has to
+    # reduce to the same key. Without this the sweep turned every accent into
+    # a hyphen and `Albariño` became `albari-o`, matching nothing: five
+    # varieties already in the vocabulary were unreachable by their real
+    # names, and row 11 dropped them as "unmatched". Observed on SEED.md row 2.
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(char for char in text if not unicodedata.combining(char))
     return _NON_ALNUM.sub("-", text).strip("-")
 
 
