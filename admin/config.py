@@ -181,6 +181,18 @@ GEOCODER_USER_AGENT = env(
 #: One outbound HTTP timeout for everything (TRD.md §2.1).
 HTTP_TIMEOUT_SECONDS = 20.0
 
+#: UX.md §1.5 row 1 names the harvest fetch's timeout separately. It is the
+#: same number, aliased rather than restated, so there is one value to change.
+FETCH_TIMEOUT_SECONDS = HTTP_TIMEOUT_SECONDS
+
+#: TRD.md §7.6: a descriptive user agent, because these are real businesses
+#: being read one page at a time and an operator who wants to block us should be
+#: able to identify us to do it (SEED.md, "Ethics").
+HARVEST_USER_AGENT = (
+    f"winemakers-directory/1.0 (+{SITE_URL}/methodology; "
+    f"independent Australian winemaker directory)"
+)
+
 
 # =============================================================================
 # 3. Closed vocabularies — SCHEMA.md §1
@@ -413,6 +425,27 @@ BATCH_MAX_URLS = 50
 
 #: UX.md §1.2. The log pane holds this many lines and drops from the top.
 MAX_LOG_LINES = 500
+
+#: UX.md §1.5 row 3. Extracted text below this is a thin page: the item ends
+#: WITHOUT drafting and offers the user-triggered Playwright retry.
+#:
+#: Calibrated against SEED.md row 5 (Myrtaceae), which the fixture document
+#: requires to trip this threshold: roughly 250 to 300 words of mostly visitor
+#: logistics, which measures near 1,800 characters. The value sits above that
+#: with room, and the direction of the error is deliberate. A draft needs 350 to
+#: 700 words of documented body prose (MIN_PROSE_WORDS); a page carrying less
+#: raw text than the entry it would produce cannot source that entry without
+#: padding, and padding is how the honesty rule (CLAUDE.md rule 6) gets broken
+#: quietly. No draft is the correct output for a thin page, and the reviewer is
+#: told why rather than handed a near-empty file.
+THIN_EXTRACTION_CHARS = 2000
+
+#: UX.md §4 step 1. Candidates land in `temp_data/images/<slug>/` with a
+#: manifest recording each source URL, and are never auto-published.
+MAX_CANDIDATE_IMAGES = 6
+
+#: UX.md §4 step 3. Long edge, webp, for the one image a reviewer may publish.
+PUBLISHED_IMAGE_MAX_PX = 1600
 
 #: UX.md §1.3. A queue row older than this shows its age in the warn colour and
 #: the word `stale`. An unresolved ownership check left sitting is the thing
