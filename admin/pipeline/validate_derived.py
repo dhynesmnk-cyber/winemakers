@@ -279,7 +279,14 @@ def _selftest() -> list[str]:
 
 
 def main() -> int:
-    errors = _selftest() + check_3_derived()
+    # The self-test writes deliberately broken fixtures, so it is the code most
+    # likely to raise when the writer it guards is already broken. Report that
+    # as a finding rather than a traceback, and still run the real check.
+    try:
+        errors = _selftest()
+    except Exception as exc:  # noqa: BLE001
+        errors = [f"selftest: raised {exc!r} — the rebuild broke its own fixture"]
+    errors += check_3_derived()
     if errors:
         print(f"VALIDATE 3 FAIL — {len(errors)} error(s)")
         for message in errors:
