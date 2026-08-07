@@ -53,6 +53,7 @@ from admin.config import (  # noqa: E402
     ADMIN_PASSWORD,
     ADMIN_USERNAME,
     BATCH_MAX_URLS,
+    BLOCKED_DIR,
     CATEGORIES,
     CELLAR_DOOR_STATES,
     CERTIFICATION_STATES,
@@ -78,7 +79,7 @@ from admin.config import (  # noqa: E402
     VESSEL_KEYS,
     WINE_STYLE_KEYS,
 )
-from admin.pipeline import staging  # noqa: E402
+from admin.pipeline import ownership, staging  # noqa: E402
 
 _logger = logging.getLogger("admin.app")
 
@@ -158,6 +159,10 @@ class HarvestQueue:
         self.items: list[dict[str, Any]] = []
         self.paused = False
         self._running = False
+        #: url -> the verdict ceiling for this run. Set only by UX.md §1.4.4's
+        #: `Re-harvest as check`, and consumed once so a later ordinary harvest
+        #: of the same URL is decided on its merits again.
+        self.floors: dict[str, str] = {}
 
     def add(self, urls: list[str]) -> int:
         for url in urls:
@@ -191,6 +196,35 @@ class HarvestQueue:
             self._running = False
 
     async def _run_one(self, item: dict[str, Any]) -> None:
+        # ── The independence screen, first and before any fetch (Gate 4) ──
+        #
+        # SCHEMA.md §4.5 and TRD.md §7.5: the deny-list runs BEFORE a draft
+        # enters the queue, and a `reject` aborts before any draft is written.
+        # Running it here rather than after the fetch is the cheap end of that
+        # rule — a portfolio-owned domain costs zero API calls, not three.
+        #
+        # Only the domain can be screened at this point, because a URL is all
+        # that exists yet. The name and ABN rows report `not checked` rather
+        # than pretending, and Gate 5's Harvester calls `screen_candidate`
+        # again with what it actually read from the page.
+        floor = self.floors.pop(item["url"], None)
+        determination = ownership.screen_url(item["url"], floor=floor)
+        if floor:
+            log(
+                "warn",
+                f"harvest: {item['url']} — machine verdict floored at {floor}; "
+                f"the draft carries verdict_overridden_from and every check rule applies",
+            )
+        if determination.verdict == "reject":
+            source_of_reject, reason = ownership.reject_reason(determination)
+            path = ownership.write_blocked_record(item["url"], "", determination)
+            item["state"] = "BLOCKED"
+            item["detail"] = reason
+            item["slug"] = path.stem
+            log("warn", f"harvest: {item['url']} blocked before drafting — {reason}")
+            log("info", f"blocked record written to {BLOCKED_DIR.name}/{path.name}")
+            return
+
         log("info", f"fetching {item['url']}")
         await asyncio.sleep(0)
         # Per-URL isolation is the rule of the batch: any failure ends that item
@@ -383,6 +417,45 @@ def _derived_hints(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _ownership_panel(slug: str) -> dict[str, Any] | None:
+    """The determination as the review pane renders it (UX.md §1.4.1 to §1.4.3).
+
+    Returns `None` when no determination exists, which the pane renders as its
+    own state rather than as an empty `clear` panel. A draft with no
+    determination is not a clean draft; it is one nothing has looked at.
+    """
+    sidecar = ownership.read_sidecar(slug)
+    if not sidecar:
+        return None
+    signals = sidecar.get("signals") or []
+    return {
+        **sidecar,
+        "chip": ownership.chip_for(sidecar),
+        "unresolved": len(ownership.unresolved_signals(signals)),
+        "populated": len(ownership.populated_signals(signals)),
+        # Display helpers live in Python beside the normalisers they depend on.
+        # The admin's JavaScript renders them and reimplements neither.
+        "abn_display": {
+            row["key"]: {
+                "formatted": [ownership.format_abn(item) for item in row["items"]],
+                "lookup": [ownership.abr_lookup_url(item) for item in row["items"]],
+            }
+            for row in signals
+            if row.get("key") == "abn"
+        },
+        "resolutions": [
+            {
+                "value": value,
+                "label": ownership.RESOLUTION_LABELS[value],
+                "note_required": value in ownership.RESOLUTIONS_REQUIRING_NOTE,
+            }
+            for value in ownership.RESOLUTIONS
+        ],
+        "signal_labels": {key: key.replace("_", " ") for key in ownership.SIGNAL_KEYS},
+        "check_labels": ownership.CHECK_LABELS,
+    }
+
+
 @app.get("/api/queue")
 async def api_queue(_: None = Depends(require_auth)) -> JSONResponse:
     rows = staging.queue_rows()
@@ -404,8 +477,9 @@ async def api_draft(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
             "frontmatter": _json_safe(data),
             "body": body,
             "errors": schema.validate_frontmatter(data),
-            "ownership_blocks": staging.ownership_gate(data),
+            "ownership_blocks": staging.ownership_gate(slug, data),
             "ownership_chip": staging.ownership_chip(slug),
+            "ownership": _ownership_panel(slug),
             "flags": staging.flags_for(data, body),
             "duplicate": staging.duplicate_of(slug, data),
             "words": mdx_preview.prose_word_count(body),
@@ -434,10 +508,81 @@ async def api_save(slug: str, request: Request, _: None = Depends(require_auth))
         {
             "saved": datetime.now().strftime("%H:%M"),
             "errors": schema.validate_frontmatter(data),
-            "ownership_blocks": staging.ownership_gate(data),
+            "ownership_blocks": staging.ownership_gate(slug, data),
             "flags": staging.flags_for(data, body_text),
             "words": mdx_preview.prose_word_count(body_text),
             **_derived_hints(data),
+        }
+    )
+
+
+@app.put("/api/draft/{slug}/ownership")
+async def api_save_ownership(
+    slug: str, request: Request, _: None = Depends(require_auth)
+) -> JSONResponse:
+    """Record signal resolutions and the conflict note onto the sidecar.
+
+    **The verdict is never editable** (UX.md §1.4.5 rule 4). This route accepts
+    resolutions, notes and the conflict note, and nothing else — a payload
+    carrying a `verdict` is rejected rather than ignored, because silently
+    dropping it would let a caller believe it had set one. CLAUDE.md rule 8 in
+    interface form: there is no control anywhere in this hub that sets the
+    verdict by hand.
+    """
+    sidecar = ownership.read_sidecar(slug)
+    if sidecar is None:
+        raise HTTPException(status_code=404, detail=f"{slug} has no ownership determination")
+
+    payload = await request.json()
+    if "verdict" in payload:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "the verdict is never editable (UX.md §1.4.5 rule 4). Record "
+                "evidence and resolutions; the gate is then satisfied or it is not."
+            ),
+        )
+
+    submitted = payload.get("resolutions")
+    if submitted is not None:
+        if not isinstance(submitted, dict):
+            raise HTTPException(status_code=400, detail="resolutions must be an object")
+        for row in sidecar.get("signals") or []:
+            if row.get("key") not in submitted:
+                continue
+            entry = submitted[row["key"]] or {}
+            resolution = str(entry.get("resolution") or "").strip()
+            if resolution and resolution not in ownership.RESOLUTIONS:
+                raise HTTPException(
+                    status_code=400, detail=f"unknown resolution {resolution!r}"
+                )
+            row["resolution"] = resolution or None
+            row["note"] = str(entry.get("note") or "").strip()
+
+    if "conflict_note" in payload:
+        # UX.md §1.4.2: written to the sidecar's confidence_notes and surfaced
+        # on every later visit to this draft. It is not published frontmatter.
+        note = str(payload.get("conflict_note") or "").strip()
+        notes = [
+            line
+            for line in (sidecar.get("confidence_notes") or [])
+            if not str(line).startswith("Conflict noted:")
+        ]
+        if note:
+            notes.append(f"Conflict noted: {note}")
+        sidecar["confidence_notes"] = notes
+
+    ownership.write_sidecar(slug, sidecar)
+    try:
+        data, _body = staging.load_draft(slug)
+    except (schema.FrontmatterError, FileNotFoundError):
+        data = {}
+    return JSONResponse(
+        {
+            "saved": datetime.now().strftime("%H:%M"),
+            "ownership": _ownership_panel(slug),
+            "ownership_chip": staging.ownership_chip(slug),
+            "ownership_blocks": staging.ownership_gate(slug, data),
         }
     )
 
@@ -615,6 +760,83 @@ async def api_ownership(_: None = Depends(require_auth)) -> JSONResponse:
     if not OWNERSHIP_JSON_PATH.is_file():
         raise HTTPException(status_code=404, detail="data/ownership.json is not present")
     return JSONResponse(json.loads(OWNERSHIP_JSON_PATH.read_text(encoding="utf-8")))
+
+
+# =============================================================================
+# 8. The Blocked list — UX.md §1.4.4
+#
+# An `independence: reject` aborts the run before a draft is written, and no
+# file lands in `_staging/`. That is correct behaviour, and it still needs an
+# on-screen state, because an abort a reviewer cannot see is a silent failure.
+#
+# Blocked records are never deleted. They are the record of what the site
+# refused and why.
+# =============================================================================
+
+
+@app.get("/api/blocked")
+async def api_blocked(_: None = Depends(require_auth)) -> JSONResponse:
+    return JSONResponse({"rows": ownership.blocked_rows()})
+
+
+@app.get("/api/blocked/{slug}")
+async def api_blocked_record(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    """The same signals table and deny-list block the review pane uses, read-only."""
+    record = ownership.read_blocked(slug)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"no blocked record for {slug}")
+    return JSONResponse(record)
+
+
+@app.post("/api/blocked/{slug}/reharvest")
+async def api_blocked_reharvest(
+    slug: str, request: Request, _: None = Depends(require_auth)
+) -> JSONResponse:
+    """The two re-harvest actions, which differ by the source of the reject.
+
+    **Deny-list reject** — `reharvest` only. There is no override action, in
+    this route or anywhere else: the only route is to correct
+    `data/ownership.json`, and the re-harvest then runs the URL again from
+    scratch so the corrected deny-list is what decides. The interface never
+    lets a click overrule the deny-list, because the deny-list is the artefact
+    `/validate` check 8 audits against.
+
+    **Harvester signal reject** — `reharvest-as-check` as well, which re-runs
+    the URL with the machine verdict floored at `check` so the draft enters the
+    queue with every `check` rule applying. It downgrades a machine abort to a
+    human decision. It never skips the human decision.
+    """
+    record = ownership.read_blocked(slug)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"no blocked record for {slug}")
+
+    payload = await request.json()
+    action = str(payload.get("action") or "reharvest")
+    if action not in ("reharvest", "reharvest-as-check"):
+        raise HTTPException(status_code=400, detail=f"no such action: {action}")
+
+    if action == "reharvest-as-check" and record.get("source_of_reject") != "harvester":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "this was a deny-list reject. There is no override in the "
+                "interface; correct data/ownership.json and re-harvest "
+                "(UX.md §1.4.4)."
+            ),
+        )
+
+    ownership.record_reharvest(slug, action)
+    url = str(record.get("url") or "")
+    QUEUE.add([url])
+    if action == "reharvest-as-check":
+        QUEUE.floors[url] = "check"
+        log("warn", f"re-harvesting {url} with the machine verdict floored at check")
+    else:
+        log("info", f"re-harvesting {url} against the current deny-list")
+    asyncio.create_task(QUEUE.run())
+    return JSONResponse(
+        {"queued": url, "action": action, "rows": ownership.blocked_rows()}
+    )
 
 
 @app.get("/healthz")

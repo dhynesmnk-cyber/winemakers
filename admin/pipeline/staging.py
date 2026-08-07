@@ -22,22 +22,21 @@ Undo restores the file and rebuilds the derived data from `_published`. There is
 no compensating patch to get wrong: the DB is disposable and rebuildable
 (SCHEMA.md §3), so putting the file back is the whole of the reversal.
 
-── What Gate 4 adds, and what Gate 3 will not pretend to ─────────────────────
+── The ownership gate ────────────────────────────────────────────────────────
 
-The ownership chip reads the determination sidecar the pipeline writes. Gate 3
-has no determination system, so with no sidecar the chip reads `NOT DETERMINED`
-rather than `CLEAR`. `CLEAR` is a positive finding — no deny-list hit on name,
+*Gate 4.* The chip and the approve gate both read the determination sidecar
+`ownership.py` writes. With no sidecar the chip reads `NOT DETERMINED` and
+approval is blocked: `CLEAR` is a positive finding — no deny-list hit on name,
 domain or ABN, and no ownership signals extracted (UX.md §1.3) — and displaying
 it for a check nobody has run would be the one lie this interface must not tell.
 
-The approve gate here asserts what published frontmatter can carry on its own:
-an `ownership_source` with all three parts, and a null `parent_company`. Gate 4
-adds the verdict, the signals and their resolutions on top of it.
+`ownership.approval_blocks` is the whole gate and it lives in the approve
+function rather than the template (UX.md §1.4.5 rule 2), so there is no route
+that publishes without passing what the UI enforces.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import shutil
 import sys
@@ -64,7 +63,7 @@ from admin.config import (  # noqa: E402
     SUMMARY_MAX_CHARS,
     UNDO_WINDOW_SECONDS,
 )
-from admin.pipeline import data_store  # noqa: E402
+from admin.pipeline import data_store, ownership  # noqa: E402
 
 _logger = logging.getLogger("admin.staging")
 
@@ -108,27 +107,9 @@ def _has_candidate_images(slug: str) -> bool:
     return directory.is_dir() and any(directory.iterdir())
 
 
-def _ownership_sidecar(slug: str, directory: Path = STAGING_DIR) -> dict[str, Any] | None:
-    path = directory / f"{slug}.ownership.json"
-    if not path.is_file():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-
-
 def ownership_chip(slug: str) -> str:
-    """`CLEAR`, `CHECK`, `RESOLVED` or, until Gate 4, `NOT DETERMINED`."""
-    sidecar = _ownership_sidecar(slug)
-    if sidecar is None:
-        return "NOT DETERMINED"
-    verdict = str(sidecar.get("verdict", "")).lower()
-    if verdict == "check":
-        signals = sidecar.get("signals") or []
-        unresolved = [s for s in signals if not (isinstance(s, dict) and s.get("resolution"))]
-        return "CHECK" if unresolved else "RESOLVED"
-    return "CLEAR" if verdict == "clear" else "NOT DETERMINED"
+    """`CLEAR`, `CHECK`, `RESOLVED`, `REJECT` or `NOT DETERMINED` (UX.md §1.3)."""
+    return ownership.chip_for(ownership.read_sidecar(slug))
 
 
 def flags_for(data: dict[str, Any], body: str) -> list[str]:
@@ -302,35 +283,17 @@ def save_draft(slug: str, frontmatter: dict[str, Any], body: str) -> None:
 # =============================================================================
 
 
-def ownership_gate(data: dict[str, Any]) -> list[str]:
+def ownership_gate(slug: str, data: dict[str, Any]) -> list[str]:
     """What blocks approval on ownership grounds. Empty means the gate is open.
 
     UX.md §1.4.5 in the form the rules require: **the gate lives in the approve
     function, not in the template.** A route that publishes without passing this
     would be the hole the whole independence claim leaks through.
 
-    Gate 4 extends this with the verdict and the signal resolutions. It does not
-    replace it: these two rules hold whatever the determination says.
+    Delegated whole to `ownership.approval_blocks` so the rules have one home
+    and the API, the keyboard path and the CLI cannot drift from each other.
     """
-    blocks: list[str] = []
-    if data.get("parent_company"):
-        blocks.append(
-            "parent_company is set. This producer cannot be published "
-            "(SCHEMA.md §4.1). Reject it, or clear the field if it was entered "
-            "in error."
-        )
-    ownership = data.get("ownership_source")
-    if not isinstance(ownership, dict):
-        blocks.append("ownership_source is missing")
-    else:
-        missing = [
-            part
-            for part in ("source", "method", "date")
-            if not str(ownership.get(part) or "").strip()
-        ]
-        if missing:
-            blocks.append(f"ownership_source is missing {', '.join(missing)}")
-    return blocks
+    return ownership.approval_blocks(data, ownership.read_sidecar(slug))
 
 
 # =============================================================================
@@ -391,7 +354,7 @@ def approve(slug: str, log: Logger = _null_log) -> dict[str, Any]:
         log("error", f"approve blocked: {slug} has {len(errors)} field error(s)")
         raise ActionBlocked(f"{len(errors)} field(s) fail the schema", errors=errors)
 
-    blocks = ownership_gate(data)
+    blocks = ownership_gate(slug, data)
     if blocks:
         log("error", f"approve blocked by the ownership gate: {'; '.join(blocks)}")
         raise ActionBlocked("the ownership gate is not satisfied", blocks=blocks)
@@ -404,7 +367,7 @@ def approve(slug: str, log: Logger = _null_log) -> dict[str, Any]:
     shutil.move(str(source), str(target))
     log("info", f"published {slug} to _published/{slug}.mdx")
 
-    sidecar = STAGING_DIR / f"{slug}.ownership.json"
+    sidecar = ownership.sidecar_path(slug, STAGING_DIR)
     determination = DETERMINATIONS_DIR / f"{slug}.json"
     moved_sidecar = False
     if sidecar.is_file():
@@ -437,10 +400,10 @@ def reject(slug: str, reason: str, log: Logger = _null_log) -> dict[str, Any]:
     (REJECTED_DIR / f"{slug}.reason.txt").write_text(
         f"{date.today().isoformat()}: {reason}\n", encoding="utf-8"
     )
-    sidecar = STAGING_DIR / f"{slug}.ownership.json"
+    sidecar = ownership.sidecar_path(slug, STAGING_DIR)
     moved_sidecar = False
     if sidecar.is_file():
-        shutil.move(str(sidecar), str(REJECTED_DIR / f"{slug}.ownership.json"))
+        shutil.move(str(sidecar), str(ownership.sidecar_path(slug, REJECTED_DIR)))
         moved_sidecar = True
     log("info", f"rejected {slug}: {reason}")
 
@@ -468,7 +431,7 @@ def undo(slug: str, log: Logger = _null_log) -> dict[str, Any]:
         if record.get("sidecar"):
             shutil.move(
                 str(DETERMINATIONS_DIR / f"{slug}.json"),
-                str(STAGING_DIR / f"{slug}.ownership.json"),
+                str(ownership.sidecar_path(slug, STAGING_DIR)),
             )
         _rebuild_derived(log)
     else:
@@ -476,8 +439,8 @@ def undo(slug: str, log: Logger = _null_log) -> dict[str, Any]:
         (REJECTED_DIR / f"{slug}.reason.txt").unlink(missing_ok=True)
         if record.get("sidecar"):
             shutil.move(
-                str(REJECTED_DIR / f"{slug}.ownership.json"),
-                str(STAGING_DIR / f"{slug}.ownership.json"),
+                str(ownership.sidecar_path(slug, REJECTED_DIR)),
+                str(ownership.sidecar_path(slug, STAGING_DIR)),
             )
 
     _UNDO.pop(slug, None)

@@ -730,10 +730,17 @@ def determine(
     website: Any = None,
     signals: Any = None,
     *,
+    harvester_verdict: str | None = None,
     floor: str | None = None,
     register: dict[str, Any] | None = None,
 ) -> Determination:
     """The verdict, and every piece of evidence behind it.
+
+    `harvester_verdict` is the `independence` value the Harvester emits
+    (SCHEMA.md §5). It is **one input, never the decision** (SCHEMA.md §4.5):
+    it can only make the verdict more blocking, never less, so a Harvester that
+    says `clear` about a deny-listed label changes nothing. That asymmetry is
+    what "it never decides alone" means in code.
 
     `floor` caps how blocking the verdict may be, and exists for exactly one
     caller: UX.md §1.4.4's `Re-harvest as check`, which re-runs a URL with the
@@ -760,6 +767,11 @@ def determine(
             verdict = "check"
         elif populated_signals(signal_table):
             verdict = "check"
+
+    # The Harvester's own verdict can only tighten. It never relaxes one the
+    # deny-list or the signals produced (SCHEMA.md §4.5).
+    if harvester_verdict in VERDICTS:
+        verdict = _stronger(verdict, harvester_verdict)
 
     notes: list[str] = []
     if register.get("_missing"):
@@ -973,17 +985,32 @@ def write_blocked_record(
     *,
     slug: str | None = None,
 ) -> Path:
-    """Write `<slug>.json` to `BLOCKED_DIR`. Never writes a draft."""
-    slug = slug or slugify(name or url)
+    """Write `<slug>.json` to `BLOCKED_DIR`. Never writes a draft.
+
+    The slug comes from the producer's name where one was extracted, and from
+    the host otherwise. A pre-fetch domain block has no name yet, and slugifying
+    the whole URL would make `https-www-wolfblass-com-en-au`, which is unusable
+    as the row a reviewer reads and as the filename they grep for.
+    """
+    if not slug:
+        slug = slugify(name) if str(name or "").strip() else slugify(normalise_domain(url))
     source_of_reject, reason = reject_reason(determination)
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    # A URL that is blocked, re-harvested and blocked again keeps its history.
+    # The re-harvest is the evidence that somebody looked twice, and losing it
+    # would make the second block indistinguishable from the first.
+    previous = read_blocked(slug) or {}
     payload = {
         "slug": slug,
         "url": url,
-        "name": str(name or ""),
+        "name": str(name or previous.get("name") or ""),
         "reason": reason,
         "source_of_reject": source_of_reject,
-        "blocked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "reharvests": [],
+        "blocked_at": now,
+        "first_blocked_at": str(
+            previous.get("first_blocked_at") or previous.get("blocked_at") or now
+        ),
+        "reharvests": previous.get("reharvests") or [],
         **determination.as_dict(),
     }
     BLOCKED_DIR.mkdir(parents=True, exist_ok=True)
@@ -1049,14 +1076,14 @@ def record_reharvest(slug: str, action: str) -> dict[str, Any] | None:
 # =============================================================================
 
 
-def screen_url(url: str) -> Determination:
+def screen_url(url: str, *, floor: str | None = None) -> Determination:
     """The cheapest screen there is: the domain, before anything is fetched.
 
     A URL is all that exists at this point in a run, so this is a domain check
     only — the name and ABN rows report `not checked` rather than pretending.
     Gate 5's Harvester calls `screen_candidate` afterwards with what it read.
     """
-    return determine(website=url)
+    return determine(website=url, floor=floor)
 
 
 def screen_candidate(
@@ -1064,7 +1091,14 @@ def screen_candidate(
     name: Any = None,
     signals: Any = None,
     *,
+    harvester_verdict: str | None = None,
     floor: str | None = None,
 ) -> Determination:
     """The full screen, once the Harvester has a name and ownership signals."""
-    return determine(name=name, website=url, signals=signals, floor=floor)
+    return determine(
+        name=name,
+        website=url,
+        signals=signals,
+        harvester_verdict=harvester_verdict,
+        floor=floor,
+    )
