@@ -9,7 +9,7 @@ Gate 5's done-condition runs against these URLs. Each is chosen for a **distinct
 | 1 | Wolf Blass | `https://www.wolfblass.com/en-au/` | Barossa | **Corporate portfolio label that must be REJECTED.** The most important row. |
 | 2 | d'Arenberg | `https://www.darenberg.com.au/the-story` | McLaren Vale | Florid marketing copy and the winery's own tasting notes. Banned-word and descriptor stress. **Playwright-only, see below.** |
 | 3 | Gemtree Wines | `https://gemtreewines.com/` | McLaren Vale | Certification claimed, certifier not named. Weak ownership evidence. |
-| 4 | Basket Range Wine | `https://basketrangewine.com.au/` | Adelaide Hills | Clean independent baseline. Practising, not certified. |
+| 4 | Basket Range Wine | `https://basketrangewine.com.au/about` | Adelaide Hills | Clean independent baseline. Practising, not certified. |
 | 5 | Myrtaceae | `https://www.myrtaceae.com.au/` | Mornington Peninsula | Thin page. Appointment-gated cellar door. Fee with unstated waiver. |
 | 6 | Urban Winery Sydney (A. Retief) | `https://urbanwinerysydney.com.au/` | Sydney / regional NSW | Urban winery on regional fruit. Location vs fruit-source separation. |
 
@@ -77,6 +77,14 @@ The vineyard is described as farmed "using sustainable practices" — **not** or
 
 This is the row that should produce the least reviewer work. If it doesn't, something upstream is wrong.
 
+**Amended 2026-08-07 (Gate 5), after the run.** Two corrections, recorded rather than made quietly, on the same standard row 2 was held to.
+
+**The URL.** The row said `https://basketrangewine.com.au/` and the run used `/about`. The prose above already said "The About page states ownership plainly", so the table and the prose had disagreed since the row was written, and the run followed the prose. The table now says `/about`.
+
+**The outcome, and it did not match.** The row predicted `clear`; the pipeline returned `check` and a person resolved it by hand. It was right about the producer and wrong about the code. The About page names Phillip, Mary and Sholto Broderick, which is exactly the SCHEMA.md §4.2 route 2 evidence this row was written to produce — but any populated `ownership_signals` key escalated to `check`, and `PROMPTS/harvester.md` files a positive ownership claim under `statements`. So the entry was escalated for containing its own evidence. `ownership.py` was amended the same day (SCHEMA.md §4.5, UX.md §1.4.2); this row now returns `clear` as written, and it did so before the fixture was re-run, from the signals the original run extracted.
+
+**This row did its job.** It was the fixture that exposed the rule, and it exposed it by predicting an answer the code could not yet produce. A fixture that had been written to match the implementation would have agreed with it and found nothing.
+
 ### 5. Myrtaceae — thin page, appointment gate, unstated waiver
 
 Roughly 250–300 words of content on the cellar-door page, mostly visitor logistics. Located at Red Hill, Mornington Peninsula. Weekend hours are published but reservations are required. Tasting fee is five dollars; **whether it is waived on purchase is not stated.**
@@ -105,6 +113,8 @@ Stated plainly rather than padded with unverified rows.
 
 - **No Yarra Valley row.** The Yarra Valley Smaller Wineries directory lists twenty member wineries but does not publish their own domains, and resolving each one was more verification than this document needed. Yarra Valley is a coverage region (Gate 8), not a fixture gap — add a row here if a Yarra-specific failure mode turns up.
 - **No label-only producer with no cellar door.** This is a real gap: SCHEMA.md is explicit that a producer with null coordinates and `cellar_door: none` must publish normally, and no fixture currently proves it. **Until one is added, Gate 5 must test this with a hand-written staging file** rather than assuming it works.
+
+  **Discharged 2026-08-07 (Gate 5), and still open as a seed gap.** `example-label-only.mdx` is that hand-written file. It carries a `location` with only a `state`, null coordinates and `cellar_door: none`, and it was taken through approve to a rendered page: correct rows in every table, derived JSON regenerated, no map slot, and real copy for the absent cellar door. The path is proven. What is still missing is a *real* producer of this shape, so this gap stays listed — the fixture is a stand-in for a SEED row, not a replacement for one, and it comes out before Gate 8 like every other fixture.
 - **No négociant.** Row 6 covers purchased fruit, but not the négociant category specifically — buying *finished wine* to blend under one's own label is a different business from buying fruit, which is why SCHEMA.md §1.1 splits them.
 - **Noisy Ritual (Brunswick East) was considered and excluded.** The site is live but announces the business is closing, final day of trade 13 June. Harvesting a closing business would produce an entry that is wrong the week it publishes.
 
