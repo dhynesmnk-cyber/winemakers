@@ -102,6 +102,22 @@ def _mask(text: str) -> str:
 # =============================================================================
 
 
+#: One or more whitespace characters, bridging at most one line break.
+#:
+#: Prose here is hand-wrapped at about 76 columns, so a multi-word phrase
+#: routinely straddles a newline. Matching line by line missed every one of
+#: them: "it could be argued" was caught flat and invisible wrapped.
+#:
+#: A single `>` after the break is consumed because a wrapped line inside a
+#: markdown blockquote carries the marker again — the sentence continues and
+#: the marker is punctuation, not prose. METHODOLOGY.md's concession wraps
+#: exactly this way.
+#:
+#: A blank line is a paragraph break and is deliberately not bridged, so the
+#: lint cannot assemble a phrase out of two paragraphs that never held one.
+_GAP = r"(?=\s)[ \t]*(?:\n[ \t]*>?[ \t]*)?"
+
+
 #: Phrases whose banned sense is narrower than the word.
 #:
 #: These mirror exceptions PROMPTS/gatekeeper.md already states in prose, and
@@ -112,16 +128,28 @@ def _mask(text: str) -> str:
 #: on every run is a check people learn to skim past.
 _OVERRIDES = {
     # `rather than` is a contrast, not a hedge. `rather good` is the hedge.
-    "rather": r"\brather\b(?!\s+than\b)",
-    # `the kind of evidence` is nominal. `kind of good` is the hedge.
-    "kind of": r"(?<!the )(?<!this )(?<!that )(?<!what )(?<!a )\bkind of\b",
-    "sort of": r"(?<!the )(?<!this )(?<!that )(?<!what )(?<!a )\bsort of\b",
+    "rather": rf"\brather\b(?!{_GAP}than\b)",
+    # `would fairly call` is the justly sense, modifying a verb of
+    # characterisation. `fairly good` is the hedge, modifying an adjective.
+    # METHODOLOGY.md concedes the strict rule excludes businesses people
+    # "would fairly call independent" — the sentence admitting what the rule
+    # costs, which is the writer doing the work rather than declining it.
+    "fairly": (
+        rf"\bfairly\b(?!{_GAP}(?:call|calls|called|calling|say|says|said"
+        rf"|describe|describes|described|claim|claims|claimed"
+        rf"|treat|treats|treated)\b)"
+    ),
+    # `the kind of evidence` is nominal. `kind of good` is the hedge. The
+    # lookbehinds use `\s` rather than a literal space so they still hold when
+    # the determiner ends a wrapped line; Python needs them fixed-width.
+    "kind of": rf"(?<!the\s)(?<!this\s)(?<!that\s)(?<!what\s)(?<!a\s)\bkind{_GAP}of\b",
+    "sort of": rf"(?<!the\s)(?<!this\s)(?<!that\s)(?<!what\s)(?<!a\s)\bsort{_GAP}of\b",
     # The tasting sense of `finish` is a NOUN and takes a determiner or an
     # adjective: "a long finish", "the finish". The verb is ordinary
     # viticulture — "the heat a Bordeaux variety needs to finish", "picking
     # starts after the plains have finished — and fires constantly on correct
     # copy. Observed on the first real draft this pipeline produced.
-    "finish": r"\b(?:the|a|an|its|long|short|clean|dry|crisp|lingering|tannic)\s+finish\b",
+    "finish": rf"\b(?:the|a|an|its|long|short|clean|dry|crisp|lingering|tannic){_GAP}finish\b",
 }
 
 
@@ -129,7 +157,7 @@ def _pattern_for(phrase: str) -> re.Pattern[str]:
     """Word-boundary match, so `finish` does not fire on `finished`."""
     if phrase in _OVERRIDES:
         return re.compile(_OVERRIDES[phrase], re.IGNORECASE)
-    return re.compile(r"\b" + re.escape(phrase).replace(r"\ ", r"\s+") + r"\b", re.IGNORECASE)
+    return re.compile(r"\b" + re.escape(phrase).replace(r"\ ", _GAP) + r"\b", re.IGNORECASE)
 
 
 def lint_text(text: str, lists: dict[str, list[str]] | None = None) -> list[dict]:
@@ -138,32 +166,42 @@ def lint_text(text: str, lists: dict[str, list[str]] | None = None) -> list[dict
     masked = _mask(text)
     hits: list[dict] = []
 
-    for line_number, line in enumerate(masked.splitlines(), start=1):
-        if not line.strip():
-            continue
-        for info, label in LIST_LABELS.items():
-            for phrase in lists.get(info, []):
-                if _pattern_for(phrase).search(line):
-                    hits.append(
-                        {
-                            "line": line_number,
-                            "kind": label,
-                            "phrase": phrase,
-                            "excerpt": line.strip()[:100],
-                        }
-                    )
-        # The em-dash ban is a character, not a list.
+    lines = masked.splitlines()
+
+    def collect(phrase: str, label: str) -> None:
+        """One hit per phrase per line, matched over the whole document.
+
+        Searching the whole text rather than each line is what lets a phrase
+        that wraps still count. Line numbers come from the match offset, which
+        is sound because `_mask` blanks quoted lines without removing them.
+        """
+        seen: set[int] = set()
+        for match in _pattern_for(phrase).finditer(masked):
+            line_number = masked.count("\n", 0, match.start()) + 1
+            if line_number in seen:
+                continue
+            seen.add(line_number)
+            excerpt = lines[line_number - 1].strip()[:100] if line_number <= len(lines) else ""
+            hits.append(
+                {"line": line_number, "kind": label, "phrase": phrase, "excerpt": excerpt}
+            )
+
+    for info, label in LIST_LABELS.items():
+        for phrase in lists.get(info, []):
+            collect(phrase, label)
+
+    for pair in lists.get("us-spellings", []):
+        collect(pair, "US spelling")
+
+    # The em-dash ban is a character, not a list, and cannot wrap.
+    for line_number, line in enumerate(lines, start=1):
         if "—" in line:
             hits.append(
                 {"line": line_number, "kind": "em dash", "phrase": "—",
                  "excerpt": line.strip()[:100]}
             )
-        for pair in lists.get("us-spellings", []):
-            if _pattern_for(pair).search(line):
-                hits.append(
-                    {"line": line_number, "kind": "US spelling", "phrase": pair,
-                     "excerpt": line.strip()[:100]}
-                )
+
+    hits.sort(key=lambda hit: (hit["line"], hit["kind"], hit["phrase"]))
     return hits
 
 
@@ -273,11 +311,38 @@ def _selftest() -> list[str]:
          "the cellar door is kind of hard to find."),
         ("the west-facing blocks get the heat a Bordeaux variety needs to finish.",
          "the wine has a long finish."),
+        ("businesses that many people would fairly call independent.",
+         "the cellar door is fairly easy to find."),
     ):
         if lint_text(clean, lists):
             errors.append(f"selftest: a false positive on {clean!r}")
         if not lint_text(dirty, lists):
             errors.append(f"selftest: an override swallowed the real hedge in {dirty!r}")
+
+    # Hand-wrapped prose. Every multi-word phrase and every narrowed sense has
+    # to survive a line break, in both directions — the ban must still fire
+    # when the phrase wraps, and the exemption must still hold when it does.
+    for wrapped, should_fire in (
+        ("the ownership is undocumented and it could be\nargued either way.", True),
+        ("the estate is something\nof a special case in the region.", True),
+        ("the wine has a long\nfinish.", True),
+        ("businesses that many people would fairly\ncall independent.", False),
+        ("the producer is explicit rather\nthan leaving a reader to infer.", False),
+        ("a person records the kind\nof evidence relied on.", False),
+        ("the heat a Bordeaux variety needs to\nfinish.", False),
+        # The same wrap inside a markdown blockquote, marker and all.
+        ("> businesses many would fairly\n> call independent.", False),
+        ("> the ownership is undocumented and it could be\n> argued either way.", True),
+    ):
+        fired = bool(lint_text(wrapped, lists))
+        if fired != should_fire:
+            missed = "did not fire across a line break" if should_fire else "fired across a line break"
+            errors.append(f"selftest: {missed} on {wrapped!r}")
+
+    # A blank line is a paragraph break, not a wrap. Bridging it would let the
+    # lint assemble a phrase from two paragraphs that never contained one.
+    if lint_text("the winemaker notes\n\nof the four blocks, two are dry-grown.", lists):
+        errors.append("selftest: a phrase was assembled across a paragraph break")
 
     return errors
 

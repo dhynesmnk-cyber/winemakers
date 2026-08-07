@@ -229,6 +229,10 @@ something of a
 `rather` and `quite` are listed because of their intensifier use ("quite
 lovely"). `rather than` as a plain contrast is fine and is not a hedge.
 
+`fairly` is listed for the same reason ("fairly good"). Modifying a verb of
+characterisation — "would fairly call it independent" — it means *justly*, and
+is fine.
+
 ---
 
 ## Tasting descriptors
