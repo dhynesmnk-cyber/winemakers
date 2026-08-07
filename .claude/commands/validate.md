@@ -79,6 +79,20 @@ Listed here so the suite's shape is visible from the start. Each lands as its ow
 
 ---
 
+---
+
+## Pipeline fixtures — *added at Gate 5, 2026-08-07*
+
+`python3 -m admin.pipeline.validate_pipeline`. Exit 0 required.
+
+Not a numbered check. It is the mechanised form of CLAUDE.md's Gate 5 fixture done-conditions, which name four things only deliberately broken fixtures can show: a bad URL and a malformed-JSON simulation failing per the UX.md §1.5 failure table, a ten-URL batch completing with per-URL failures isolated, and the Harvester's `independence: reject` aborting before a draft is written.
+
+It is recorded here rather than left as a gate-exit ritual for the same reason check 15 exists: the reference implementation left its deploy guard covered only by a manual gate exit, and that is the one place the discipline lapsed.
+
+Runs fully offline — scripted fake client, stubbed fetch, temp directories — so it works in a bare clone with no API key. Covers failure-table rows 1, 2, 3, 4, 5, 7, 8, 9 and 11, the certification downgrade, the token ledger and the Gatekeeper fallback.
+
+---
+
 ## The self-test pattern
 
 This project has **no test framework** — no pytest, no CI. Instead each validator module carries its own fixture self-test that runs as part of the check itself:
