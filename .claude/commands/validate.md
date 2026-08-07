@@ -41,6 +41,17 @@ Then run the rebuild twice and confirm the two outputs are byte-identical. A non
 ### 7. Repo hygiene — *G1*
 `git status` and `git ls-files` must show no tracked files under `temp_data/`, `content-staging/`, or any `.env` other than `.env.example`. Tracked = fail. Check `git ls-files` specifically, not just `git status` — a force-added file shows as clean in status.
 
+### 6. Register lint — *G5*
+`python3 -m admin.pipeline.validate_register`.
+
+Greps every `_published` body, plus `summary` and the FAQ answers, for the banned-word list, the hedge list, tasting descriptors, first-person visit tells, not-X-but-Y, em dashes and US spellings. **Warnings, not failures** — a human judges them — but every hit is listed with file and line, and the module's self-test must pass.
+
+Every list is parsed from `PROMPTS/gatekeeper.md`, where they are authored. There is no second copy in Python: a lint that drifts from the prompt the Gatekeeper is actually run with would pass copy the model was never told to avoid.
+
+`<Pull>` quotations are masked before matching. They are verbatim producer words, the Gatekeeper is told to leave them untouched, and a producer calling their own wine "plush" inside a marked quotation is a fact about what they published.
+
+Also lints `METHODOLOGY.md`, which asked in its own text to be linted against this list once it existed.
+
 ### 16. No-JS and reduced-motion render — *G1*
 The built site renders correctly with JavaScript disabled: every producer, every programmatic route, and every navigation affordance is reachable. Under `prefers-reduced-motion: reduce`, every element renders fully visible in its final position. Any content that only appears after JS runs = fail.
 
@@ -53,7 +64,7 @@ Listed here so the suite's shape is visible from the start. Each lands as its ow
 | # | Check | Gate |
 |---|---|---|
 | 5 | **Link check** — every internal href resolves to a built page; a producer page exists for every slug in the derived JSON and vice versa; every region/subregion/variety/practice page has ≥1 producer; no page links to a draft; **no dead programmatic routes** | G6 |
-| 6 | **Register lint** — grep `_published` bodies for the banned-word list, first-person visit tells ("we visited", "on arrival", "I found"), and unsourced tasting descriptors ("notes of", "palate of", "finish"). Warnings, not failures — a human judges them — but list every hit with file and line | G5 |
+| 6 | ~~**Register lint**~~ — **SHIPPED 2026-08-07 at Gate 5.** Moved to the core section above; row kept so the numbering stays readable | G5 |
 | 8 | **Ownership determination** — no producer published without `ownership_source` carrying a non-empty source and a date; **no producer published with a non-null `parent_company`**; zero hits when every published name, domain and ABN is checked against the `data/ownership.json` deny-list | G4 |
 | 9 | **Certification integrity** — `organic: certified` without a named `organic_certifier` fails; same for `biodynamic`. A certifier named while the state is not `certified` also fails | G4 |
 | 10 | **Numeric cross-checks** — every `tasting_fee.fee_aud` falls within the range of dollar amounts stated in the freeform `cost` string; `annual_production_cases`, when present, falls inside `production_band` | G4 |
