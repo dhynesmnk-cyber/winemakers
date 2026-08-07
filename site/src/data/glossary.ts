@@ -1374,9 +1374,19 @@ export const GLOSSARY_BY_SLUG: ReadonlyMap<string, GlossaryEntry> = new Map(
   GLOSSARY.map((e) => [e.slug, e]),
 );
 
-/** Keyed `<vocabulary> <value>` so a lookup by enum member cannot collide across vocabularies. */
+/**
+ * Keyed `<vocabulary>SEPARATOR<value>` so a lookup by enum member cannot
+ * collide across vocabularies.
+ *
+ * The separator is U+0000, written as an ESCAPE and never as a literal NUL
+ * byte. A literal one here made the whole file `data` rather than text, and
+ * grep skips a binary file silently: no error, no match, just nothing. That
+ * matters because `/validate` check 6 greps sources, the `schema-guardian`
+ * agent greps this file specifically, and check 11 joins it against the
+ * config.ts tuples. Keep it an escape.
+ */
 const BY_VALUE: ReadonlyMap<string, GlossaryEntry> = new Map(
-  GLOSSARY.map((e) => [`${e.vocabulary} ${e.value}`, e]),
+  GLOSSARY.map((e) => [`${e.vocabulary}\u0000${e.value}`, e]),
 );
 
 /** The entry for a raw enum member. This is the join `/validate` check 11 walks. */
@@ -1384,7 +1394,7 @@ export function glossaryFor(
   vocabulary: VocabularyId,
   value: string,
 ): GlossaryEntry | undefined {
-  return BY_VALUE.get(`${vocabulary} ${value}`);
+  return BY_VALUE.get(`${vocabulary}\u0000${value}`);
 }
 
 /** Every entry in one vocabulary, in authored order. */
