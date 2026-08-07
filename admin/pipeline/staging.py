@@ -368,7 +368,7 @@ def approve(slug: str, log: Logger = _null_log) -> dict[str, Any]:
     log("info", f"published {slug} to _published/{slug}.mdx")
 
     sidecar = ownership.sidecar_path(slug, STAGING_DIR)
-    determination = DETERMINATIONS_DIR / f"{slug}.json"
+    determination = ownership.sidecar_path(slug, DETERMINATIONS_DIR)
     moved_sidecar = False
     if sidecar.is_file():
         determination.parent.mkdir(parents=True, exist_ok=True)
@@ -430,7 +430,7 @@ def undo(slug: str, log: Logger = _null_log) -> dict[str, Any]:
             published.write_bytes(record["previous_published"])
         if record.get("sidecar"):
             shutil.move(
-                str(DETERMINATIONS_DIR / f"{slug}.json"),
+                str(ownership.sidecar_path(slug, DETERMINATIONS_DIR)),
                 str(ownership.sidecar_path(slug, STAGING_DIR)),
             )
         _rebuild_derived(log)

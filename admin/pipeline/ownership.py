@@ -863,6 +863,17 @@ def determine(
 
 
 def sidecar_path(slug: str, directory: Path = STAGING_DIR) -> Path:
+    """`<slug>.ownership.json` beside an MDX, `<slug>.json` once retained.
+
+    UX.md §1.4.6 names both: the sidecar sits next to the draft in `_staging/`
+    and next to the rejected file in `_rejected/`, where the suffix keeps it
+    distinguishable from the MDX it belongs to; in `DETERMINATIONS_DIR` it is
+    the only thing there, so it is plainly `<slug>.json`. The approve action
+    renames it on the way through, and this function is the one place that
+    knows which name applies where.
+    """
+    if directory == DETERMINATIONS_DIR:
+        return directory / f"{slug}.json"
     return directory / f"{slug}.ownership.json"
 
 
