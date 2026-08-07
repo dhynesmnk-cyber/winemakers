@@ -216,6 +216,17 @@ _FIXTURE_REGISTER: dict[str, Any] = {
 }
 
 
+#: SCHEMA.md §4.2 route 2 evidence: a statement naming who owns the business.
+#:
+#: Supplied by every fixture below whose subject is the *deny-list* — name,
+#: domain, ABN and the place-name guards. Since 2026-08-08 a determination
+#: resting on no evidence at all is `check` however clean the name is, so
+#: without this those assertions would read `check` and blame name matching for
+#: it. Gate 4's done-condition says a *known* independent producer returns
+#: `clear`, and knowing is what this supplies.
+_NAMES_ITS_OWNERS = {"statements": ["Owned by the Fixture family since 1998"]}
+
+
 def _selftest() -> list[str]:
     """Must catch a corrupted fixture and pass a clean one."""
     errors: list[str] = []
@@ -223,6 +234,11 @@ def _selftest() -> list[str]:
 
     def verdict(**kwargs: Any) -> str:
         return ownership.determine(register=register, **kwargs).verdict
+
+    # ── Silence is not independence, and it is not a deny-list problem.
+    #    A spotless name with no evidence behind it is `check` (SCHEMA.md §4.2).
+    if verdict(name="Genuine Independent Wines", website="https://genuine.example") != "check":
+        errors.append("selftest: a producer with no ownership evidence was not held at check")
 
     # ── Gate 4's done-condition: rejected by name, by domain and by ABN, each
     #    on its own, with the other two inputs absent.
@@ -248,7 +264,11 @@ def _selftest() -> list[str]:
         errors.append("selftest: a virtual brand was not rejected by domain")
 
     # ── A known independent producer comes back clear.
-    if verdict(name="Genuine Independent Wines", website="https://genuine.example") != "clear":
+    if verdict(
+        name="Genuine Independent Wines",
+        website="https://genuine.example",
+        signals=_NAMES_ITS_OWNERS,
+    ) != "clear":
         errors.append("selftest: an unlisted producer did not come back clear")
 
     # ── An ambiguous parent mention is `check`, and check is not reject.
@@ -379,7 +399,9 @@ def _selftest() -> list[str]:
 
     # ── The register's own two traps must not fire on a place name.
     for trap in ("Stanley Lane Wines", "Tatachilla Road Vineyard"):
-        if ownership.determine(name=trap, register=register).verdict != "clear":
+        if ownership.determine(
+            name=trap, signals=_NAMES_ITS_OWNERS, register=register
+        ).verdict != "clear":
             errors.append(f"selftest: name matching fired on the place name in {trap!r}")
 
     # ── But the exact label still rejects.
