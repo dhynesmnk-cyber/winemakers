@@ -264,6 +264,8 @@ Every other public route on this site slugifies a human name, and DESIGN.md §5'
    | `/sitemap.xml`, `/llms.txt` | endpoints, not static files | G6/G10 |
 
    `llms.txt` is **generated as an endpoint** rather than committed as a static file, so it cannot drift from the routes that exist.
+
+   **Amendment, 2026-08-08 (Gate 6): `/rss.xml` belongs to Gate 11.** `Footer.astro` has linked it since Gate 1 and no route table in this document, UX.md or DESIGN.md ever mentioned it. It is the journal's feed, so it ships with the journal. Until then it sits in `PENDING_ROUTES` in `/validate` check 5, printed on every run alongside `/methodology/` (G10) and `/blog/` (G11), and the check fails if it starts resolving while still listed — so the list shrinks when a gate ships rather than quietly permitting a live route.
 3. **Components.** `<Pull>` for pull-quotes and `<TippedPhoto>` for the single optional image, both usable from MDX bodies; `<ProducerEntry>` for list rendering; `<Icon>` for the hand-authored inline SVG set. Visual treatment per DESIGN.md.
 4. **Zero runtime data fetching.** Everything comes from `getCollection("producers")` and the generated `producers.json` at build time. No client fetch, no serverless function, no third-party script — there is no map and therefore not even a tile request.
 5. **No-JS and reduced-motion are build requirements, not courtesies.** Every producer, every programmatic route, every paginated page and every navigation affordance is reachable with JavaScript disabled. Under `prefers-reduced-motion: reduce`, every element renders fully visible in its final position. `/validate` check 16.
