@@ -1,0 +1,133 @@
+---
+/**
+ * `/practice/[key]/` and its `page/[n]/`. UX.md §2.4, DESIGN.md §7.
+ *
+ * ── These four pages carry more definitional weight than any other ────────────
+ *
+ * DESIGN.md §7 says so, and the reason is SCHEMA.md §1.6: the schema REFUSES a
+ * `low_intervention` field precisely so that these four checkable facts do the
+ * work instead. So the copy has to state what is checkable and what is not, or
+ * the refusal buys nothing and "minimal so₂" quietly becomes the vague label
+ * the field was dropped to avoid.
+ *
+ * Two things are therefore stated in full on every one of these pages:
+ *
+ *   1. The flag comes from the producer's own published material (UX.md §2.4).
+ *      Nobody here audited a ferment. It is a record of a claim, with a source.
+ *   2. Absence is not denial. A producer missing from this list has not said
+ *      otherwise; they have said nothing. SCHEMA.md §5 and UX.md §2.3 — an
+ *      absent practice is absence of evidence and no page asserts it either
+ *      way. There is no `/practice/not-unfined/`.
+ */
+import TaxonomyPage from "../../../components/TaxonomyPage.astro";
+import {
+  extraPages,
+  foreword,
+  glossaryHref,
+  metaDescription,
+  paginate,
+  practiceHref,
+  practicesPresent,
+  practiceSlug,
+  rootCrumbs,
+  type TaxonomyMember,
+} from "../../../data/taxonomy.ts";
+import { glossaryFor } from "../../../data/glossary.ts";
+import { practiceIcon } from "../../../icons/paths.ts";
+import type { IconKey } from "../../../icons/paths.ts";
+
+export async function getStaticPaths() {
+  const practices = await practicesPresent();
+
+  // `practice.slug` is the enum member (`wild_ferment`); the PATH segment is
+  // its kebab form. The member keeps the key so the glossary and foreword
+  // lookups below still join on the value SCHEMA.md §1.6 declares.
+  return practices.flatMap((practice) => [
+    {
+      params: { key: practiceSlug(practice.slug), page: undefined },
+      props: { practice, n: 1 },
+    },
+    ...extraPages(practice.count).map((n) => ({
+      params: { key: practiceSlug(practice.slug), page: `page/${n}` },
+      props: { practice, n },
+    })),
+  ]);
+}
+
+interface Props {
+  practice: TaxonomyMember;
+  n: number;
+}
+
+const { practice, n } = Astro.props;
+
+const entry = glossaryFor("practice", practice.slug);
+const paged = paginate(practice.producers, n, practiceHref(practice.slug));
+---
+
+<TaxonomyPage
+  heading={practice.name}
+  title={`${practice.name}: independent Australian winemakers`}
+  description={metaDescription(
+    "practice",
+    practice.slug,
+    entry?.short ?? `Independent Australian winemakers who state that they work ${practice.name.toLowerCase()}.`,
+  )}
+  crumbs={rootCrumbs(practice.name)}
+  foreword={foreword("practice", practice.slug)}
+  paged={paged}
+  glyph={practiceIcon(practice.slug) as IconKey}
+>
+  <Fragment slot="note">
+    {entry && <p class="practice-def">{entry.definition}</p>}
+    {
+      entry?.excludes && (
+        <p class="practice-def practice-def--excludes">{entry.excludes}</p>
+      )
+    }
+
+    <p class="practice-sourcing mono">
+      Every producer listed here states this in their own published material.
+      Nothing on this page is an audit, an inspection or a certification. A
+      producer who does not appear has not said otherwise, only that their
+      published material does not say.
+    </p>
+  </Fragment>
+
+  <Fragment slot="footnote">
+    {
+      entry && (
+        <aside class="definition hairline-top">
+          <p class="mono">
+            <a href={glossaryHref(entry.slug)}>{entry.term} in the glossary</a>
+          </p>
+        </aside>
+      )
+    }
+  </Fragment>
+</TaxonomyPage>
+
+<style>
+  .practice-def {
+    max-width: 60ch;
+    margin: 0 0 1rem;
+  }
+
+  .practice-def--excludes {
+    color: var(--ink-faded);
+  }
+
+  /* Set in mono like the datelines and the provenance close, because it is the
+     same kind of statement: where a claim came from, not a claim of its own. */
+  .practice-sourcing {
+    max-width: 60ch;
+    margin: 0 0 clamp(1.5rem, 3vw, 2.5rem);
+    color: var(--ink-faded);
+  }
+
+  .definition {
+    margin-top: clamp(3rem, 6vw, 5rem);
+    padding-top: 1.5rem;
+    max-width: 60ch;
+  }
+</style>

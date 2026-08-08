@@ -1,0 +1,103 @@
+---
+/**
+ * `/variety/[grape]/` and its `page/[n]/`. UX.md §2.4, DESIGN.md §7.
+ *
+ * Foreword, the `variety` bunch glyph at 16px in the header, the producers
+ * working that grape, and the grape's glossary definition at the FOOT, linked
+ * rather than duplicated.
+ *
+ * Present-only: a grape no published producer lists generates no page. The
+ * GLOSSARY entry for it still exists unconditionally at `/glossary/`, which is
+ * the distinction `/validate` checks 11 and 5 hold between them — a definition
+ * is not a listing.
+ *
+ * A producer appears here only where the source NAMED the variety (SCHEMA.md
+ * §5, evidence or nothing). `varieties` is optional in the schema for exactly
+ * that reason, and an absent array is silence rather than a denial.
+ */
+import TaxonomyPage from "../../../components/TaxonomyPage.astro";
+import {
+  extraPages,
+  foreword,
+  glossaryHref,
+  metaDescription,
+  paginate,
+  rootCrumbs,
+  varietiesPresent,
+  varietyHref,
+  type TaxonomyMember,
+} from "../../../data/taxonomy.ts";
+import { glossaryFor } from "../../../data/glossary.ts";
+
+export async function getStaticPaths() {
+  const varieties = await varietiesPresent();
+
+  return varieties.flatMap((variety) => [
+    { params: { grape: variety.slug, page: undefined }, props: { variety, n: 1 } },
+    ...extraPages(variety.count).map((n) => ({
+      params: { grape: variety.slug, page: `page/${n}` },
+      props: { variety, n },
+    })),
+  ]);
+}
+
+interface Props {
+  variety: TaxonomyMember;
+  n: number;
+}
+
+const { variety, n } = Astro.props;
+
+const entry = glossaryFor("variety", variety.slug);
+const paged = paginate(variety.producers, n, varietyHref(variety.slug));
+---
+
+<TaxonomyPage
+  heading={variety.name}
+  title={`${variety.name}: independent Australian winemakers`}
+  description={metaDescription(
+    "variety",
+    variety.slug,
+    entry?.short ?? `Independent Australian winemakers working ${variety.name}.`,
+  )}
+  crumbs={rootCrumbs(variety.name)}
+  foreword={foreword("variety", variety.slug)}
+  paged={paged}
+  glyph="variety"
+>
+  {/*
+    DESIGN.md §7: the glossary definition "sits at the foot, linked, not
+    duplicated". The one-line `short` is what appears here; the full definition
+    is one click away and is authored in exactly one place.
+  */}
+  <Fragment slot="footnote">
+    {
+      entry && (
+        <aside class="definition hairline-top">
+          <p class="definition__term mono mono-caps">{entry.term}</p>
+          <p class="definition__short">{entry.short}</p>
+          <p class="mono">
+            <a href={glossaryHref(entry.slug)}>Full definition</a>
+          </p>
+        </aside>
+      )
+    }
+  </Fragment>
+</TaxonomyPage>
+
+<style>
+  .definition {
+    margin-top: clamp(3rem, 6vw, 5rem);
+    padding-top: 1.5rem;
+    max-width: 60ch;
+  }
+
+  .definition__term {
+    color: var(--ink-faded);
+    margin: 0 0 0.5rem;
+  }
+
+  .definition__short {
+    margin: 0 0 0.75rem;
+  }
+</style>

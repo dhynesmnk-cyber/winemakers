@@ -1,0 +1,92 @@
+---
+/**
+ * `/[state]/` and `/[state]/page/[n]/` — the state roll-up. UX.md §2.4, DESIGN.md §7.
+ *
+ * The state's regions as mono links with counts, then the paginated producer
+ * list for the state.
+ *
+ * ── The only top-level dynamic route on the site ──────────────────────────────
+ *
+ * UX.md §2.4: the eight state slugs are the only top-level dynamic paths, and
+ * no other top-level route may take one of those slugs. Astro resolves static
+ * segments ahead of dynamic ones, so `/region/`, `/variety/`, `/practice/`,
+ * `/glossary/`, `/producers/` and `/producer/` all win against this file
+ * regardless — but the rule is not "Astro sorts it out", it is that the slugs
+ * stay disjoint. `taxonomy.ts` asserts that at build time against the reserved
+ * segment list.
+ *
+ * Slugs are the full name, `/south-australia/`, not `/sa/` (TRD.md §3
+ * amendment, 2026-08-08).
+ */
+import TaxonomyPage from "../../components/TaxonomyPage.astro";
+import TaxonomyLinks from "../../components/TaxonomyLinks.astro";
+import { STATE_NAMES } from "../../config.ts";
+import type { State } from "../../config.ts";
+import {
+  extraPages,
+  foreword,
+  metaDescription,
+  paginate,
+  regionsForStatePresent,
+  rootCrumbs,
+  stateHref,
+  statesPresent,
+  stateFromSlug,
+  type TaxonomyMember,
+} from "../../data/taxonomy.ts";
+
+export async function getStaticPaths() {
+  const states = await statesPresent();
+
+  return states.flatMap((state) => [
+    { params: { state: state.slug, page: undefined }, props: { state, n: 1 } },
+    ...extraPages(state.count).map((n) => ({
+      params: { state: state.slug, page: `page/${n}` },
+      props: { state, n },
+    })),
+  ]);
+}
+
+interface Props {
+  state: TaxonomyMember;
+  n: number;
+}
+
+const { state, n } = Astro.props;
+
+const code = stateFromSlug(state.slug) as State;
+const regions = await regionsForStatePresent(code);
+const paged = paginate(state.producers, n, stateHref(code));
+const name = STATE_NAMES[code];
+---
+
+<TaxonomyPage
+  heading={name}
+  title={`Independent winemakers of ${name}`}
+  description={metaDescription(
+    "state",
+    state.slug,
+    `Independent winemakers of ${name}, documented from published sources.`,
+  )}
+  crumbs={rootCrumbs(name)}
+  foreword={foreword("state", state.slug)}
+  paged={paged}
+>
+  <Fragment slot="links">
+    {
+      regions.length > 0 && (
+        <>
+          <p class="links-label mono mono-caps">Regions</p>
+          <TaxonomyLinks members={regions} />
+        </>
+      )
+    }
+  </Fragment>
+</TaxonomyPage>
+
+<style>
+  .links-label {
+    color: var(--ink-faded);
+    margin: 0 0 0.75rem;
+  }
+</style>

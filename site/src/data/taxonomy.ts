@@ -140,7 +140,28 @@ export const subregionHref = (region: string, sub: string) =>
   `/region/${region}/${sub}/`;
 export const stateHref = (code: State) => `/${stateSlug(code)}/`;
 export const varietyHref = (slug: string) => `/variety/${slug}/`;
-export const practiceHref = (key: string) => `/practice/${key}/`;
+
+/**
+ * `PRACTICE_KEYS` are snake_case enum members — `wild_ferment`, `minimal_so2` —
+ * and the URL segment is the kebab-cased form of one: `/practice/wild-ferment/`.
+ *
+ * No document pins the segment's shape; UX.md §2.4 gives `/practice/[key]/` and
+ * stops there. Kebab, because every other path on the site is kebab and an
+ * underscore would be the only one in the whole URL space. The KEY stays the
+ * enum member everywhere it joins back to data — the glossary, the forewords
+ * bucket, `practices` in frontmatter — and only the path is rewritten.
+ */
+export const practiceSlug = (key: string) => key.replace(/_/g, "-");
+
+const PRACTICE_BY_SLUG: ReadonlyMap<string, PracticeKey> = new Map(
+  PRACTICE_KEYS.map((key) => [practiceSlug(key), key]),
+);
+
+export function practiceFromSlug(slug: string): PracticeKey | undefined {
+  return PRACTICE_BY_SLUG.get(slug);
+}
+
+export const practiceHref = (key: string) => `/practice/${practiceSlug(key)}/`;
 export const producerHref = (slug: string) => `/producer/${slug}/`;
 export const glossaryHref = (slug: string) => `/glossary/${slug}/`;
 
@@ -513,6 +534,20 @@ export function subregionCrumbs(regionSlug: string, subSlug: string): Crumb[] {
 
 export function simpleCrumbs(hub: Crumb, current: string): Crumb[] {
   return [{ label: "Home", href: "/" }, hub, { label: current, href: null }];
+}
+
+/**
+ * Two deep: Home, then the page itself.
+ *
+ * State, variety and practice pages take this rather than a three-deep trail,
+ * because UX.md §2.4's route table gives them NO HUB. `/region/` is a hub and
+ * is listed; `/variety/`, `/practice/` and a states index are not. The homepage
+ * links straight to each member (UX.md §2.1 item 6), so there is no intermediate
+ * page to name, and inventing one to make the trail look deeper would be
+ * inventing a route (CLAUDE.md rule 3) and a dead link for `/validate` check 5.
+ */
+export function rootCrumbs(current: string): Crumb[] {
+  return [{ label: "Home", href: "/" }, { label: current, href: null }];
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
