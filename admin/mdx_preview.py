@@ -169,6 +169,22 @@ def _inline(text: str) -> str:
     return out
 
 
+#: Sentinels marking a block that is already HTML, so the paragraph splitter
+#: below passes it through instead of wrapping it in a `<p>`. They wrap the
+#: markup rather than overlapping it: `_raw` is the only thing that writes them
+#: and these two constants are the only lengths the splitter trims, so a block
+#: whose own tags start and end in angle brackets still trims back to exactly
+#: what was emitted. Writing the sentinel inline is how the trim came to eat the
+#: `<` off `<blockquote>` and the `>` off `</blockquote>`.
+RAW_OPEN = "<<<"
+RAW_CLOSE = ">>>"
+
+
+def _raw(markup: str) -> str:
+    """Wrap finished HTML so `render_body`'s splitter passes it through whole."""
+    return f"\n\n{RAW_OPEN}{markup}{RAW_CLOSE}\n\n"
+
+
 def render_body(body: str) -> str:
     """The MDX body as HTML, with the two components the entries use."""
     # JSX comments — `{/* … */}` — are not rendered by MDX and are not here.
@@ -181,9 +197,8 @@ def render_body(body: str) -> str:
             if attribution
             else ""
         )
-        return (
-            f'\n\n<<<blockquote class="pull">{_inline(match.group("text"))}{cite}'
-            f"</blockquote>>>\n\n"
+        return _raw(
+            f'<blockquote class="pull">{_inline(match.group("text"))}{cite}</blockquote>'
         )
 
     body = re.sub(
@@ -195,12 +210,12 @@ def render_body(body: str) -> str:
 
     def tipped(match: re.Match[str]) -> str:
         attributes = dict(re.findall(r'(\w+)="([^"]*)"', match.group(0)))
-        return (
-            '\n\n<<<figure class="tipped-photo"><div class="tipped-photo__mount">'
+        return _raw(
+            '<figure class="tipped-photo"><div class="tipped-photo__mount">'
             f'<img src="{html.escape(attributes.get("src", ""), quote=True)}" alt="" />'
             '</div><figcaption class="tipped-photo__caption mono mono-caps">'
             f'{html.escape(attributes.get("caption", ""))}'
-            "</figcaption></figure>>>\n\n"
+            "</figcaption></figure>"
         )
 
     body = re.sub(r"<TippedPhoto\b[^>]*/>", tipped, body)
@@ -210,8 +225,8 @@ def render_body(body: str) -> str:
         block = block.strip()
         if not block:
             continue
-        if block.startswith("<<<") and block.endswith(">>>"):
-            rendered.append(block[3:-3])
+        if block.startswith(RAW_OPEN) and block.endswith(RAW_CLOSE):
+            rendered.append(block[len(RAW_OPEN) : -len(RAW_CLOSE)])
         elif block.startswith("## "):
             rendered.append(f"<h2>{_inline(block[3:])}</h2>")
         elif block.startswith("### "):
