@@ -1,0 +1,106 @@
+---
+/**
+ * `/region/[region]/` and `/region/[region]/page/[n]/`. UX.md §2.4, DESIGN.md §7.
+ *
+ * ── One file, both routes ─────────────────────────────────────────────────────
+ *
+ * The `[...page]` rest parameter is `undefined` on page 1 and the literal
+ * `page/2` on page 2, which produces exactly UX.md §2.2's shape: page 1 at the
+ * bare route, pages 2 and up under a `page/` segment, page 1 never available at
+ * a second URL. One file rather than an `index.astro` plus a `page/[n].astro`
+ * that have to be kept saying the same thing.
+ *
+ * Present-only: `getStaticPaths` walks `regionsPresent()`, so a region with no
+ * published producers is never a param and no empty page can be emitted.
+ *
+ * The list is the WHOLE region, subregions included. A producer in Piccadilly
+ * Valley appears here and on the subregion page both. The region page is the
+ * superset and never a remainder list (UX.md §2.4).
+ */
+import TaxonomyPage from "../../../components/TaxonomyPage.astro";
+import TaxonomyLinks from "../../../components/TaxonomyLinks.astro";
+import {
+  extraPages,
+  foreword,
+  metaDescription,
+  paginate,
+  regionCrumbs,
+  regionHref,
+  regionsPresent,
+  subregionsPresent,
+  type TaxonomyMember,
+} from "../../../data/taxonomy.ts";
+import { REGION_BY_SLUG, regionWithArticle } from "../../../data/regions.ts";
+
+export async function getStaticPaths() {
+  const regions = await regionsPresent();
+
+  return regions.flatMap((region) => [
+    { params: { region: region.slug, page: undefined }, props: { region, n: 1 } },
+    ...extraPages(region.count).map((n) => ({
+      params: { region: region.slug, page: `page/${n}` },
+      props: { region, n },
+    })),
+  ]);
+}
+
+interface Props {
+  region: TaxonomyMember;
+  n: number;
+}
+
+const { region, n } = Astro.props;
+
+const entry = REGION_BY_SLUG.get(region.slug)!;
+const subregions = await subregionsPresent(region.slug);
+const paged = paginate(region.producers, n, regionHref(region.slug));
+const inWords = regionWithArticle(region.slug);
+---
+
+<TaxonomyPage
+  heading={region.name}
+  title={`Independent winemakers of ${inWords}`}
+  description={metaDescription(
+    "region",
+    region.slug,
+    `Independent winemakers of ${inWords}, documented from published sources.`,
+  )}
+  crumbs={regionCrumbs(region.slug)}
+  foreword={foreword("region", region.slug)}
+  paged={paged}
+>
+  <Fragment slot="links">
+    {
+      subregions.length > 0 && (
+        <>
+          <p class="links-label mono mono-caps">Subregions</p>
+          <TaxonomyLinks members={subregions} />
+        </>
+      )
+    }
+  </Fragment>
+
+  {/*
+    regions.ts carries a `note` on entries that need explaining — Tasmania is a
+    state GI with no regions beneath it, the Northern Territory has no GI at
+    all. Rendered plainly where present. `registered_as` itself is NEVER shown
+    as a rank or a quality signal (regions.ts, editorial rule 1); the note says
+    it in words or nothing does.
+  */}
+  <Fragment slot="note">
+    {entry.note && <p class="region-note">{entry.note}</p>}
+  </Fragment>
+</TaxonomyPage>
+
+<style>
+  .links-label {
+    color: var(--ink-faded);
+    margin: 0 0 0.75rem;
+  }
+
+  .region-note {
+    max-width: 60ch;
+    margin: 0 0 clamp(1.5rem, 3vw, 2.5rem);
+    color: var(--ink-faded);
+  }
+</style>

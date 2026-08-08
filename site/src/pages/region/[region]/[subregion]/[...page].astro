@@ -1,0 +1,121 @@
+---
+/**
+ * `/region/[region]/[subregion]/` and its `page/[n]/`. UX.md §2.4, DESIGN.md §7.
+ *
+ * Foreword, the paginated producer list, a link up to the region, and a link
+ * row of sibling subregions. Breadcrumb four deep.
+ *
+ * ── Why this cannot collide with the pager one level up ───────────────────────
+ *
+ * `/region/[region]/[...page]` would also match `/region/adelaide-hills/lenswood/`,
+ * and this file would also match `/region/adelaide-hills/page/2/`. Neither
+ * happens, because both routes are static and emit only the paths their
+ * `getStaticPaths` returns, and those sets are disjoint: the pager above emits
+ * `page/N` and nothing else, this one emits real subregion slugs and nothing
+ * else. `taxonomy.ts` holds the guard that keeps it that way — a subregion
+ * slugged `page` fails the build with a named slug rather than silently
+ * shadowing the pager.
+ */
+import TaxonomyPage from "../../../../components/TaxonomyPage.astro";
+import TaxonomyLinks from "../../../../components/TaxonomyLinks.astro";
+import {
+  allSubregionsPresent,
+  extraPages,
+  foreword,
+  metaDescription,
+  paginate,
+  regionHref,
+  subregionCrumbs,
+  subregionHref,
+  subregionsPresent,
+  type TaxonomyMember,
+} from "../../../../data/taxonomy.ts";
+import {
+  SUBREGION_BY_SLUG,
+  regionName,
+  regionWithArticle,
+} from "../../../../data/regions.ts";
+
+export async function getStaticPaths() {
+  const pairs = await allSubregionsPresent();
+
+  return pairs.flatMap(({ region, sub }) => [
+    {
+      params: { region, subregion: sub.slug, page: undefined },
+      props: { region, sub, n: 1 },
+    },
+    ...extraPages(sub.count).map((n) => ({
+      params: { region, subregion: sub.slug, page: `page/${n}` },
+      props: { region, sub, n },
+    })),
+  ]);
+}
+
+interface Props {
+  region: string;
+  sub: TaxonomyMember;
+  n: number;
+}
+
+const { region, sub, n } = Astro.props;
+
+const entry = SUBREGION_BY_SLUG.get(sub.slug)!;
+const siblings = await subregionsPresent(region);
+const paged = paginate(sub.producers, n, subregionHref(region, sub.slug));
+---
+
+<TaxonomyPage
+  heading={sub.name}
+  title={`Independent winemakers of ${sub.name}, ${regionWithArticle(region)}`}
+  description={metaDescription(
+    "subregion",
+    sub.slug,
+    `Independent winemakers of ${sub.name} in ${regionWithArticle(region)}, documented from published sources.`,
+  )}
+  crumbs={subregionCrumbs(region, sub.slug)}
+  foreword={foreword("subregion", sub.slug)}
+  paged={paged}
+>
+  <Fragment slot="links">
+    <p class="links-label mono mono-caps">
+      A subregion of <a href={regionHref(region)}>{regionName(region)}</a>
+    </p>
+    {
+      siblings.length > 1 && (
+        <TaxonomyLinks members={siblings} currentSlug={sub.slug} />
+      )
+    }
+  </Fragment>
+
+  {/*
+    SCHEMA.md and regions.ts editorial rule 2: an unregistered subregion is a
+    district in common trade use that Wine Australia has not registered, and
+    that is STATED PLAINLY wherever it is shown rather than left for the reader
+    to assume it carries the same standing as a registered GI.
+  */}
+  <Fragment slot="note">
+    {
+      !entry.registered && (
+        <p class="subregion-note">
+          {sub.name} is in common use in the wine trade and is not on Wine
+          Australia's register of Geographical Indications. A wine from here is
+          labelled {regionName(region)}.
+        </p>
+      )
+    }
+    {entry.note && <p class="subregion-note">{entry.note}</p>}
+  </Fragment>
+</TaxonomyPage>
+
+<style>
+  .links-label {
+    color: var(--ink-faded);
+    margin: 0 0 0.75rem;
+  }
+
+  .subregion-note {
+    max-width: 60ch;
+    margin: 0 0 clamp(1.5rem, 3vw, 2.5rem);
+    color: var(--ink-faded);
+  }
+</style>

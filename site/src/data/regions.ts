@@ -67,6 +67,19 @@ export interface Region {
   /** Usually one. Murray Darling, Swan Hill and Canberra District genuinely span two. */
   states: readonly StateCode[];
   registered_as: RegistrationLevel;
+  /**
+   * `"the"` where Australian usage puts a definite article in front of the
+   * region name: "the Adelaide Hills", "the Yarra Valley", but "McLaren Vale"
+   * and "Coonawarra" bare. Absent means no article, which is the safe default.
+   *
+   * It exists because UX.md §2.4's page-title register is "Independent
+   * winemakers of the Adelaide Hills" and there is no way to reach that from
+   * the name alone. POPULATED AS A REGION GAINS ITS FIRST PUBLISHED PRODUCER,
+   * not speculatively: a region with none generates no page (Gate 6,
+   * present-only), so an unpopulated article on the other sixty is invisible
+   * and guessing at them would be inventing copy nobody can check.
+   */
+  article?: "the";
   /** Subregion slugs. Order is display order: registered first, then alphabetical. */
   subregions: readonly string[];
   towns: readonly string[];
@@ -443,6 +456,7 @@ export const REGIONS: readonly Region[] = [
     zone: "Mount Lofty Ranges",
     states: ["SA"],
     registered_as: "region",
+    article: "the",
     subregions: ["lenswood", "piccadilly-valley"],
     towns: [
       "Aldgate",
@@ -806,6 +820,7 @@ export const REGIONS: readonly Region[] = [
     zone: "Port Phillip",
     states: ["VIC"],
     registered_as: "region",
+    article: "the",
     subregions: ["dromana", "main-ridge", "merricks", "moorooduc", "red-hill", "shoreham", "tuerong"],
     towns: [
       "Arthurs Seat",
@@ -860,6 +875,7 @@ export const REGIONS: readonly Region[] = [
     zone: "Port Phillip",
     states: ["VIC"],
     registered_as: "region",
+    article: "the",
     subregions: ["lower-yarra", "upper-yarra"],
     towns: [
       "Badger Creek",
@@ -1113,6 +1129,17 @@ export function regionName(slug: string): string {
 /** Display name for a subregion slug, or the slug itself if unknown. */
 export function subregionName(slug: string): string {
   return SUBREGION_BY_SLUG.get(slug)?.name ?? slug;
+}
+
+/**
+ * The region name as it appears mid-sentence: "the Adelaide Hills", "McLaren
+ * Vale". For page titles and prose, never for a heading or a link label, both
+ * of which take the bare name.
+ */
+export function regionWithArticle(slug: string): string {
+  const region = REGION_BY_SLUG.get(slug);
+  if (!region) return slug;
+  return region.article ? `${region.article} ${region.name}` : region.name;
 }
 
 export function isRegionSlug(slug: string): boolean {

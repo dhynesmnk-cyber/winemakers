@@ -1,0 +1,114 @@
+---
+/**
+ * `/region/` — the region hub. UX.md §2.4.
+ *
+ * Every GI region with at least one published producer, grouped by state, with
+ * counts. Linked from the homepage and the footer, and the target of the
+ * "Regions" crumb on every region and subregion page.
+ *
+ * Present-only, and grouped by the state the producers are actually in. A
+ * region that spans two states appears under both, with the count for that
+ * state — same rule as the state pages themselves, and for the same reason: a
+ * count printed under "South Australia" that silently included Victoria would
+ * not add up against the list beside it.
+ */
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import TaxonomyLinks from "../../components/TaxonomyLinks.astro";
+import { STATE_NAMES } from "../../config.ts";
+import {
+  regionsForStatePresent,
+  regionsPresent,
+  stateHref,
+  statesPresent,
+  stateFromSlug,
+} from "../../data/taxonomy.ts";
+
+const regions = await regionsPresent();
+const states = await statesPresent();
+
+const grouped = await Promise.all(
+  states.map(async (state) => {
+    const code = stateFromSlug(state.slug)!;
+    return {
+      code,
+      name: STATE_NAMES[code],
+      href: stateHref(code),
+      regions: await regionsForStatePresent(code),
+    };
+  }),
+);
+
+const total = regions.length;
+const countLine = total === 1 ? "1 region" : `${total} regions`;
+---
+
+<BaseLayout
+  title="Regions"
+  description="Every Australian wine region with an independent producer documented in this guide, grouped by state."
+>
+  <div class="reading-spine">
+    <Breadcrumbs crumbs={[{ label: "Home", href: "/" }, { label: "Regions", href: null }]} />
+
+    <header class="tax-head">
+      <h1 class="tax-head__title">Regions</h1>
+      <p class="tax-head__count mono mono-caps">{countLine}</p>
+    </header>
+
+    <p class="tax-foreword">
+      Australia's wine regions are Geographical Indications, a register kept by
+      Wine Australia. A region appears below once it has an independent producer
+      documented here, so this list grows as the guide does and is shorter than
+      the register itself.
+    </p>
+
+    {
+      grouped.map((state) => (
+        <section class="region-hub__state">
+          <h2 class="section-opener">
+            <a href={state.href}>{state.name}</a>
+          </h2>
+          <TaxonomyLinks members={state.regions} />
+        </section>
+      ))
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .region-hub__state {
+    margin-top: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  /* The state heading is itself a link to the state roll-up (UX.md §2.1 item
+     4). It keeps the section-opener treatment; only the anchor is added. */
+  .region-hub__state h2 a {
+    color: inherit;
+    text-decoration-color: transparent;
+  }
+
+  .region-hub__state h2 a:hover,
+  .region-hub__state h2 a:focus-visible {
+    color: var(--ink);
+    text-decoration-color: var(--vine);
+  }
+
+  .tax-head {
+    margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
+  }
+
+  .tax-head__title {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    margin: 0 0 0.5rem;
+  }
+
+  .tax-head__count {
+    color: var(--ink-faded);
+    margin: 0;
+  }
+
+  .tax-foreword {
+    max-width: 60ch;
+    margin: 0 0 clamp(1.5rem, 3vw, 2.5rem);
+  }
+</style>
