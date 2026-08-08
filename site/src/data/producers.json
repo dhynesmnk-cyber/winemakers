@@ -41,6 +41,61 @@
     ]
   },
   {
+    "biodynamic": "certified",
+    "biodynamic_certifier": "The National Association for Sustainable Agriculture Australia (NASAA)",
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "d'Arenberg",
+    "organic": "certified",
+    "organic_certifier": "The National Association for Sustainable Agriculture Australia (NASAA)",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "darenberg",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "McLaren Vale",
+    "summary": "Fourth-generation Osborn family estate at McLaren Vale, making wine since 1912, with vineyards certified organic and biodynamic by NASAA",
+    "varieties": [
+      "arneis",
+      "cabernet-sauvignon",
+      "chardonnay",
+      "cinsault",
+      "graciano",
+      "grenache",
+      "marsanne",
+      "pinot-noir",
+      "riesling",
+      "roussanne",
+      "sagrantino",
+      "semillon",
+      "shiraz",
+      "tempranillo",
+      "viognier"
+    ],
+    "vessels": [
+      "oak_barrique",
+      "stainless"
+    ],
+    "wine_styles": [
+      "dessert",
+      "fortified",
+      "red",
+      "sparkling",
+      "white"
+    ]
+  },
+  {
     "biodynamic": "none",
     "biodynamic_certifier": null,
     "category": "negociant",
