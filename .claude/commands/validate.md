@@ -138,6 +138,15 @@ Covers: a clean tree passing; the tracked `temp_data/` file; a tracked `.env` re
 ### 16. No-JS and reduced-motion render — *G1*
 The built site renders correctly with JavaScript disabled: every producer, every programmatic route, and every navigation affordance is reachable. Under `prefers-reduced-motion: reduce`, every element renders fully visible in its final position. Any content that only appears after JS runs = fail.
 
+### 20. Review-pane preview integrity — *engagement 2026-08-09*
+`python3 -m admin.pipeline.validate_preview`.
+
+Six bodies through `mdx_preview.render_body`, asserting three properties: tag balance in order, no `<<<`/`>>>` sentinel surviving into the output, and untrusted source prose arriving escaped rather than as live markup. Both components are asserted to actually render, so the check cannot pass on a renderer that emits nothing.
+
+**Added against a defect that shipped at Gate 3 and survived four gates.** The sentinel was written inline at each call site and trimmed by a hardcoded three characters, so the tag's own angle brackets doubled as sentinel characters and the trim took the `<` off `<blockquote>` and the `>` off `</blockquote>`. Every pull-quote in the review pane rendered as raw markup. Nothing in the suite had ever looked at the preview's output, and the preview is the reviewer's only view of a draft before it publishes — a component that renders as text there is a component nobody is reviewing.
+
+Two fixtures exist because of how the defect was possible rather than what it broke: one body carrying angle brackets in its own prose, because the sentinel and the payload were made of the same character, and one hostile body, because harvested prose is untrusted text rendered into the admin.
+
 ---
 
 ## Checks pending their gate
