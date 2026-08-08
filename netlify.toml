@@ -1,0 +1,28 @@
+# netlify.toml - the public site's build. TRD.md §2.4.
+#
+# This file governs. Anything set in the Netlify UI is overridden by it, so the
+# build settings live in the repository and are reviewable as text rather than
+# being state in someone's browser.
+#
+# `publish` is relative to `base`, so "dist" below resolves to site/dist.
+#
+# The site performs zero runtime data fetching (TRD.md §4.4), so there is
+# nothing else to configure. The 301 from the Netlify default subdomain to the
+# apex host is one line added here at the domain switch, not before, so no
+# duplicate host stays crawlable once a custom domain exists.
+
+[build]
+  base = "site"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Added beyond TRD.md §2.4's three keys, 2026-08-08 (Gate 7), recorded there
+  # as a dated note.
+  #
+  # Pinned rather than left to Netlify's default, which has moved more than once
+  # and would move this build under us. 20 matches the Node the Dockerfile
+  # installs from NodeSource, so the admin's pre-push `npm run build` gate and
+  # Netlify's build run the same major version. A gate that passes on one
+  # version and fails on another is not a gate.
+  NODE_VERSION = "20"
