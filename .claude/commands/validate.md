@@ -52,6 +52,27 @@ Every list is parsed from `PROMPTS/gatekeeper.md`, where they are authored. Ther
 
 Also lints `METHODOLOGY.md`, which asked in its own text to be linted against this list once it existed.
 
+### 5. Link check — *G6*
+`python3 -m admin.pipeline.validate_links`. **Requires check 4 to have run**, because it reads `site/dist` rather than `src`: a route Astro decided not to emit looks fine in source and 404s in production.
+
+Every internal href resolves to a built page; a producer page exists for every slug in the derived JSON and vice versa; every region/subregion/variety/practice page has ≥1 producer and every member with ≥1 producer has a page; no page links to a slug still in `_staging`; every `sitemap.xml` entry was built.
+
+`PENDING_ROUTES` carries routes owned by a later gate — currently `/methodology/` (G10), `/blog/` and `/rss.xml` (G11) — with the gate that owns each. They are **printed on every run**, and the check **fails if one starts resolving while still listed**, so the list shrinks when a gate ships rather than permanently permitting a live route.
+
+### 11. Glossary coverage — *G6*
+`python3 -m admin.pipeline.validate_glossary`.
+
+Both directions. `config.ts`'s `labelsFor` already fails the build on the forward direction (DESIGN.md §9); the reverse is what this earns its place on — an entry whose enum value was renamed or removed keeps its page and defines a term the schema no longer has. Also checks `see_also` targets resolve and every entry carries the term, short and definition its page renders.
+
+`VERIFIABLE_FIELDS` is excluded, because it is a list of field names rather than a vocabulary of values. The exclusion is read from `COVERED_VOCABULARIES` in `glossary.ts` rather than decided here, and the self-test asserts an uncovered vocabulary is **not** required to be complete.
+
+### 12. Region taxonomy lint — *G6*
+`python3 -m admin.pipeline.validate_taxonomy`.
+
+Every `primary_region` exists in `regions.ts` and is among that producer's `regions[]`; every `regions[]` member exists; every `subregions[]` member belongs to a region the producer lists; every state in `STATES` has ≥1 region. Region and subregion relationships are checked in both directions.
+
+Reads frontmatter with `read_frontmatter`, not `parse_frontmatter` — a file failing check 1's schema bar must still have its regions checked rather than vanishing from this check's count.
+
 ### 16. No-JS and reduced-motion render — *G1*
 The built site renders correctly with JavaScript disabled: every producer, every programmatic route, and every navigation affordance is reachable. Under `prefers-reduced-motion: reduce`, every element renders fully visible in its final position. Any content that only appears after JS runs = fail.
 
@@ -63,13 +84,13 @@ Listed here so the suite's shape is visible from the start. Each lands as its ow
 
 | # | Check | Gate |
 |---|---|---|
-| 5 | **Link check** — every internal href resolves to a built page; a producer page exists for every slug in the derived JSON and vice versa; every region/subregion/variety/practice page has ≥1 producer; no page links to a draft; **no dead programmatic routes** | G6 |
+| 5 | ~~**Link check**~~ — **SHIPPED 2026-08-08 at Gate 6.** Moved to the core section above; row kept so the numbering stays readable | G6 |
 | 6 | ~~**Register lint**~~ — **SHIPPED 2026-08-07 at Gate 5.** Moved to the core section above; row kept so the numbering stays readable | G5 |
 | 8 | **Ownership determination** — no producer published without `ownership_source` carrying a non-empty source and a date; **no producer published with a non-null `parent_company`**; zero hits when every published name, domain and ABN is checked against the `data/ownership.json` deny-list | G4 |
 | 9 | **Certification integrity** — `organic: certified` without a named `organic_certifier` fails; same for `biodynamic`. A certifier named while the state is not `certified` also fails | G4 |
 | 10 | **Numeric cross-checks** — every `tasting_fee.fee_aud` falls within the range of dollar amounts stated in the freeform `cost` string; `annual_production_cases`, when present, falls inside `production_band` | G4 |
-| 11 | **Glossary coverage** — every enum value across every §1 vocabulary has a `glossary.ts` entry, and every glossary entry maps to a live enum value. Orphans in either direction = fail | G6 |
-| 12 | **Region taxonomy lint** — every `primary_region` exists in `regions.ts`; every `regions[]` member exists; every `subregions[]` member belongs to a region listed in that producer's `regions[]`; every state in `STATES` has ≥1 region | G6 |
+| 11 | ~~**Glossary coverage**~~ — **SHIPPED 2026-08-08 at Gate 6.** Moved to the core section above | G6 |
+| 12 | ~~**Region taxonomy lint**~~ — **SHIPPED 2026-08-08 at Gate 6.** Moved to the core section above | G6 |
 | 13 | **Four-surface schema diff** — `python3 -m admin.pipeline.schema_surfaces` exits 0. SCHEMA.md §2 table, the zod schema, `admin/schema.py`'s `KNOWN_FIELDS` and the SQLite DDL name-match exactly; child tables exist for every array field; the prompts and `mdx_preview.py` describe the structured fields | G2 |
 | 14 | **Provenance integrity** — every populated `VERIFIABLE_FIELDS` entry carries a `{source, tier, date}` record; no tier is lower than the same field's tier in the previous commit | G4 |
 | 15 | **Deploy-guard self-test** — a fixture proving the tracked-file guard *refuses* a staged illegal file, and passes a clean tree. **This is a test, not an assertion** — it must exercise the guard code, not merely restate the invariant check 7 already covers | G7 |
@@ -90,6 +111,20 @@ Not a numbered check. It is the mechanised form of CLAUDE.md's Gate 5 fixture do
 It is recorded here rather than left as a gate-exit ritual for the same reason check 15 exists: the reference implementation left its deploy guard covered only by a manual gate exit, and that is the one place the discipline lapsed.
 
 Runs fully offline — scripted fake client, stubbed fetch, temp directories — so it works in a bare clone with no API key. Covers failure-table rows 1, 2, 3, 4, 5, 7, 8, 9 and 11, the certification downgrade, the token ledger and the Gatekeeper fallback.
+
+---
+
+## Pagination — verified at Gate 6, mechanised by data
+
+Gate 6's done-condition includes "the homepage renders and paginates without loading the full dataset". At three published producers and `PRODUCERS_PER_PAGE` 24 no pager ever renders, so pagination was verified on 2026-08-08 by temporarily setting the page size to 1 and rebuilding:
+
+- page 1 stayed at the bare route and `/producers/page/1/` was **not** emitted;
+- pages 2 and 3 appeared under the `page/` segment, each with a self-referential canonical;
+- `rel="prev"`/`rel="next"` were present in both the head and the pager anchors, and absent at the ends of the series;
+- `, page 2` was appended to the `<title>` while the `<h1>` and the foreword stayed unchanged;
+- check 5 passed against the paginated build: 151 pages, 151 sitemap entries, every page of every series listed.
+
+**No permanent fixture was added, deliberately.** Check 5 already asserts that every `/page/N/` link resolves and every sitemap entry was built, so from Gate 8 onward — where four regions carry 150 to 300 producers — it exercises real multi-page series on every run with no special-case scaffolding. A fixture that existed only to manufacture a second page would be testing the fixture.
 
 ---
 
