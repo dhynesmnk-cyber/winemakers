@@ -271,6 +271,39 @@ def _selftest() -> list[str]:
         check("timeout" in result.detail, "row 1: the reason is not carried on the row")
         check(any(lvl == "error" for lvl, _ in lines), "row 1: no error-level log line")
         check(h.drafts == [], "row 1: a draft was written despite a failed fetch")
+        check(not result.offer_playwright,
+              "row 1: a timeout offered the Playwright retry, but a browser "
+              "cannot reach a host that did not answer")
+
+    # ── Row 1a: a WAF status offers the retry, and only a WAF status ──────
+    #    Added 2026-08-09. The narrowness is the point: this row exists so a
+    #    Cloudflare 403 is reachable from the hub, not so every fetch failure
+    #    grows a button.
+    for status, offered in ((403, True), (503, True), (404, False), (500, False)):
+        with Harness() as h:
+            def refused(url: str, _status: int = status, **kw: Any):
+                raise fetcher.FetchError(
+                    f"HTTP {_status}", reason=f"HTTP {_status}", status=_status
+                )
+            fetcher.fetch = refused
+            result, lines = _harvest([])
+            check(result.state == harvest.FAILED, f"row 1a: HTTP {status} did not FAIL")
+            check(h.drafts == [], f"row 1a: a draft was written on HTTP {status}")
+            check(
+                result.offer_playwright is offered,
+                f"row 1a: HTTP {status} "
+                + ("did not offer" if offered else "offered")
+                + " the Playwright retry",
+            )
+
+    # A block that survived Playwright must not offer Playwright again.
+    with Harness() as h:
+        def still_refused(url: str, **kw: Any):
+            raise fetcher.FetchError("HTTP 403", reason="HTTP 403", status=403)
+        fetcher.fetch = still_refused
+        result, _ = _harvest([], use_playwright=True)
+        check(not result.offer_playwright,
+              "row 1a: a 403 through Playwright offered Playwright again")
 
     # ── Row 2: robots.txt disallows ───────────────────────────────────────
     with Harness() as h:
@@ -648,7 +681,7 @@ def main() -> int:
             print(f"  {message}")
         return 1
     print(
-        "PIPELINE FIXTURES PASS — failure table rows 1, 2, 3, 4, 5, 7, 8, 9 and 11, "
+        "PIPELINE FIXTURES PASS — failure table rows 1, 1a, 2, 3, 4, 5, 7, 8, 9 and 11, "
         "boilerplate refusal both ways, off-site redirect refusal, certification "
         "downgrade, token ledger, "
         "Gatekeeper fallback, and a ten-URL batch with two isolated failures"
