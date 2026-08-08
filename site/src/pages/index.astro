@@ -1,35 +1,85 @@
 ---
 /**
- * The homepage. DESIGN.md §7, TRD.md §4.6.
+ * The homepage. UX.md §2.1, DESIGN.md §7, TRD.md §4.6.
  *
- * REGION-FIRST, WITH REAL PAGINATION. This is a design decision taken now, not
- * a performance fix deferred to later. The reference's homepage embeds its
- * whole dataset and filters it client-side, which is correct at 32 venues and
- * wrong at 300: it ships everything to every visitor on the highest-traffic
- * page, a flat list of 300 producers is a wall rather than a guide, and it
- * buries the one claim this project makes, which is that four regions are
- * covered DEEPLY.
+ * REGION-FIRST, WITH REAL PAGINATION. A design decision taken up front, not a
+ * performance fix deferred to later. The reference's homepage embeds its whole
+ * dataset and filters it client-side, which is correct at 32 venues and wrong
+ * at 300: it ships everything to every visitor on the highest-traffic page, a
+ * flat list of 300 producers is a wall rather than a guide, and it buries the
+ * one claim this project makes, which is that four regions are covered DEEPLY.
  *
- * GATE 1 SCOPE. The region index, the pagination routes and the secondary
- * browse block belong to Gate 6, which owns the taxonomy. What is here now is
- * the masthead, the foreword and the producer index, so the layout, the type
- * and the entry rendering can be judged against DESIGN.md §10 with real
- * content in them. The region block is stubbed with a comment rather than
- * faked with placeholder counts.
+ * Content order (UX.md §2.1): masthead, foreword, region chooser, latest
+ * entries, browse-by, footer.
+ *
+ * ── Two documented resolutions ────────────────────────────────────────────────
+ *
+ * 1. SEARCH IS NOT HERE. UX.md §2.1 lists it as item 3; DESIGN.md §7 item 6
+ *    says it "lives in the corner menu, reachable from every page, not as a
+ *    homepage hero field", and §5b puts it in the drawer's first tier.
+ *    DESIGN.md's placement was taken (Gate 6, 2026-08-08). Search is reachable
+ *    from every page instead of one, and the homepage keeps the region chooser
+ *    as its main content, which UX.md itself calls the primary navigation.
+ *
+ * 2. THE PRODUCER LIST IS A FIXED SLICE. `HOMEPAGE_LATEST_COUNT` rows and one
+ *    link to `/producers/`. DESIGN.md §7 item 5 reads as though the paginated
+ *    index lives here; UX.md §2.1 item 5 and TRD.md §4.6 both say it does not
+ *    ("the homepage never renders more than HOMEPAGE_LATEST_COUNT producer rows
+ *    and never embeds the full dataset"; "it does not render the producer
+ *    list"). The slice is the reading that satisfies all three, and DESIGN.md's
+ *    own preamble — "a region index, not a producer dump" — agrees with it.
+ *    THERE IS NO `/page/[n]/` ROUTE AT THE SITE ROOT.
+ *
+ * The third disagreement is recorded rather than resolved in code: DESIGN.md §7
+ * item 4 asks for "browse by variety · by practice · by wine style", but
+ * `/wine-style/[key]/` appears in NEITHER route table (UX.md §2.4, TRD.md
+ * §4.2). UX.md §2.1 item 6's three lists are used — grape, practice, state —
+ * because all three route to pages that exist. Adding a wine-style route to
+ * satisfy a browse label would be inventing scope (CLAUDE.md rule 3).
  */
 import BaseLayout from "../layouts/BaseLayout.astro";
+import MarginAnimal from "../components/MarginAnimal.astro";
 import ProducerEntry from "../components/ProducerEntry.astro";
-import { SITE_NAME, SITE_TAGLINE } from "../config.ts";
-import { getCollection } from "astro:content";
+import TaxonomyLinks from "../components/TaxonomyLinks.astro";
+import { HOMEPAGE_LATEST_COUNT, SITE_NAME, SITE_TAGLINE, STATE_NAMES } from "../config.ts";
+import type { State } from "../config.ts";
+import {
+  allProducers,
+  byDraftedDesc,
+  practicesPresent,
+  regionsForStatePresent,
+  stateFromSlug,
+  stateHref,
+  statesPresent,
+  varietiesPresent,
+} from "../data/taxonomy.ts";
 
-const producers = (await getCollection("producers")).sort((a, b) =>
-  a.data.name.localeCompare(b.data.name, "en-AU"),
+const producers = await allProducers();
+const states = await statesPresent();
+const varieties = await varietiesPresent();
+const practices = await practicesPresent();
+
+const byState = await Promise.all(
+  states.map(async (state) => {
+    const code = stateFromSlug(state.slug) as State;
+    return {
+      code,
+      name: STATE_NAMES[code],
+      href: stateHref(code),
+      regions: await regionsForStatePresent(code),
+    };
+  }),
 );
+
+// A fixed-length slice, sorted newest-drafted first with a name tiebreak so the
+// order cannot churn between builds on sort stability alone.
+const latest = [...producers].sort(byDraftedDesc).slice(0, HOMEPAGE_LATEST_COUNT);
 ---
 
 <BaseLayout title={SITE_NAME} description={SITE_TAGLINE} logoSize="large">
   <div class="reading-spine">
-    <section class="section-gap rise-in">
+    <section class="section-gap rise-in home-section">
+      <MarginAnimal slot={0} />
       <p class="section-opener draw-line">The guide</p>
 
       <p>
@@ -58,28 +108,137 @@ const producers = (await getCollection("producers")).sort((a, b) =>
     </section>
 
     {/*
-      GATE 6: the region index goes here, above the producer index — the four
-      coverage regions promoted with a producer count each, then every other GI
-      region with ≥1 published producer, grouped by state. Present-only, plain
-      mono text links, hairline-separated. No tiles, no maps, no counts as
-      badges. Then the demoted secondary block: browse by variety, by practice,
-      by wine style, at 40px glyphs.
+      THE REGION CHOOSER — the primary navigation of the site and the main
+      content of this page (UX.md §2.1 item 4). Server-rendered anchors, complete
+      with JavaScript disabled. Present-only: a region with zero published
+      producers does not appear, and the build logs the skip. Counts are plain
+      numerals, never badges. State headings are themselves links.
     */}
-
-    <section class="section-gap">
-      <p class="section-opener draw-line">Producers</p>
+    <section class="section-gap home-section">
+      <MarginAnimal slot={1} />
+      <p class="section-opener draw-line">Start here, by region</p>
 
       {
-        producers.length === 0 ? (
+        byState.length === 0 ? (
+          <p>No regions have published producers yet.</p>
+        ) : (
+          byState.map((state) => (
+            <div class="home-region-group">
+              <h2 class="home-region-group__state mono mono-caps">
+                <a href={state.href}>{state.name}</a>
+              </h2>
+              <TaxonomyLinks members={state.regions} />
+            </div>
+          ))
+        )
+      }
+
+      <p class="mono home-more">
+        <a href="/region/">Every region, with counts</a>
+      </p>
+    </section>
+
+    <section class="section-gap home-section">
+      <MarginAnimal slot={2} />
+      <p class="section-opener draw-line">Latest entries</p>
+
+      {
+        latest.length === 0 ? (
           <p>No producers are published yet.</p>
         ) : (
           <ul class="entry-list">
-            {producers.map((producer) => (
+            {latest.map((producer) => (
               <ProducerEntry slug={producer.id} data={producer.data} />
             ))}
           </ul>
         )
       }
+
+      <p class="mono home-more">
+        <a href="/producers/">All producers, A to Z</a>
+      </p>
+    </section>
+
+    {/*
+      The demoted secondary block. Quieter than the region chooser above it so
+      it reads as secondary, and three plain text link lists rather than chips
+      in boxes or icon tiles (UX.md §2.1 item 6).
+    */}
+    <section class="section-gap home-browse">
+      <p class="section-opener">Browse</p>
+
+      {
+        varieties.length > 0 && (
+          <div class="home-browse__group">
+            <h2 class="home-browse__label mono mono-caps">By grape</h2>
+            <TaxonomyLinks members={varieties} />
+          </div>
+        )
+      }
+
+      {
+        practices.length > 0 && (
+          <div class="home-browse__group">
+            <h2 class="home-browse__label mono mono-caps">By practice</h2>
+            <TaxonomyLinks members={practices} />
+          </div>
+        )
+      }
+
+      {
+        states.length > 0 && (
+          <div class="home-browse__group">
+            <h2 class="home-browse__label mono mono-caps">By state</h2>
+            <TaxonomyLinks members={states} />
+          </div>
+        )
+      }
     </section>
   </div>
 </BaseLayout>
+
+<style>
+  /* The margin animals are absolutely positioned against their section. */
+  .home-section {
+    position: relative;
+  }
+
+  .home-region-group {
+    margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
+  }
+
+  .home-region-group__state {
+    color: var(--ink-faded);
+    margin: 0 0 0.5rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+  }
+
+  .home-region-group__state a {
+    color: inherit;
+    text-decoration-color: transparent;
+  }
+
+  .home-region-group__state a:hover,
+  .home-region-group__state a:focus-visible {
+    color: var(--ink);
+    text-decoration-color: var(--vine);
+  }
+
+  .home-more {
+    margin: 0.5rem 0 0;
+  }
+
+  /* Demoted: no draw-line rule on the opener, and the labels sit quieter than
+     the region chooser's state headings. */
+  .home-browse__group {
+    margin-bottom: clamp(1.25rem, 2.5vw, 2rem);
+  }
+
+  .home-browse__label {
+    color: var(--ink-faded);
+    margin: 0 0 0.5rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+  }
+</style>

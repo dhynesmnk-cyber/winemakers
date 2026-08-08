@@ -1,0 +1,73 @@
+---
+/**
+ * MarginAnimal.astro — DESIGN.md §6a. HOMEPAGE ONLY.
+ *
+ * A single silhouette in the reading spine's wide right margin, beside a
+ * section opener. Decoration, never notation: `animalForSlot` is POSITIONAL, so
+ * a reader cannot infer a fact from which animal appears. Never pass a region,
+ * a category or any other datum into it.
+ *
+ * RENDERS NOTHING when the artwork does not exist. `ANIMALS_AVAILABLE` is a
+ * build-time manifest and is currently empty, so every slot is `undefined` and
+ * this component emits no markup at all. That is the intended state for a
+ * homepage whose decoration has not been commissioned — an empty margin, not a
+ * placeholder box, and no 404 for a missing file.
+ *
+ * Collapses out of the layout below 1024px rather than being squeezed into the
+ * single-column spine.
+ */
+import {
+  ANIMAL_SIZE_MAX,
+  ANIMAL_SIZE_MIN,
+  ANIMAL_SRC,
+  ANIMAL_SUBJECTS,
+  animalForSlot,
+} from "../icons/animals.ts";
+
+interface Props {
+  /** Position in the page's run of section openers. Never a fact. */
+  slot: number;
+}
+
+const { slot } = Astro.props;
+const key = animalForSlot(slot);
+---
+
+{
+  key && (
+    <img
+      class="margin-animal"
+      src={ANIMAL_SRC[key]}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      decoding="async"
+      width={ANIMAL_SIZE_MAX}
+      height={ANIMAL_SIZE_MAX}
+      data-subject={ANIMAL_SUBJECTS[key]}
+    />
+  )
+}
+
+<style define:vars={{ min: `${ANIMAL_SIZE_MIN}px`, max: `${ANIMAL_SIZE_MAX}px` }}>
+  .margin-animal {
+    display: none;
+  }
+
+  @media (min-width: 64rem) {
+    .margin-animal {
+      display: block;
+      position: absolute;
+      /* In the wide right margin, clear of the 65ch spine. */
+      left: calc(100% + 3rem);
+      top: 0;
+      width: clamp(var(--min), 4vw, var(--max));
+      height: auto;
+      /* Light mode paints the faded ink. Dark mode is forced to pure white, a
+         deliberate narrow exception to §2's six tokens, scoped to this one
+         decorative element: the silhouettes read better at full contrast
+         against near-black paper than the warm ink tones do. */
+      opacity: 0.55;
+    }
+  }
+</style>

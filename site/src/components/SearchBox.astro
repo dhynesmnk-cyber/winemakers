@@ -1,0 +1,295 @@
+---
+/**
+ * SearchBox.astro — UX.md §2.1 item 3, DESIGN.md §5b and §7.
+ *
+ * SITS IN THE CORNER MENU, on every page, not as a homepage hero field
+ * (DESIGN.md §7 item 6). UX.md §2.1 lists it as homepage content; DESIGN.md
+ * places it in the drawer's first tier alongside Home and the theme toggle, and
+ * that is the placement taken (Gate 6 decision, 2026-08-08) because it makes
+ * search reachable from every page rather than from one.
+ *
+ * ── The index is embedded, and the threshold at which it stops being is known ─
+ *
+ * TRD.md §4.7: a trimmed per-producer entry is roughly 150–250 bytes, so at
+ * 150–300 producers the whole index is tens of KB and belongs in the document.
+ * Above `SEARCH_INDEX_INLINE_MAX` it becomes a fetched `/search-index.json` and
+ * the behaviour does not change. THAT IS NOT IN FORCE AT v1 and is not built
+ * pre-emptively; the constant exists so the change is planned rather than
+ * rediscovered.
+ *
+ * The index carries only what is matched or displayed. It is NOT
+ * `producers.json`.
+ *
+ * ── It requires JavaScript, and says so ───────────────────────────────────────
+ *
+ * Search is an accelerator and is never the only route to anything. With no JS
+ * the field is not rendered at all and a `<noscript>` line points at the region
+ * chooser, which is the real navigation (UX.md §2.1 item 4). Every producer
+ * remains reachable without JavaScript through region, state, variety, practice
+ * and the A to Z index.
+ *
+ * No fuzzy-search library (TRD.md §2.2). Case- and accent-insensitive substring
+ * matching, hand-rolled.
+ */
+import { SEARCH_MAX_RESULTS, CATEGORY_LABELS, STATE_NAMES } from "../config.ts";
+import { allProducers } from "../data/taxonomy.ts";
+import { regionName, subregionName } from "../data/regions.ts";
+
+const producers = await allProducers();
+
+// Keys are one letter because this ships in every document: `n` for name, `d`
+// for the dateline shown in a result row, `h` for the href, `t` for the
+// haystack that is matched against. The haystack is built here, at build time,
+// so the browser never lowercases or folds anything on a keystroke.
+const index = producers.map((p) => {
+  const d = p.data;
+  const parts = [
+    d.name,
+    d.location.suburb,
+    STATE_NAMES[d.location.state as keyof typeof STATE_NAMES],
+    regionName(d.primary_region),
+    ...(d.regions ?? []).map(regionName),
+    ...(d.subregions ?? []).map(subregionName),
+    CATEGORY_LABELS[d.category as keyof typeof CATEGORY_LABELS],
+    ...(d.varieties ?? []),
+  ].filter(Boolean) as string[];
+
+  const dateline = [
+    d.location.suburb,
+    regionName(d.primary_region),
+    STATE_NAMES[d.location.state as keyof typeof STATE_NAMES],
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  return {
+    n: d.name,
+    d: dateline,
+    h: `/producer/${p.id}/`,
+    t: parts
+      .join(" ")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, ""),
+  };
+});
+---
+
+<div class="search" data-search hidden>
+  <label class="search__label mono mono-caps" for="site-search">Search</label>
+  <input
+    class="search__input mono"
+    id="site-search"
+    type="search"
+    autocomplete="off"
+    spellcheck="false"
+    placeholder="Name, region, grape"
+    data-search-input
+    aria-describedby="search-status"
+    aria-controls="search-results"
+    aria-expanded="false"
+  />
+  <p class="search__status mono" id="search-status" role="status" aria-live="polite"></p>
+  <ul class="search__results" id="search-results" data-search-results></ul>
+</div>
+
+<noscript>
+  <p class="search__noscript mono">
+    Search needs JavaScript. Everything is reachable without it:
+    <a href="/region/">browse by region</a> or see
+    <a href="/producers/">all producers, A to Z</a>.
+  </p>
+</noscript>
+
+<script
+  is:inline
+  type="application/json"
+  data-search-index
+  set:html={JSON.stringify(index)}
+/>
+
+<script is:inline define:vars={{ MAX: SEARCH_MAX_RESULTS }}>
+  (() => {
+    const root = document.querySelector("[data-search]");
+    const input = document.querySelector("[data-search-input]");
+    const list = document.querySelector("[data-search-results]");
+    const status = document.getElementById("search-status");
+    const payload = document.querySelector("[data-search-index]");
+    if (!root || !input || !list || !status || !payload) return;
+
+    let index = [];
+    try {
+      index = JSON.parse(payload.textContent || "[]");
+    } catch {
+      return; // A broken index leaves the field hidden rather than throwing.
+    }
+
+    // Only revealed once the script that drives it has run, so a reader without
+    // JavaScript never sees a field that would do nothing.
+    root.hidden = false;
+
+    const fold = (s) =>
+      s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+
+    let active = -1;
+
+    const clear = () => {
+      list.replaceChildren();
+      status.textContent = "";
+      input.setAttribute("aria-expanded", "false");
+      active = -1;
+    };
+
+    const render = (query) => {
+      const q = fold(query.trim());
+      if (q.length < 2) return clear();
+
+      const hits = [];
+      for (const row of index) {
+        if (row.t.includes(q)) hits.push(row);
+        if (hits.length >= MAX) break;
+      }
+
+      if (hits.length === 0) {
+        list.replaceChildren();
+        status.textContent = "No matches. Try a region or a grape.";
+        input.setAttribute("aria-expanded", "false");
+        active = -1;
+        return;
+      }
+
+      list.replaceChildren(
+        ...hits.map((row) => {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.href = row.h;
+          const name = document.createElement("span");
+          name.className = "search__name";
+          name.textContent = row.n;
+          const dateline = document.createElement("span");
+          dateline.className = "search__dateline";
+          dateline.textContent = row.d;
+          a.append(name, dateline);
+          li.append(a);
+          return li;
+        }),
+      );
+      status.textContent = `${hits.length} match${hits.length === 1 ? "" : "es"}`;
+      input.setAttribute("aria-expanded", "true");
+      active = -1;
+    };
+
+    const move = (delta) => {
+      const links = list.querySelectorAll("a");
+      if (links.length === 0) return;
+      active = (active + delta + links.length) % links.length;
+      links[active].focus();
+    };
+
+    input.addEventListener("input", (event) => render(event.target.value));
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        move(1);
+      } else if (event.key === "Escape") {
+        input.value = "";
+        clear();
+      }
+    });
+
+    list.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        move(1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        // Up from the first result returns to the field, which is where a
+        // reader expects to land rather than wrapping to the last match.
+        if (active <= 0) {
+          active = -1;
+          input.focus();
+        } else {
+          move(-1);
+        }
+      } else if (event.key === "Escape") {
+        input.focus();
+        input.value = "";
+        clear();
+      }
+    });
+  })();
+</script>
+
+<style>
+  .search {
+    margin-bottom: 1.5rem;
+  }
+
+  .search__label {
+    display: block;
+    color: var(--ink-faded);
+    margin-bottom: 0.4rem;
+  }
+
+  /* A single hairline underline, not a boxed field. No radius, no fill, no
+     shadow, no magnifier icon (DESIGN.md §5: filters and fields are text). */
+  .search__input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.25rem 0;
+    color: var(--ink);
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .search__input:focus-visible {
+    outline: none;
+    border-bottom-color: var(--vine);
+  }
+
+  .search__status {
+    color: var(--ink-faded);
+    margin: 0.5rem 0 0;
+    min-height: 1.2em;
+  }
+
+  .search__results {
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+  }
+
+  .search__results li + li {
+    border-top: 1px solid var(--hairline);
+  }
+
+  .search__results a {
+    display: block;
+    padding: 0.6rem 0;
+    min-height: 44px;
+    text-decoration-color: transparent;
+  }
+
+  .search__results a:hover,
+  .search__results a:focus-visible {
+    text-decoration-color: var(--vine);
+  }
+
+  .search__name {
+    display: block;
+  }
+
+  .search__dateline {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--ink-faded);
+  }
+
+  .search__noscript {
+    color: var(--ink-faded);
+    margin: 0 0 1.5rem;
+  }
+</style>

@@ -83,7 +83,17 @@ export interface Region {
   /** Subregion slugs. Order is display order: registered first, then alphabetical. */
   subregions: readonly string[];
   towns: readonly string[];
-  /** Shown on the region page where the entry needs explaining. Plain prose, no hedging. */
+  /**
+   * Shown on the region page where the entry needs explaining. Plain prose, no
+   * hedging.
+   *
+   * READER-FACING COPY. The editorial guardrails apply in full — they apply to
+   * anything a reader sees. No gate numbers, no SCHEMA.md or TRD.md references,
+   * no build vocabulary. Nothing rendered this field until Gate 6, and by then
+   * four notes had drifted into project shorthand; the first region page put
+   * "A Gate 8 coverage region." in front of a reader. Say what the registry
+   * says, or say nothing.
+   */
   note?: string;
 }
 
@@ -179,7 +189,7 @@ export const SUBREGIONS: readonly Subregion[] = [
     region: "mclaren-vale",
     registered: false,
     towns: ["Blewitt Springs"],
-    note: "Deep sand over clay on the region's northern rise. Named in SCHEMA.md §2 as a worked example.",
+    note: "Deep sand over clay on the region's northern rise.",
   },
   { slug: "blanche-point", name: "Blanche Point", region: "mclaren-vale", registered: false },
   { slug: "clarendon", name: "Clarendon", region: "mclaren-vale", registered: false, towns: ["Clarendon"] },
@@ -218,7 +228,7 @@ export const SUBREGIONS: readonly Subregion[] = [
     name: "Moppity",
     region: "hilltops",
     registered: false,
-    note: "A locality west of Young. Named in SCHEMA.md §2 as a worked example.",
+    note: "A locality west of Young.",
   },
 
   /* ── Victoria ────────────────────────────────────────────────────────── */
@@ -229,7 +239,7 @@ export const SUBREGIONS: readonly Subregion[] = [
     name: "Whitlands",
     region: "king-valley",
     registered: false,
-    note: "The high plateau at the head of the King Valley. Named in SCHEMA.md §2 as a worked example.",
+    note: "The high plateau at the head of the King Valley.",
   },
   {
     slug: "upper-yarra",
@@ -376,7 +386,7 @@ export const REGIONS: readonly Region[] = [
       "Chandlers Hill",
       "Morphett Vale",
     ],
-    note: "A Gate 8 coverage region. None of its ten districts is a registered GI sub-region; all are in routine trade use.",
+    note: "None of its ten districts is a registered GI sub-region; all are in routine trade use.",
   },
   {
     slug: "southern-fleurieu",
@@ -504,7 +514,7 @@ export const REGIONS: readonly Region[] = [
       "Verdun",
       "Woodside",
     ],
-    note: "A Gate 8 coverage region. Its town of Mount Barker shares a name with the registered Great Southern sub-region in Western Australia; they are unrelated.",
+    note: "Its town of Mount Barker shares a name with the registered Great Southern sub-region in Western Australia; they are unrelated.",
   },
   {
     slug: "adelaide-plains",
@@ -858,7 +868,7 @@ export const REGIONS: readonly Region[] = [
       "Tuerong",
       "Tyabb",
     ],
-    note: "A Gate 8 coverage region. Its seven districts are in routine use by the region's own vignerons; none is a registered GI sub-region.",
+    note: "Its seven districts are in routine use by the region's own vignerons; none is a registered GI sub-region.",
   },
   {
     slug: "sunbury",
@@ -910,7 +920,7 @@ export const REGIONS: readonly Region[] = [
       "Yellingbo",
       "Yering",
     ],
-    note: "A Gate 8 coverage region. Upper Yarra and Lower Yarra are in common use and are not registered GI sub-regions.",
+    note: "Upper Yarra and Lower Yarra are in common use and are not registered GI sub-regions.",
   },
   {
     slug: "grampians",

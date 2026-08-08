@@ -78,12 +78,18 @@ const { members, currentSlug, class: className } = Astro.props;
   }
 
   /* The interpunct is generated so the count reads as a separate figure without
-     a literal character sitting in the link text. */
+     a literal character sitting in the link text.
+     Spacing is margins, NOT whitespace in the content string or in the markup:
+     Astro collapses the text node between `{member.name}` and the `<span>`, so
+     a literal space there renders as `Adelaide Hills· 2`. DESIGN.md's form is
+     `Adelaide Hills · 46`. */
   .tax-links__count {
     color: var(--ink-faded);
+    margin-left: 0.4em;
   }
 
   .tax-links__count::before {
-    content: "· ";
+    content: "·";
+    margin-right: 0.4em;
   }
 </style>

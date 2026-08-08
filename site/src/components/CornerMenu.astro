@@ -27,7 +27,17 @@
  * At Gate 1 the region tier is empty because Gate 6 owns the taxonomy routes.
  * The tiers are laid out here so the structure is fixed and Gate 6 fills it.
  */
+import SearchBox from "./SearchBox.astro";
 import ThemeToggle from "./ThemeToggle.astro";
+import { regionsPresent, stateFromSlug, stateHref, statesPresent } from "../data/taxonomy.ts";
+import { STATE_NAMES } from "../config.ts";
+import type { State } from "../config.ts";
+
+// Tier 2 is present-only, like every other region surface. At the target
+// coverage this tier IS the menu (DESIGN.md §5b), so it is the full list of
+// regions with published producers rather than a promoted subset.
+const regions = await regionsPresent();
+const states = await statesPresent();
 ---
 
 <button
@@ -49,20 +59,54 @@ import ThemeToggle from "./ThemeToggle.astro";
 >
   <div class="corner-menu__inner">
     {/* Tier 1: search, home, theme. */}
+    <SearchBox />
     <ul class="corner-menu__tier">
       <li><a href="/">Home</a></li>
       <li><ThemeToggle /></li>
     </ul>
 
     {/*
-      Tier 2: PRIMARY, find a producer by region. Gate 6 fills this from
-      regions.ts intersected with published, grouped by state, present-only.
-      At the target coverage this tier is the menu.
+      Tier 2: PRIMARY, find a producer by region. regions.ts intersected with
+      published, grouped by state, present-only. At the target coverage this
+      tier is the menu.
+
+      The whole tier is real markup in the document, not something the script
+      builds, which is what makes it reachable with JavaScript disabled
+      (`/validate` check 16).
     */}
+    {
+      regions.length > 0 && (
+        <>
+          <p class="corner-menu__heading mono mono-caps">By region</p>
+          {states.map((state) => {
+            const code = stateFromSlug(state.slug) as State;
+            const inState = regions.filter((region) =>
+              region.producers.some((p) => p.data.location.state === code),
+            );
+            return (
+              <>
+                <p class="corner-menu__state mono">
+                  <a href={stateHref(code)}>{STATE_NAMES[code]}</a>
+                </p>
+                <ul class="corner-menu__tier corner-menu__tier--nested">
+                  {inState.map((region) => (
+                    <li>
+                      <a href={region.href}>{region.name}</a>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            );
+          })}
+        </>
+      )
+    }
 
     {/* Tier 3: More. */}
     <p class="corner-menu__heading mono mono-caps">More</p>
     <ul class="corner-menu__tier">
+      <li><a href="/producers/">All producers</a></li>
+      <li><a href="/region/">All regions</a></li>
       <li><a href="/glossary/">Glossary</a></li>
       <li><a href="/methodology/">Methodology</a></li>
     </ul>
@@ -178,5 +222,26 @@ import ThemeToggle from "./ThemeToggle.astro";
   .corner-menu__heading {
     color: var(--ink-faded);
     margin: 0 0 0.75rem;
+  }
+
+  .corner-menu__state {
+    margin: 0 0 0.25rem;
+    color: var(--ink-faded);
+  }
+
+  .corner-menu__state a {
+    color: inherit;
+    text-decoration-color: transparent;
+  }
+
+  .corner-menu__state a:hover,
+  .corner-menu__state a:focus-visible {
+    color: var(--ink);
+    text-decoration-color: var(--vine);
+  }
+
+  .corner-menu__tier--nested {
+    margin-bottom: 1.25rem;
+    padding-left: 1rem;
   }
 </style>
