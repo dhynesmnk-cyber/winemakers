@@ -245,8 +245,17 @@ REQUIRED_FIELDS = (
 # =============================================================================
 
 
-def parse_frontmatter(path: Path) -> dict[str, Any]:
-    """Frontmatter dict for one MDX file. Raises ValueError on anything unusable."""
+def read_frontmatter(path: Path) -> dict[str, Any]:
+    """The frontmatter mapping, parsed and nothing more. Raises ValueError.
+
+    Separated from `parse_frontmatter` because the two questions are different.
+    This one asks "what does this file say"; `parse_frontmatter` then asks "can
+    this become a DB row", which is a stricter bar carrying REQUIRED_FIELDS.
+
+    `/validate` check 12 wants the first question. A file missing `category` is
+    check 1's problem, and check 12 must still see its `regions[]` rather than
+    have the file vanish from its count without a word.
+    """
     slug = path.stem
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---"):
@@ -260,6 +269,17 @@ def parse_frontmatter(path: Path) -> dict[str, Any]:
         raise ValueError(f"{slug}: unparseable YAML: {exc}") from exc
     if not isinstance(data, dict):
         raise ValueError(f"{slug}: frontmatter is not a mapping")
+    return data
+
+
+def parse_frontmatter(path: Path) -> dict[str, Any]:
+    """Frontmatter dict for one MDX file. Raises ValueError on anything unusable.
+
+    The DB-insertability bar: everything `read_frontmatter` does, plus the
+    NOT NULL columns the DDL needs.
+    """
+    slug = path.stem
+    data = read_frontmatter(path)
 
     missing = [field for field in REQUIRED_FIELDS if data.get(field) is None]
     if missing:
