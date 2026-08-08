@@ -119,6 +119,8 @@ Appended after Gate 7 passed all four done-conditions. **Scope contract: the fou
 
 **Done when:** the preview renders both components as HTML; a 403 offers the Playwright retry on the row while a timeout and a 404 do not, asserted in `/validate`; a Playwright fetch of a page holding an open connection returns rather than timing out; the IndexNow key file is emitted when a key is set and no route is generated when it is not; the full `/validate` suite and `npm run build` pass.
 
+***CLOSED 2026-08-09.** All five done-conditions met. Check 20 (`validate_preview`) asserts both components render as balanced, sentinel-free HTML; the pipeline fixtures cover failure-table row 1a, so a 403 offers the retry and a timeout and a 404 do not; the Playwright wait moved off `networkidle`; the IndexNow key file is emitted at build time only when a key is set. Full suite green — checks 1–16 and 20 pass, `npm run build` emits 156 pages with zero warnings. Item 4 (`gemtree` in both `_staging` and `_rejected`) closed as deliberately-left-in-place, per the reasoning recorded above. Gate 8 opens.*
+
 ## Working style
 
 Small commits per logical unit within a gate, imperative messages, gate-prefixed (`Gate 4: …`) so the boundary stays greppable. No drive-by refactors. **Each new `/validate` check lands as its own commit, right after the feature it guards.** When a screenshot is possible, take one before claiming visual work is done. When you are unsure whether something meets DESIGN.md, it doesn't — ask.
