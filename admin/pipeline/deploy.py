@@ -45,6 +45,7 @@ answer is to stop rather than to push content nothing verified.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import threading
@@ -339,12 +340,17 @@ def _site_build_gate(site_dir: Path = SITE_DIR) -> Iterator[LogLine]:
             "Install Node, or deploy from a checkout that has it."
         )
     yield LogLine(_now(), "info", "verifying the site build (npm run build)")
+    # The key file route reads INDEXNOW_KEY from the build environment, and the
+    # hand-rolled `.env` parser deliberately does not populate `os.environ`, so
+    # it is passed explicitly. This gate is a local rehearsal: Netlify builds
+    # from the pushed repository and needs the key set in its own environment.
     result = subprocess.run(
         ["npm", "run", "build"],
         cwd=site_dir,
         capture_output=True,
         text=True,
         timeout=SITE_BUILD_TIMEOUT_SECONDS,
+        env={**os.environ, "INDEXNOW_KEY": INDEXNOW_KEY},
     )
     if result.returncode == 0:
         yield LogLine(_now(), "info", "site build ok")
