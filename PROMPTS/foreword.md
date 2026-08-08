@@ -49,6 +49,25 @@ Facts available:
 {{FACTS}}
 ```
 
+### Already printed on this page
+
+The reader can see all of the following on the same page, within a screen of
+your paragraph. It is here so that you do not repeat it.
+
+```
+{{ON_PAGE}}
+```
+
+**Do not restate any of it, in any wording.** Paraphrasing it is repeating it.
+DESIGN.md's rule for these pages is that a definition sits at the foot, linked,
+not duplicated, and a foreword that says the same thing in different words is
+the duplication that rule exists to prevent.
+
+Your paragraph does what that text cannot: it says where this guide documents
+the subject, and what the register says about it. If, after removing everything
+already printed above, there are only two sentences left worth writing, write
+two sentences.
+
 ---
 
 ## What to write
@@ -69,11 +88,12 @@ What belongs, by subject type:
   guide currently documents.
 - **variety** — what the grape is and where in Australia it is grown, from the
   glossary line you are given. Never what it tastes like.
-- **practice** — what the practice is and, importantly, what it is not. These
-  four pages carry more definitional weight than any other page in the guide,
-  because the schema deliberately refuses a vague `low_intervention` field so
-  that these four checkable facts do the work instead. Say what is checkable and
-  say what the flag does not prove.
+- **practice** — **the definition and its exclusions are already on the page**,
+  so do not write them again. Write instead about how this guide treats the
+  practice: that it records four specific, checkable decisions rather than one
+  vague label such as "natural" or "low-intervention", which has no agreed
+  meaning; and where the producers recording this one are documented. If that is
+  two sentences, write two.
 
 What never belongs, on any of them:
 

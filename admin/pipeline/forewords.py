@@ -150,7 +150,7 @@ def targets(producers: list[dict[str, Any]] | None = None) -> list[dict[str, Any
 
 
 def build_facts(target: dict[str, Any], producers: list[dict[str, Any]]) -> str:
-    """The facts block for one target.
+    """The facts block for one target. See `on_page` for what is withheld.
 
     THIS IS THE WHOLE WORLD THE MODEL GETS. The prompt says anything not in the
     input does not go in the foreword, so what is assembled here decides what a
@@ -169,8 +169,6 @@ def build_facts(target: dict[str, Any], producers: list[dict[str, Any]]) -> str:
         lines.append(f"State(s): {', '.join(STATE_NAMES.get(s, s) for s in region.get('states', []))}")
         if region.get("towns"):
             lines.append(f"Towns in the region: {', '.join(region['towns'])}")
-        if region.get("note"):
-            lines.append(f"Register note: {region['note']}")
         subs = [
             s for s in ts_data.subregions() if s["region"] == key
         ]
@@ -200,8 +198,6 @@ def build_facts(target: dict[str, Any], producers: list[dict[str, Any]]) -> str:
             )
         if sub.get("towns"):
             lines.append(f"Towns: {', '.join(sub['towns'])}")
-        if sub.get("note"):
-            lines.append(f"Register note: {sub['note']}")
         lines.append(_varieties_line(members))
 
     elif kind == "state":
@@ -223,9 +219,6 @@ def build_facts(target: dict[str, Any], producers: list[dict[str, Any]]) -> str:
             (e for e in ts_data.glossary() if e["vocabulary"] == kind and e["value"] == key),
             {},
         )
-        lines.append(f"Glossary definition: {entry.get('definition', '')}")
-        if entry.get("excludes"):
-            lines.append(f"What it does not mean: {entry['excludes']}")
         if entry.get("aliases"):
             lines.append(f"Also called: {', '.join(entry['aliases'])}")
         if kind == "variety":
@@ -234,10 +227,6 @@ def build_facts(target: dict[str, Any], producers: list[dict[str, Any]]) -> str:
             members = [
                 p for p in producers if (p.get("practices") or {}).get(key) is True
             ]
-            lines.append(
-                "This flag is taken from each producer's own published material. "
-                "It is not an audit, an inspection or a certification."
-            )
         regions_here = sorted({r for p in members for r in (p.get("regions") or [])})
         names = {r["slug"]: r["name"] for r in ts_data.regions()}
         if regions_here:
@@ -247,6 +236,63 @@ def build_facts(target: dict[str, Any], producers: list[dict[str, Any]]) -> str:
             )
 
     return "\n".join(line for line in lines if line)
+
+
+def on_page(target: dict[str, Any]) -> str:
+    """The prose the PAGE already renders around the foreword.
+
+    DESIGN.md §7, on variety pages: the glossary definition "sits at the foot,
+    linked, NOT DUPLICATED". The first generation broke that, because
+    `build_facts` handed the model the register note and the glossary definition
+    as source material and the page then printed those same sources a few
+    centimetres away. Measured overlap reached 75% on the Adelaide Hills region
+    and 64% on Cabernet Sauvignon, and the wild-ferment page said the same thing
+    four times over.
+
+    So these strings are no longer facts. They are shown to the model under a
+    heading that tells it they are ALREADY ON THE PAGE and are there so it can
+    avoid them. The foreword's job is what the definition cannot do: where this
+    guide documents the thing, and how the register treats it.
+    """
+    kind, key = target["kind"], target["key"]
+    lines: list[str] = []
+
+    if kind == "region":
+        region = next((r for r in ts_data.regions() if r["slug"] == key), {})
+        if region.get("note"):
+            lines.append(region["note"])
+    elif kind == "subregion":
+        sub = next((s for s in ts_data.subregions() if s["slug"] == key), {})
+        parent = next((r for r in ts_data.regions() if r["slug"] == sub.get("region")), {})
+        if not sub.get("registered"):
+            lines.append(
+                f"{sub.get('name', key)} is in common use in the wine trade and is "
+                f"not on Wine Australia's register of Geographical Indications. "
+                f"A wine from here is labelled {parent.get('name', '')}."
+            )
+        if sub.get("note"):
+            lines.append(sub["note"])
+    elif kind in ("variety", "practice"):
+        entry = next(
+            (e for e in ts_data.glossary() if e["vocabulary"] == kind and e["value"] == key),
+            {},
+        )
+        # The variety page renders `short`; the practice page renders
+        # `definition` and `excludes`. All three are withheld from the facts for
+        # both, because `short` is a condensation of `definition` and a foreword
+        # that paraphrases one paraphrases the other.
+        for field in ("short", "definition", "excludes"):
+            if entry.get(field):
+                lines.append(entry[field])
+        if kind == "practice":
+            lines.append(
+                "Every producer listed here states this in their own published "
+                "material. Nothing on this page is an audit, an inspection or a "
+                "certification. A producer who does not appear has not said "
+                "otherwise, only that their published material does not say."
+            )
+
+    return "\n".join(f"- {line}" for line in lines) if lines else "- (nothing)"
 
 
 def _varieties_line(members: list[dict[str, Any]]) -> str:
@@ -272,6 +318,18 @@ def _validate(text: str) -> str:
 
     if "\n\n" in text.strip():
         raise ValueError("return ONE paragraph, not several")
+
+    # TRUNCATION. The first run at max_tokens=1000 cut the Victoria foreword off
+    # mid-sentence, on the word "The", and it was WRITTEN: the sentence counter
+    # splits on terminal punctuation, so a trailing fragment carrying none is
+    # not counted and the remaining sentences were in range. Prose that stops
+    # dead is the one defect a reader notices instantly and no other rule here
+    # catches.
+    if not cleaned.endswith((".", "!", "?", '."', ".'", '?"', '!"')):
+        raise ValueError(
+            "the text ends mid-sentence, without terminal punctuation. "
+            "Write a complete final sentence"
+        )
 
     sentences = [s for s in cleaned.replace("!", ".").replace("?", ".").split(".") if s.strip()]
     if len(sentences) < MIN_SENTENCES:
@@ -352,6 +410,7 @@ def generate(
                 NAME=target["name"],
                 COUNT=target["count"],
                 FACTS=build_facts(target, producers),
+                ON_PAGE=on_page(target),
             )
             text = call(
                 "foreword",
@@ -361,7 +420,7 @@ def generate(
                 log=log,
                 ledger=ledger,
                 slug=label,
-                max_tokens=1000,
+                max_tokens=2000,
                 client=client,
             )
         except (AgentError, MalformedOutput) as exc:
@@ -403,6 +462,11 @@ def _selftest() -> list[str]:
     cases = [
         ("", "empty response"),
         ("One sentence only.", "too few sentences"),
+        (
+            "It is a registered region in South Australia. Of those, the guide "
+            "documents one. The",
+            "a truncated final fragment",
+        ),
         ("A. B. C. D. E. F. G.", "too many sentences"),
         ("# Heading\n\nTwo. Sentences.", "a heading"),
         (
