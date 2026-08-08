@@ -1,6 +1,6 @@
 """fetcher.py — fetching, extraction, and the three ways a fetch ends badly.
 
-Gate 5. TRD.md §7.6, UX.md §1.5 rows 1, 2 and 3.
+Gate 5. TRD.md §7.6, UX.md §1.5 rows 1, 1a, 2 and 3.
 
 ── The posture ───────────────────────────────────────────────────────────────
 
@@ -12,7 +12,7 @@ with no override control anywhere in the system, and a 20 second ceiling.
 ── Playwright is not a fallback this module ever chooses ─────────────────────
 
 `fetch(url, use_playwright=True)` exists and is only ever reached from a control
-the operator clicks (UX.md §1.5 row 3). Nothing here escalates to it
+the operator clicks (UX.md §1.5 rows 3 and 1a). Nothing here escalates to it
 automatically. A headless browser is a different and much heavier thing to point
 at somebody's website than an HTTP GET, and the decision to do it belongs to a
 person.
@@ -77,12 +77,23 @@ class Fetched:
         return f"{len(self.text.encode('utf-8')) / 1000:.1f} kB"
 
 
+#: UX.md §1.5 row 1a: the statuses a WAF returns to a plain HTTP client that a
+#: real browser fetch can clear. Deliberately short. A timeout, a 404 and a 500
+#: are absent because Playwright cannot reach a page that is unreachable, fix one
+#: that is missing, or repair one that is broken, and a retry control that cannot
+#: work costs a reviewer a browser launch to learn nothing.
+PLAYWRIGHT_CLEARABLE_STATUSES = frozenset({403, 503})
+
+
 class FetchError(Exception):
     """UX.md §1.5 row 1. Carries the HTTP status or the word `timeout`."""
 
-    def __init__(self, message: str, *, reason: str = ""):
+    def __init__(self, message: str, *, reason: str = "", status: int | None = None):
         super().__init__(message)
         self.reason = reason or message
+        #: The HTTP status when the failure carried one, else None. Row 1a reads
+        #: this to decide whether the row may offer the Playwright retry.
+        self.status = status
 
 
 class RobotsDisallowed(Exception):
@@ -374,7 +385,9 @@ def _fetch_httpx(url: str) -> tuple[str, str, int, int]:
 
     if response.status_code >= 400:
         raise FetchError(
-            f"HTTP {response.status_code}", reason=f"HTTP {response.status_code}"
+            f"HTTP {response.status_code}",
+            reason=f"HTTP {response.status_code}",
+            status=response.status_code,
         )
 
     content_type = response.headers.get("content-type", "")

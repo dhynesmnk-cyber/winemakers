@@ -74,8 +74,11 @@ class HarvestResult:
     url: str
     slug: str = ""
     detail: str = ""
-    #: UX.md §1.5 row 3: set when the item ended thin, so the row can offer
-    #: `Retry with Playwright`. Nothing else may trigger that path.
+    #: Set when the row may offer `Retry with Playwright`. Exactly two states
+    #: qualify: UX.md §1.5 row 3, a thin extraction, and row 1a, a fetch refused
+    #: with a status in `fetcher.PLAYWRIGHT_CLEARABLE_STATUSES`. Nothing else may
+    #: trigger that path — a robots disallow and a boilerplate extraction both
+    #: assert it stays unset, because neither is a rendering problem.
     offer_playwright: bool = False
     unmatched: dict[str, list[str]] = field(default_factory=dict)
     ledger: agents.Ledger | None = None
@@ -176,6 +179,18 @@ def harvest_one(
             )
         except fetcher.FetchError as exc:
             log("error", f"fetch failed: {exc.reason}")
+            # UX.md §1.5 row 1a: a WAF status is the one fetch failure a browser
+            # can clear, so that row alone offers the retry. Not offered when we
+            # already came through Playwright, because the block survived it and
+            # a second identical attempt is a reviewer's time for nothing.
+            if not use_playwright and exc.status in fetcher.PLAYWRIGHT_CLEARABLE_STATUSES:
+                log("info", "the site refused a plain fetch. Retry with Playwright.")
+                return HarvestResult(
+                    FAILED,
+                    url,
+                    detail=f"fetch failed: {exc.reason}",
+                    offer_playwright=True,
+                )
             return HarvestResult(FAILED, url, detail=f"fetch failed: {exc.reason}")
 
     # ── 4. Harvester ──────────────────────────────────────────────────────

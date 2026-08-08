@@ -334,7 +334,8 @@ Every row is a required on-screen state. A failure with no defined state is a bu
 
 | # | Failure | Behaviour |
 |---|---|---|
-| 1 | Bad or unreachable URL, fetch fails or times out at `FETCH_TIMEOUT_SECONDS` | Log line in the error colour with the HTTP status or the word `timeout`; the item ends cleanly; a single-URL run retains the URL in the input for retry; a batch item is marked `FAILED` and the run advances. |
+| 1 | Bad or unreachable URL, fetch fails or times out at `FETCH_TIMEOUT_SECONDS` | Log line in the error colour with the HTTP status or the word `timeout`; the item ends cleanly; a single-URL run retains the URL in the input for retry; a batch item is marked `FAILED` and the run advances. **No retry action is offered** — see row 1a for the one exception. |
+| 1a | **Fetch refused with `403` or `503`** | Row 1's behaviour, plus a `Retry with Playwright` action on that item, user-triggered exactly as row 3. Log adds `the site refused a plain fetch. Retry with Playwright.` The action is offered only on these two statuses, and never on an item that already came through Playwright. |
 | 2 | `robots.txt` disallows the fetch | Log line in the error colour naming the rule; item ends; no retry offered and no override control. |
 | 3 | Thin page: extracted text under `THIN_EXTRACTION_CHARS` | Log warns `thin extraction: 220 chars`; a `Retry with Playwright` action appears on that item, user-triggered only (CLAUDE.md stack constraints); the item ends without drafting. In a batch, the action is offered on the row and the run continues. |
 | 4 | Malformed agent JSON or MDX | One automatic re-ask with the parse error appended to the prompt. On a second failure, the raw output is saved to `temp_data/failed/{slug}-{stage}-{time}.txt` and logged with the path. Never silently discarded. |
@@ -360,6 +361,8 @@ Every row is a required on-screen state. A failure with no defined state is a bu
 | 24 | `git push` fails | The actual git error text is surfaced. Never "something went wrong". |
 | 25 | Netlify build poll fails or times out | Logged with the build ID and a link to the Netlify log. The deploy is reported as `pushed, build status unknown`, which is the truth. |
 | 26 | IndexNow ping fails | Logged in the warn colour. Non-fatal, never blocks. |
+
+*Row 1a added 2026-08-09 (engagement block, carried-over defect B). Until then row 1 offered no retry on any fetch failure, and `offer_playwright` was reachable only from row 3. The code was a correct reading of this table; what was wrong was SEED.md §2's claim that d'Arenberg exercised the user-triggered Playwright path end to end through the hub. It could not: Cloudflare answers a plain fetch with `403`, which is row 1, so the only way to that path was a direct call outside the admin. The new row is deliberately narrow. A `403` or `503` is a statement about the client, and a browser is a different client; a timeout, a `404` and a `500` say nothing a browser changes, so they keep row 1's silence.*
 
 **Empty states are directions, not moods.** Every pane has one, and each one tells the reader what to do next:
 
