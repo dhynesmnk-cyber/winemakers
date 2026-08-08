@@ -374,6 +374,55 @@ events is a `programme`.
 
 ---
 
+## This project's own vocabulary
+
+*Added 2026-08-08 (Gate 6).*
+
+The words this project uses to talk about **building itself** must never reach a
+reader. A gate number, a spec filename or a wave number is meaningful to the
+people making the directory and meaningless to someone deciding where to drive
+on Saturday.
+
+You will rarely trip this, because you are editing a producer entry and have no
+reason to mention a gate. It is authored here because this is the single home
+for every list `/validate` check 6 lints with, and check 6 covers more than your
+output: since Gate 6 it also lints `regions.ts` and `glossary.ts`, which are
+hand-authored and which are where this leak actually happened. Four region notes
+and three subregion notes had drifted into project shorthand, and the first
+region page ever built opened with "A Gate 8 coverage region."
+
+```project-vocabulary
+Gate 1
+Gate 2
+Gate 3
+Gate 4
+Gate 5
+Gate 6
+Gate 7
+Gate 8
+Gate 9
+Gate 10
+Gate 11
+coverage region
+SCHEMA.md
+TRD.md
+UX.md
+DESIGN.md
+CLAUDE.md
+SEED.md
+METHODOLOGY.md
+CONSTANTS-REQUIRED.md
+Wave 1
+Wave 2
+worked example
+the reference repo
+done-condition
+frontmatter
+zod
+```
+
+---
+
 ## Structural checks
 
 Before returning the file, confirm:

@@ -49,6 +49,10 @@ LIST_LABELS = {
     "tasting-descriptors": "tasting descriptor",
     "visit-tells": "first-person visit tell",
     "not-x-but-y": "not-X-but-Y",
+    # Added at Gate 6. This project's own build vocabulary, which must never
+    # reach a reader. It fires almost entirely on the hand-authored data files
+    # rather than on model output — see the block's note in gatekeeper.md.
+    "project-vocabulary": "project vocabulary",
 }
 
 
@@ -237,6 +241,68 @@ def run(directory: Path = PUBLISHED_DIR) -> list[tuple[Path, list[dict]]]:
 
 
 # =============================================================================
+# The hand-authored data files — added at Gate 6, 2026-08-08
+#
+# `regions.ts` and `glossary.ts` carry a lot of reader-facing prose: 121
+# glossary terms with their definitions, and a `note` on twenty-odd regions and
+# subregions. CLAUDE.md is explicit that the editorial guardrails "apply to
+# anything a reader sees", and until Gate 6 nothing rendered any of it, so
+# nothing linted it either.
+#
+# The cost of that showed on the first region page ever built, which opened with
+# "A Gate 8 coverage region." Four region notes and three subregion notes had
+# drifted into project shorthand with nothing watching.
+# =============================================================================
+
+#: Field -> whether it is prose a reader sees. `slug`, `value` and `vocabulary`
+#: are identifiers and are deliberately absent: `not_x_but_y` as a slug is not
+#: a not-X-but-Y construction.
+_GLOSSARY_PROSE_FIELDS = ("term", "short", "definition", "excludes")
+_REGION_PROSE_FIELDS = ("note",)
+
+
+def _line_of(text: str, needle: str) -> int:
+    """The 1-indexed line a parsed string sits on, found by locating it in the
+    source. Parsed values lose their position, and a hit reported without a line
+    is a hit nobody can act on."""
+    index = text.find(needle[:60])
+    return text.count("\n", 0, index) + 1 if index != -1 else 0
+
+
+def lint_data_files(lists: dict[str, list[str]] | None = None) -> list[tuple[Path, list[dict]]]:
+    """Reader-facing prose in `regions.ts` and `glossary.ts`."""
+    from . import ts_data
+
+    lists = lists if lists is not None else load_lists()
+    results: list[tuple[Path, list[dict]]] = []
+
+    sources: list[tuple[Path, list[dict], tuple[str, ...], str]] = [
+        (ts_data.REGIONS_TS_PATH, ts_data.regions(), _REGION_PROSE_FIELDS, "slug"),
+        (ts_data.REGIONS_TS_PATH, ts_data.subregions(), _REGION_PROSE_FIELDS, "slug"),
+        (ts_data.GLOSSARY_TS_PATH, ts_data.glossary(), _GLOSSARY_PROSE_FIELDS, "slug"),
+    ]
+
+    per_file: dict[Path, list[dict]] = {}
+    for path, entries, fields, key in sources:
+        text = path.read_text(encoding="utf-8")
+        for entry in entries:
+            for field in fields:
+                value = entry.get(field)
+                if not isinstance(value, str) or not value.strip():
+                    continue
+                for hit in lint_text(value, lists):
+                    hit = dict(hit)
+                    hit["line"] = _line_of(text, value)
+                    hit["excerpt"] = f"{entry.get(key)}.{field}: {value[:80]}"
+                    per_file.setdefault(path, []).append(hit)
+
+    for path, hits in per_file.items():
+        hits.sort(key=lambda hit: (hit["line"], hit["kind"], hit["phrase"]))
+        results.append((path, hits))
+    return results
+
+
+# =============================================================================
 # The self-test — validate.md's pattern
 # =============================================================================
 
@@ -368,11 +434,17 @@ def main() -> int:
         if extra:
             results.append((methodology, extra))
 
+    # regions.ts and glossary.ts, reader-facing since Gate 6.
+    results.extend(lint_data_files())
+
     total = sum(len(hits) for _, hits in results)
 
     if not results:
         published = len(list(PUBLISHED_DIR.glob("*.mdx")))
-        print(f"VALIDATE 6 PASS — register lint clean across {published} published file(s)")
+        print(
+            f"VALIDATE 6 PASS — register lint clean across {published} published "
+            f"file(s), METHODOLOGY.md, regions.ts and glossary.ts"
+        )
         return 0
 
     print(f"VALIDATE 6 WARN — {total} hit(s) across {len(results)} file(s). Warnings, not failures.")
