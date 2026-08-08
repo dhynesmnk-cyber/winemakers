@@ -80,6 +80,7 @@ from admin.config import (  # noqa: E402
     WINE_STYLE_KEYS,
 )
 from admin.pipeline import (  # noqa: E402
+    deploy as deploy_module,
     fetcher,
     harvest as harvest_module,
     images,
@@ -349,6 +350,9 @@ async def hub(request: Request, _: None = Depends(require_auth)) -> HTMLResponse
             "published_count": (
                 len(list(PUBLISHED_DIR.glob("*.mdx"))) if PUBLISHED_DIR.is_dir() else 0
             ),
+            # Rendered server-side so the strip carries its status on first
+            # paint rather than after a fetch (UX.md §1.6: always visible).
+            "deploy": deploy_module.status_summary(),
             "editor_config": _editor_config(),
         },
     )
@@ -976,6 +980,54 @@ async def api_remove_image(slug: str, _: None = Depends(require_auth)) -> JSONRe
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     staging._rebuild_derived(log)
     return JSONResponse(result)
+
+
+# =============================================================================
+# 9. Deploy — UX.md §1.6, TRD.md §6.5
+#
+# The only path from disk to live. Every write in this system stops at "updated
+# on disk" and waits for a human to click Deploy (TRD.md §2.4): there is no
+# automatic push path in this build and none is to be added.
+#
+# The run streams into the same log pane as everything else, so the POST returns
+# as soon as the thread is dispatched. A Netlify poll can take six minutes and a
+# request that waited for it would look like a hung browser, which is the
+# spinner UX.md §1.2 forbids.
+# =============================================================================
+
+
+@app.get("/api/deploy")
+async def api_deploy_status(_: None = Depends(require_auth)) -> JSONResponse:
+    return JSONResponse(deploy_module.status_summary())
+
+
+@app.get("/api/deploy/preview")
+async def api_deploy_preview(_: None = Depends(require_auth)) -> JSONResponse:
+    """The exact file list to be committed, with the change type per file."""
+    return JSONResponse(deploy_module.preview_payload())
+
+
+@app.post("/api/deploy")
+async def api_deploy(request: Request, _: None = Depends(require_auth)) -> JSONResponse:
+    """Start the deploy. One lock, so no two paths can race a push."""
+    payload = await request.json()
+    message = str(payload.get("message") or "")
+
+    if not deploy_module.DEPLOY_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="a deploy is already running")
+
+    def run() -> None:
+        try:
+            for line in deploy_module.run_deploy(message):
+                log(line.level, line.text)
+        except Exception as exc:  # noqa: BLE001 - a crash here must still be visible
+            log("error", f"deploy failed: {exc}")
+            _logger.exception("deploy crashed")
+        finally:
+            deploy_module.DEPLOY_LOCK.release()
+
+    asyncio.create_task(asyncio.to_thread(run))
+    return JSONResponse({"started": True}, status_code=202)
 
 
 @app.get("/healthz")

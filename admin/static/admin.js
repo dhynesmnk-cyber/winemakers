@@ -328,6 +328,109 @@ async function refreshQueue(rows, counts) {
   bindRows();
 }
 
+/* ── The deploy strip — UX.md §1.6 ─────────────────────────────────────────
+ *
+ * The only path from disk to live. Every write in this system stops at
+ * "updated on disk" and waits for a human to click Deploy (TRD.md §2.4), so
+ * this is the one control in the hub that reaches the internet.
+ *
+ * Nothing is committed until the diff has been rendered. The dialog is not a
+ * confirmation prompt: it is the file list, with the change type per file, and
+ * it is where a path nobody meant to publish becomes visible.
+ */
+
+async function refreshDeployStatus() {
+  const status = await fetch("/api/deploy").then((r) => r.json());
+  $("#deploy-status").textContent = status.summary;
+  // A deploy in flight disables the button rather than hiding it, so the
+  // control does not move under the pointer mid-run.
+  $("#deploy-open").disabled = status.file_count === 0 || status.running;
+  return status;
+}
+
+/* A run streams into the log pane, so the browser only has to ask when it has
+ * finished, to repaint the summary. Polling stops the moment it has. */
+let deployPoll = null;
+
+function followDeploy() {
+  if (deployPoll) return;
+  deployPoll = setInterval(async () => {
+    const status = await refreshDeployStatus();
+    if (!status.running) {
+      clearInterval(deployPoll);
+      deployPoll = null;
+    }
+  }, 2000);
+}
+
+function renderDeployPreview(preview) {
+  const refusal = $("#deploy-refusal");
+  const refusals = [];
+  if (preview.guard_violations.length) {
+    refusals.push(
+      "Refused. These files are tracked under a gitignored path, so they would " +
+        "be committed: " +
+        preview.guard_violations.join(", ") +
+        ". Untrack them with git rm --cached, then try again.",
+    );
+  }
+  if (preview.unexpected.length) {
+    refusals.push(
+      "Refused. These changed files sit outside the publish set: " +
+        preview.unexpected.join(", ") +
+        ". Commit or revert them by hand first. The deploy strip publishes " +
+        "content, never source.",
+    );
+  }
+  refusal.hidden = refusals.length === 0;
+  refusal.textContent = refusals.join(" ");
+
+  const count = preview.files.length;
+  $("#deploy-count").textContent = count
+    ? `${count} file${count !== 1 ? "s" : ""} to commit and push.`
+    : "Nothing to publish. Approve a draft first.";
+
+  const list = $("#deploy-files");
+  list.replaceChildren();
+  for (const item of preview.files) {
+    list.append(
+      el("li", {}, [
+        el("span", { class: "change", text: item.change }),
+        el("span", { text: item.path }),
+      ]),
+    );
+  }
+
+  $("#deploy-message").value = preview.commit_message;
+  $("#deploy-run").disabled = preview.blocked || count === 0;
+}
+
+$("#deploy-open").addEventListener("click", async () => {
+  const preview = await fetch("/api/deploy/preview").then((r) => r.json());
+  renderDeployPreview(preview);
+  $("#deploy-dialog").showModal();
+});
+
+$("#deploy-run").addEventListener("click", async () => {
+  const response = await fetch("/api/deploy", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: $("#deploy-message").value }),
+  });
+  if (!response.ok) {
+    const problem = await response.json();
+    $("#deploy-refusal").hidden = false;
+    $("#deploy-refusal").textContent = problem.detail;
+    return;
+  }
+  // Closed straight away: the run reports into the log pane, which is the one
+  // place pipeline output goes (UX.md §1.2), and a dialog over it would hide
+  // the thing the reader needs to watch.
+  $("#deploy-dialog").close();
+  $("#deploy-open").disabled = true;
+  followDeploy();
+});
+
 /* ── The review pane — UX.md §1.4 ──────────────────────────────────────── */
 
 async function loadDraft(slug) {
@@ -1596,6 +1699,7 @@ function offerUndo(slug) {
             r.json(),
           );
           refreshQueue(result.rows, result.counts);
+          refreshDeployStatus();
           unpublish.hidden = true;
         };
       }
@@ -1603,6 +1707,7 @@ function offerUndo(slug) {
     }
     undo.hidden = true;
     refreshQueue(data.rows, data.counts);
+    refreshDeployStatus();
     loadDraft(slug);
   };
 }
@@ -1638,6 +1743,9 @@ async function approveCurrent() {
   $("#action-reason").textContent = "Approved.";
   $("#action-reason").className = "note";
   await refreshQueue(data.rows, data.counts);
+  // The approve just wrote to _published and regenerated the derived data, so
+  // the strip's count is stale the instant this returns.
+  refreshDeployStatus();
   offerUndo(approved);
   advanceSelection();
 }

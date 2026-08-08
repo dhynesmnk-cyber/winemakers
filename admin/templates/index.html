@@ -205,12 +205,31 @@
 <section class="band band-deploy" aria-labelledby="deploy-heading">
   <div class="band-row">
     <h2 id="deploy-heading" class="col-heading mono mono-caps">Deploy</h2>
-    <p class="mono faded">
-      {% if published_count %}{{ published_count }} published on disk. The deploy strip lands at Gate 7.
-      {% else %}Nothing to publish. Approve a draft first.{% endif %}
-    </p>
+    <p class="mono faded" id="deploy-status">{{ deploy.summary }}</p>
+    <div class="band-controls">
+      <button type="button" id="deploy-open" class="btn"
+              {% if not deploy.file_count %}disabled{% endif %}>Deploy</button>
+    </div>
   </div>
 </section>
+
+{# ── The diff preview. Nothing is committed until this is read. ────────── #}
+<dialog id="deploy-dialog">
+  <h2>Deploy</h2>
+  <p id="deploy-refusal" class="field-error" hidden></p>
+  <p id="deploy-count" class="note"></p>
+  <ul id="deploy-files" class="mono deploy-files"></ul>
+  <label for="deploy-message">Commit message</label>
+  <input type="text" id="deploy-message" class="deploy-message" />
+  <p class="note">
+    Commit and push, then Netlify builds. The site build runs here first and a
+    failure stops the push.
+  </p>
+  <div class="dialog-actions">
+    <button type="button" id="deploy-run" class="btn">Commit and push</button>
+    <button type="button" class="btn btn-quiet" data-close>Cancel</button>
+  </div>
+</dialog>
 
 <dialog id="shortcuts">
   <h2>Keyboard</h2>
