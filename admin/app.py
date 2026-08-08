@@ -677,12 +677,17 @@ async def api_harvest(request: Request, _: None = Depends(require_auth)) -> JSON
 async def api_harvest_playwright(
     request: Request, _: None = Depends(require_auth)
 ) -> JSONResponse:
-    """UX.md §1.5 row 3. The ONLY path that reaches Playwright.
+    """UX.md §1.5 rows 3 and 1a. The ONLY path that reaches Playwright.
 
     User-triggered per URL, never automatic (CLAUDE.md stack constraints). The
-    row must actually be offering it, which means the item ended thin: this is
+    row must actually be offering it, which means the item either ended thin
+    (row 3) or was refused with a status a browser can clear (row 1a). This is
     not a general "fetch harder" button, and offering it anywhere else would
     make a headless browser the default way this project reads a website.
+
+    The refusing branch stays authoritative: `offer_playwright` is cleared on
+    the item before the run starts, so a page that blocks Playwright too ends
+    FAILED without offering the same button again.
     """
     payload = await request.json()
     url = str(payload.get("url") or "").strip()
@@ -690,7 +695,10 @@ async def api_harvest_playwright(
     if item is None or not item.get("offer_playwright"):
         raise HTTPException(
             status_code=400,
-            detail="Playwright is offered only on an item that ended with a thin extraction",
+            detail=(
+                "Playwright is offered only on an item that ended with a thin "
+                "extraction, or that the site refused with a 403 or 503"
+            ),
         )
     if QUEUE.running:
         raise HTTPException(status_code=409, detail="a harvest is already running")

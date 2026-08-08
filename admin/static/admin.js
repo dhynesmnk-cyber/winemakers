@@ -200,8 +200,10 @@ function renderHarvestQueue(data) {
       });
     }
 
-    /* UX.md §1.5 row 3. Offered ONLY on an item the server marked thin, and
-       only ever by a person clicking it. Nothing escalates automatically. */
+    /* UX.md §1.5 rows 3 and 1a. Offered ONLY on an item the server marked, so
+       the two conditions live in one place: a thin extraction, or a fetch the
+       site refused with a status a browser can clear. Only ever by a person
+       clicking it. Nothing escalates automatically. */
     let playwright = null;
     if (item.offer_playwright) {
       playwright = el("button", {
