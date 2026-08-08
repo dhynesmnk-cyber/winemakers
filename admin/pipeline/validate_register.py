@@ -53,6 +53,18 @@ LIST_LABELS = {
     # reach a reader. It fires almost entirely on the hand-authored data files
     # rather than on model output — see the block's note in gatekeeper.md.
     "project-vocabulary": "project vocabulary",
+    # Added at Gate 7. Authored in gatekeeper.md since Gate 5 and never loaded,
+    # so the four terms CLAUDE.md's editorial guardrails name by hand —
+    # `single-vineyard`, `old vines`, `family-owned`, `award-winning` — were
+    # going unlinted while a skill file claimed otherwise. Exactly the drift
+    # CLAUDE.md's 2026-08-07 amendment warns about, and the first symptom was
+    # always going to be a lint passing copy nobody checked.
+    #
+    # This list is conditional, not banned. A hit means "name the vineyard, the
+    # vine age, the family or the award, or write what the entry supports" —
+    # never "delete the phrase". A lint cannot see whether the evidence is
+    # there, which is why it belongs in a warn tier a human reads.
+    "conditional-claims": "conditional claim",
 }
 
 
@@ -317,6 +329,7 @@ Nestled in the rolling hills, this iconic winery boasts a stunning cellar door.
 When we arrived we were greeted with notes of plush, generous fruit.
 This is not just a winery, it is arguably somewhat of a hidden gem.
 The color of the vineyard in autumn is truly breathtaking.
+Their award-winning single-vineyard bottling comes from family-owned old vines.
 """
 
 _QUOTED = """
@@ -348,7 +361,7 @@ def _selftest() -> list[str]:
 
     dirty = lint_text(_DIRTY, lists)
     for expected in ("banned word", "first-person visit tell", "tasting descriptor",
-                     "hedge", "not-X-but-Y", "US spelling"):
+                     "hedge", "not-X-but-Y", "US spelling", "conditional claim"):
         if not any(hit["kind"] == expected for hit in dirty):
             errors.append(f"selftest: the dirty fixture produced no {expected} hit")
 

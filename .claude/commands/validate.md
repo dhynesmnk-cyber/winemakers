@@ -50,7 +50,7 @@ Then run the rebuild twice and confirm the two outputs are byte-identical. A non
 ### 6. Register lint — *G5*
 `python3 -m admin.pipeline.validate_register`.
 
-Greps every `_published` body, plus `summary` and the FAQ answers, for the banned-word list, the hedge list, tasting descriptors, first-person visit tells, not-X-but-Y, em dashes and US spellings. **Warnings, not failures** — a human judges them — but every hit is listed with file and line, and the module's self-test must pass.
+Greps every `_published` body, plus `summary` and the FAQ answers, for the banned-word list, the hedge list, tasting descriptors, first-person visit tells, not-X-but-Y, em dashes, US spellings and conditional claims. **Warnings, not failures** — a human judges them — but every hit is listed with file and line, and the module's self-test must pass.
 
 Every list is parsed from `PROMPTS/gatekeeper.md`, where they are authored. There is no second copy in Python: a lint that drifts from the prompt the Gatekeeper is actually run with would pass copy the model was never told to avoid.
 
