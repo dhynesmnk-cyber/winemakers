@@ -20,10 +20,12 @@ shared with the display helper. Keep that split: one regex, one home.** That
 home is `admin/schema.py::dollar_amounts`, and this module calls it rather than
 writing a second one.
 
-Check 9 is separated from check 1 for a different reason. It reads the
-`_published` set only, and it is the check that answers "is there an unbacked
-certification claim on the live site right now?" — a question about the
-published record rather than about a file being edited.
+Check 9 is separated from check 1 for a different reason. Check 1 validates one
+file's frontmatter as zod sees it; this is the check that answers "is there an
+unbacked certification claim anywhere in the publish path right now?" — a
+question about the standing record rather than about a file being edited. Like
+check 10 it reads `_published` and `_staging` both, for the reason `_files()`
+gives below: finding the claim after approval is finding out too late.
 
 ── Why an unbacked certification claim is a serious defect ───────────────────
 

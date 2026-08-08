@@ -18,7 +18,7 @@ A summary table — check number, name, result, details — then the word **VALI
 
 ---
 
-## Core checks (Gate 1–2)
+## Core checks
 
 ### 1. Schema validation — *G1*
 Every MDX file in `site/src/content/producers/_published/` **and** `content-staging/_staging/`: parse the frontmatter and validate against the SCHEMA.md §2 contract. Required fields present; types correct; enums drawn from the §1 vocabularies; `location.state` present; AU coordinate bounds when latitude/longitude are non-null; `summary` ≤160 chars; `practices` object strict with exactly the four keys; `image` co-requirements (`image_source`, `image_caption`).
@@ -46,6 +46,51 @@ Then run the rebuild twice and confirm the two outputs are byte-identical. A non
 
 ### 7. Repo hygiene — *G1*
 `git status` and `git ls-files` must show no tracked files under `temp_data/`, `content-staging/`, or any `.env` other than `.env.example`. Tracked = fail. Check `git ls-files` specifically, not just `git status` — a force-added file shows as clean in status.
+
+### 13. Four-surface schema diff — *G2*
+`python3 -m admin.pipeline.schema_surfaces`. Exit 0 required.
+
+CLAUDE.md rule 7's enforcement. The zod schema, the SQLite DDL, the Harvester validator and the admin editor must name-match, plus the two places the contract is *written down* — SCHEMA.md §2's table and the hand-mirrored `config.ts`/`config.py` pair.
+
+The failure it exists to catch is quiet: a field added to zod but not the DDL validates at build time, silently fails to reach SQLite, and every aggregation page then behaves as though no producer has it. Nothing errors; the site is just wrong.
+
+The zod↔DDL comparison is not a set diff, because the surfaces are deliberately not the same shape — `location` is one zod object and five columns, `practices` a 1:1 wide table, `verification` in no table at all. Every field carries a declared disposition in `FIELD_DISPOSITION`, and the check asserts that disposition holds. **A field added to zod with no entry there fails as undeclared**, which is what forces an author to say where the data goes.
+
+A surface whose gate has not shipped is reported as **pending, not passed**; every run prints which surfaces it compared and which it is still waiting on.
+
+### 8. Ownership determination — *G4*
+`python3 -m admin.pipeline.validate_ownership`.
+
+No producer published without an `ownership_source` carrying a non-empty source and a date; **no producer published with a non-null `parent_company`**; zero hits when every published name, domain and ABN is re-checked against the `data/ownership.json` deny-list.
+
+**The re-check matters as much as the first pass.** `ownership.json` grows. A producer published cleanly in March can become a deny-list hit in September because somebody bought them, and nothing else in the system notices. This is what turns the register from a gate a producer passes once into a standing audit of everything already published.
+
+The ABN is read from the retained determination sidecar in `DETERMINATIONS_DIR`, not from frontmatter — an ABN is pipeline evidence, not published record, and SCHEMA.md §2 has no ABN field deliberately. A published producer with **no** retained determination is itself reported: UX.md §1.4.6 requires the sidecar to survive the approve, so a missing one means a producer reached `_published` by some route that bypassed the hub.
+
+The self-test runs against a fixture register rather than `data/ownership.json`, so its guarantees hold whatever the real register happens to contain on the day.
+
+### 9. Certification integrity — *G4*
+`python3 -m admin.pipeline.validate_crossfield` (with check 10; one module, one command).
+
+`organic: certified` without a named `organic_certifier` fails; the same for `biodynamic`. A certifier named while the state is **not** `certified` also fails.
+
+Reads `_published` and `_staging` both — finding an unbacked certification claim after it has moved into `_published` is finding out too late.
+
+An unbacked certification claim is a claim about a real business's legal standing, made in public, on a page that business did not write. It is the class of error that damages a producer rather than the site.
+
+### 10. Numeric cross-checks — *G4*
+Every `tasting_fee.fee_aud` falls within the range of dollar amounts stated in the freeform `cost` string; `annual_production_cases`, when present, falls inside `production_band`.
+
+These are the SCHEMA.md §2a rules zod cannot see: they compare a structured number against a freeform string and against a config range. SCHEMA.md §2a puts them in Python specifically because **the regex that scrapes dollar amounts from the freeform string is shared with the display helper — one regex, one home.** That home is `admin/schema.py::dollar_amounts`, and this module calls it rather than writing a second one.
+
+### 14. Provenance integrity — *G4*
+`python3 -m admin.pipeline.validate_provenance`.
+
+Every populated `VERIFIABLE_FIELDS` entry carries a `{source, tier, date}` record, and **no tier is lower than the same field's tier in the previous commit** (SCHEMA.md §2a rule 12, §2b).
+
+The no-downgrade half is a rule about change over time, so it needs a previous state to compare against, and this project has exactly one durable record of previous state: git. The comparison is against `HEAD`, read with `git show`. A file not in `HEAD` is new and has nothing to downgrade from. **A repository with no commits, or an unavailable git, reports the fact and skips that half rather than passing silently** — a check that cannot run must never look like a check that passed.
+
+Why a downgrade matters more than it looks: `observed_on_visit` and `operator_confirmed` are the two tiers this pipeline cannot generate — it only ever sets `published_by_producer` (SCHEMA.md §1.11). Those stronger tiers only ever arrive from a person who did the work, so a silent downgrade discards that work and replaces it with a machine's weaker claim. `parent_company` is on `VERIFIABLE_FIELDS` deliberately, and UX.md §1.4.6 makes its `{source, tier, date}` block the durable public half of the ownership determination. That is the entry this check exists for above all the others.
 
 ### 6. Register lint — *G5*
 `python3 -m admin.pipeline.validate_register`.
@@ -103,13 +148,13 @@ Listed here so the suite's shape is visible from the start. Each lands as its ow
 |---|---|---|
 | 5 | ~~**Link check**~~ — **SHIPPED 2026-08-08 at Gate 6.** Moved to the core section above; row kept so the numbering stays readable | G6 |
 | 6 | ~~**Register lint**~~ — **SHIPPED 2026-08-07 at Gate 5.** Moved to the core section above; row kept so the numbering stays readable | G5 |
-| 8 | **Ownership determination** — no producer published without `ownership_source` carrying a non-empty source and a date; **no producer published with a non-null `parent_company`**; zero hits when every published name, domain and ABN is checked against the `data/ownership.json` deny-list | G4 |
-| 9 | **Certification integrity** — `organic: certified` without a named `organic_certifier` fails; same for `biodynamic`. A certifier named while the state is not `certified` also fails | G4 |
-| 10 | **Numeric cross-checks** — every `tasting_fee.fee_aud` falls within the range of dollar amounts stated in the freeform `cost` string; `annual_production_cases`, when present, falls inside `production_band` | G4 |
+| 8 | ~~**Ownership determination**~~ — **SHIPPED 2026-08-07 at Gate 4** (`41e9eec`). Moved to the core section above; row kept so the numbering stays readable | G4 |
+| 9 | ~~**Certification integrity**~~ — **SHIPPED 2026-08-07 at Gate 4** (`4dabc02`). Moved to the core section above | G4 |
+| 10 | ~~**Numeric cross-checks**~~ — **SHIPPED 2026-08-07 at Gate 4** (`4dabc02`, with check 9). Moved to the core section above | G4 |
 | 11 | ~~**Glossary coverage**~~ — **SHIPPED 2026-08-08 at Gate 6.** Moved to the core section above | G6 |
 | 12 | ~~**Region taxonomy lint**~~ — **SHIPPED 2026-08-08 at Gate 6.** Moved to the core section above | G6 |
-| 13 | **Four-surface schema diff** — `python3 -m admin.pipeline.schema_surfaces` exits 0. SCHEMA.md §2 table, the zod schema, `admin/schema.py`'s `KNOWN_FIELDS` and the SQLite DDL name-match exactly; child tables exist for every array field; the prompts and `mdx_preview.py` describe the structured fields | G2 |
-| 14 | **Provenance integrity** — every populated `VERIFIABLE_FIELDS` entry carries a `{source, tier, date}` record; no tier is lower than the same field's tier in the previous commit | G4 |
+| 13 | ~~**Four-surface schema diff**~~ — **SHIPPED 2026-08-07 at Gate 2** (`2bc90ad`). Moved to the core section above | G2 |
+| 14 | ~~**Provenance integrity**~~ — **SHIPPED 2026-08-07 at Gate 4** (`c548dcb`). Moved to the core section above | G4 |
 | 15 | ~~**Deploy-guard self-test**~~ — **SHIPPED 2026-08-08 at Gate 7.** Moved to the core section above; row kept so the numbering stays readable | G7 |
 | 17 | **Internal-linking graph** — every published producer is linked from ≥3 aggregation pages; every comparison and region page is reachable from a hub; zero orphans. Pages below the minimum-producer threshold must skip-and-log, visible in the build output, never fail | G9 |
 | 18 | **JSON-LD structural validation** — `Organization`, `WebSite`, `LocalBusiness`, `BreadcrumbList`, `FAQPage`, `ItemList`, `DefinedTermSet`, `DefinedTerm` across every page type | G10 |
