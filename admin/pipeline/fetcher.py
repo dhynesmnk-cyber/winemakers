@@ -84,6 +84,11 @@ class Fetched:
 #: work costs a reviewer a browser launch to learn nothing.
 PLAYWRIGHT_CLEARABLE_STATUSES = frozenset({403, 503})
 
+#: How long to keep waiting for the network to fall quiet after the document has
+#: parsed. A ceiling, not a target: whatever has rendered when it expires is what
+#: gets extracted.
+PLAYWRIGHT_SETTLE_MS = 3_000
+
 
 class FetchError(Exception):
     """UX.md §1.5 row 1. Carries the HTTP status or the word `timeout`."""
@@ -403,6 +408,7 @@ def _fetch_httpx(url: str) -> tuple[str, str, int, int]:
 def _fetch_playwright(url: str, log: Logger) -> tuple[str, str, int, int]:
     """USER-TRIGGERED ONLY. Never reached without an explicit operator action."""
     try:
+        from playwright.sync_api import TimeoutError as PlaywrightTimeout
         from playwright.sync_api import sync_playwright
     except ImportError as exc:  # pragma: no cover - pinned in requirements.txt
         raise FetchError(f"playwright is not installed: {exc}", reason="playwright") from exc
@@ -412,7 +418,21 @@ def _fetch_playwright(url: str, log: Logger) -> tuple[str, str, int, int]:
             browser = playwright.chromium.launch()
             try:
                 page = browser.new_page(user_agent=HARVEST_USER_AGENT)
-                page.goto(url, timeout=FETCH_TIMEOUT_SECONDS * 1000, wait_until="networkidle")
+                page.goto(
+                    url,
+                    timeout=FETCH_TIMEOUT_SECONDS * 1000,
+                    wait_until="domcontentloaded",
+                )
+                # `networkidle` is the best case here and never a requirement.
+                # It cannot fire on a page that holds a connection open, which
+                # covers anything streaming server-sent events, and it stalls
+                # behind slow third-party embeds. Give it a bounded budget and
+                # take whatever has rendered when that budget runs out: the
+                # alternative is failing a page that had already loaded.
+                try:
+                    page.wait_for_load_state("networkidle", timeout=PLAYWRIGHT_SETTLE_MS)
+                except PlaywrightTimeout:
+                    log("info", "playwright: network still open, taking the rendered page")
                 html = page.content()
                 final_url = page.url
             finally:
