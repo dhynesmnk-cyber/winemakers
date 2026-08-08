@@ -151,6 +151,11 @@ MODEL_HARVESTER = env("MODEL_HARVESTER", "claude-haiku-4-5-20251001")
 MODEL_ARCHITECT = env("MODEL_ARCHITECT", "claude-opus-5")
 MODEL_GATEKEEPER = env("MODEL_GATEKEEPER", MODEL_HARVESTER)
 
+# Gate 6. Aggregation-page forewords: short editorial prose about a region, a
+# grape or a practice. It is drafting work rather than extraction, so it
+# cascades from the Architect, which is the drafting role.
+MODEL_FOREWORD = env("MODEL_FOREWORD", MODEL_ARCHITECT)
+
 # Gate 11 editorial roles.
 MODEL_ARTICLE = env("MODEL_ARTICLE", MODEL_ARCHITECT)
 MODEL_BRIEF = env("MODEL_BRIEF", MODEL_ARTICLE)
