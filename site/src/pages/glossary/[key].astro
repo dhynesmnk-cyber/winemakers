@@ -1,0 +1,190 @@
+---
+/**
+ * `/glossary/[key]/` — one page per term. UX.md §2.4, DESIGN.md §7.
+ *
+ * Unconditional, like the index: one page for every value of every closed
+ * vocabulary whether or not a producer uses the term.
+ *
+ * ── The one conditional thing on the page ─────────────────────────────────────
+ *
+ * The link OUT to a listing — `/variety/pinot-noir/`, `/practice/unfined/` — is
+ * present-only, because those pages are. A glossary entry for a grape nobody
+ * grows yet is a definition with nothing to list, and linking to it anyway
+ * would manufacture exactly the dead programmatic route `/validate` check 5
+ * exists to catch. So the definition always renders and the listing link
+ * appears only where there is a listing.
+ *
+ * Detail glyphs are 32px (DESIGN.md §7).
+ */
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import Icon from "../../components/Icon.astro";
+import {
+  GLOSSARY,
+  GLOSSARY_BY_SLUG,
+  VOCABULARY_LABELS,
+  type GlossaryEntry,
+} from "../../data/glossary.ts";
+import { glossaryIcon } from "../../data/glossary-icons.ts";
+import {
+  glossaryHref,
+  practiceHref,
+  practicesPresent,
+  simpleCrumbs,
+  varietiesPresent,
+  varietyHref,
+} from "../../data/taxonomy.ts";
+
+export async function getStaticPaths() {
+  // Present-only membership, resolved once here rather than per page.
+  const varieties = new Set((await varietiesPresent()).map((v) => v.slug));
+  const practices = new Set((await practicesPresent()).map((p) => p.slug));
+
+  return GLOSSARY.map((entry) => {
+    let listing: string | null = null;
+    if (entry.vocabulary === "variety" && varieties.has(entry.value)) {
+      listing = varietyHref(entry.value);
+    } else if (entry.vocabulary === "practice" && practices.has(entry.value)) {
+      listing = practiceHref(entry.value);
+    }
+
+    return { params: { key: entry.slug }, props: { entry, listing } };
+  });
+}
+
+interface Props {
+  entry: GlossaryEntry;
+  listing: string | null;
+}
+
+const { entry, listing } = Astro.props;
+
+const icon = glossaryIcon(entry);
+const seeAlso = (entry.see_also ?? [])
+  .map((slug) => GLOSSARY_BY_SLUG.get(slug))
+  .filter((e): e is GlossaryEntry => e !== undefined);
+---
+
+<BaseLayout title={entry.term} description={entry.short}>
+  <div class="reading-spine">
+    <Breadcrumbs
+      crumbs={simpleCrumbs(
+        { label: "Glossary", href: "/glossary/" },
+        entry.term,
+      )}
+    />
+
+    <header class="gloss-head">
+      <h1 class="gloss-head__title">
+        {icon && <Icon name={icon} context="glossary_detail" />}
+        {entry.term}
+      </h1>
+      <p class="gloss-head__vocab mono mono-caps">
+        {VOCABULARY_LABELS[entry.vocabulary]}
+      </p>
+    </header>
+
+    <p class="gloss-definition">{entry.definition}</p>
+
+    {
+      entry.excludes && (
+        <>
+          <p class="section-opener">What it does not mean</p>
+          <p class="gloss-excludes">{entry.excludes}</p>
+        </>
+      )
+    }
+
+    {
+      entry.aliases && entry.aliases.length > 0 && (
+        <p class="gloss-aliases mono">
+          Also called {entry.aliases.join(", ")}.
+        </p>
+      )
+    }
+
+    {
+      listing && (
+        <p class="gloss-listing">
+          <a href={listing}>Producers: {entry.term}</a>
+        </p>
+      )
+    }
+
+    {
+      seeAlso.length > 0 && (
+        <section class="gloss-see-also hairline-top">
+          <p class="section-opener">See also</p>
+          <ul class="gloss-see-also__list">
+            {seeAlso.map((other) => (
+              <li>
+                <a href={glossaryHref(other.slug)}>{other.term}</a>
+                <span class="gloss-see-also__short">{other.short}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .gloss-head {
+    margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
+  }
+
+  .gloss-head__title {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    margin: 0 0 0.5rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+
+  .gloss-head__vocab {
+    color: var(--ink-faded);
+    margin: 0;
+  }
+
+  .gloss-definition {
+    max-width: 60ch;
+    margin: 0 0 clamp(2rem, 4vw, 3rem);
+  }
+
+  .gloss-excludes {
+    max-width: 60ch;
+    margin: 0 0 clamp(2rem, 4vw, 3rem);
+  }
+
+  .gloss-aliases {
+    color: var(--ink-faded);
+    max-width: 60ch;
+    margin: 0 0 1.5rem;
+  }
+
+  .gloss-listing {
+    margin: 0 0 clamp(2rem, 4vw, 3rem);
+  }
+
+  .gloss-see-also {
+    margin-top: clamp(2.5rem, 5vw, 4rem);
+    padding-top: 1.5rem;
+  }
+
+  .gloss-see-also__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .gloss-see-also__list li {
+    padding: 0.6rem 0;
+    max-width: 60ch;
+  }
+
+  .gloss-see-also__short {
+    display: block;
+    color: var(--ink-faded);
+  }
+</style>

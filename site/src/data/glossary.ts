@@ -1408,6 +1408,36 @@ export const VARIETY_SLUGS: readonly string[] = GLOSSARY.filter(
 ).map((e) => e.value);
 
 /**
+ * Section headings for `/glossary/`, in the order the index presents them
+ * (Gate 6). Sentence-case plain words: a reader browsing the glossary is not
+ * looking up the schema, and "SCHEMA.md §1.9 WINE_STYLE_KEYS" is not a heading.
+ *
+ * The order is editorial rather than the tuple order in config.ts. What a
+ * producer IS comes first, then what they make, then how they make it, then the
+ * apparatus this directory uses to say how sure it is about any of it.
+ */
+export const VOCABULARY_LABELS: Record<VocabularyId, string> = {
+  category: "Kinds of producer",
+  "wine-style": "Styles of wine",
+  variety: "Grape varieties",
+  practice: "Practices in the cellar",
+  vessel: "Vessels",
+  "fruit-source": "Where the fruit comes from",
+  "production-band": "How much they make",
+  certification: "Organic and biodynamic status",
+  "cellar-door": "Cellar door",
+  logistics: "Visiting",
+  state: "States and territories",
+  "confidence-tier": "How a fact was established",
+  "ownership-evidence": "How ownership was established",
+};
+
+/** The index's display order. Every covered vocabulary appears exactly once. */
+export const VOCABULARY_ORDER: readonly VocabularyId[] = Object.keys(
+  VOCABULARY_LABELS,
+) as readonly VocabularyId[];
+
+/**
  * Every vocabulary that must have full glossary coverage.
  * SCHEMA.md §1.12 `VERIFIABLE_FIELDS` is deliberately absent: it is a list of
  * field names rather than a vocabulary of values, and DESIGN.md §6 records it as

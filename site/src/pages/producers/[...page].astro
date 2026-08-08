@@ -1,0 +1,69 @@
+---
+/**
+ * `/producers/` and `/producers/page/[n]/` — the A to Z index. UX.md §2.2.
+ *
+ * THE COMPLETENESS ROUTE. Everything is reachable from here, in one predictable
+ * order, with no filter applied. It is the answer to "is that all of them?",
+ * and it is the reason the homepage can carry a fixed eight-row slice without
+ * hiding anything: the homepage's one outbound link, `All producers, A to Z`,
+ * lands here.
+ *
+ * Unlike every other listing on the site this one is NOT present-only, because
+ * there is no taxonomy to be present in. It is every published producer, and it
+ * exists even at zero — a directory that 404s its own index when empty would be
+ * a worse answer than one that says plainly there is nothing yet.
+ */
+import TaxonomyPage from "../../components/TaxonomyPage.astro";
+import {
+  allProducers,
+  extraPages,
+  paginate,
+  rootCrumbs,
+  type Producer,
+} from "../../data/taxonomy.ts";
+
+export async function getStaticPaths() {
+  const producers = await allProducers();
+
+  return [
+    { params: { page: undefined }, props: { producers, n: 1 } },
+    ...extraPages(producers.length).map((n) => ({
+      params: { page: `page/${n}` },
+      props: { producers, n },
+    })),
+  ];
+}
+
+interface Props {
+  producers: Producer[];
+  n: number;
+}
+
+const { producers, n } = Astro.props;
+const paged = paginate(producers, n, "/producers/");
+---
+
+<TaxonomyPage
+  heading="All producers"
+  title="Every independent Australian winemaker in this guide"
+  description="Every independent Australian winemaker documented in this guide, A to Z, with no filter applied."
+  crumbs={rootCrumbs("All producers")}
+  foreword={null}
+  paged={paged}
+  openerLabel="A to Z"
+>
+  <Fragment slot="links">
+    <p class="index-note">
+      Every producer in the guide, by name. Nothing is filtered out of this
+      list, so it is the one to check when you want to know whether something is
+      here at all.
+    </p>
+  </Fragment>
+</TaxonomyPage>
+
+<style>
+  .index-note {
+    max-width: 60ch;
+    margin: 0 0 clamp(1.5rem, 3vw, 2.5rem);
+  }
+</style>

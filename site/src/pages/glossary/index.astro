@@ -1,0 +1,146 @@
+---
+/**
+ * `/glossary/` — the index. UX.md §2.4, DESIGN.md §7.
+ *
+ * GENERATED UNCONDITIONALLY, for every value of every closed vocabulary in
+ * SCHEMA.md §1, including the confidence tiers. A glossary page exists whether
+ * or not a producer uses the term, which is what `/validate` check 11 enforces
+ * in both directions.
+ *
+ * This is the one place present-only does NOT apply, and the distinction is
+ * deliberate: present-only is a rule about producer LISTINGS. A reader who
+ * meets `amphora` on a producer page needs the word explained even when that
+ * producer is the only one in the country using one, and a reader who meets
+ * `operator_confirmed` in a provenance block needs to know what this directory
+ * means by it before the block is worth anything.
+ *
+ * Index glyphs are 20px (DESIGN.md §7). Not every term has one — a grape
+ * variety and a confidence tier have no glyph and get none rather than a
+ * stand-in.
+ */
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import Icon from "../../components/Icon.astro";
+import {
+  GLOSSARY,
+  VOCABULARY_LABELS,
+  VOCABULARY_ORDER,
+  glossaryVocabulary,
+} from "../../data/glossary.ts";
+import { glossaryIcon } from "../../data/glossary-icons.ts";
+import { glossaryHref, rootCrumbs } from "../../data/taxonomy.ts";
+
+const sections = VOCABULARY_ORDER.map((vocabulary) => ({
+  vocabulary,
+  label: VOCABULARY_LABELS[vocabulary],
+  entries: glossaryVocabulary(vocabulary),
+}));
+
+const total = GLOSSARY.length;
+---
+
+<BaseLayout
+  title="Glossary"
+  description="Every term this guide uses about how wine is grown, made and sold, defined plainly, including what each one does not mean."
+>
+  <div class="reading-spine">
+    <Breadcrumbs crumbs={rootCrumbs("Glossary")} />
+
+    <header class="tax-head">
+      <h1 class="tax-head__title">Glossary</h1>
+      <p class="tax-head__count mono mono-caps">{total} terms</p>
+    </header>
+
+    <p class="tax-foreword">
+      Every term this guide uses to describe a producer, defined here. The wine
+      trade uses several of these loosely, so each definition also says what the
+      term does not mean, and where a word carries no agreed meaning at all this
+      guide says that rather than picking one.
+    </p>
+
+    {
+      sections.map((section) => (
+        <section class="gloss-section">
+          <h2 class="section-opener">{section.label}</h2>
+          <ul class="gloss-list">
+            {section.entries.map((entry) => {
+              const icon = glossaryIcon(entry);
+              return (
+                <li class="gloss-item">
+                  <a href={glossaryHref(entry.slug)}>
+                    {icon && <Icon name={icon} context="glossary_index" />}
+                    <span class="gloss-item__term">{entry.term}</span>
+                  </a>
+                  <span class="gloss-item__short">{entry.short}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .tax-head {
+    margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
+  }
+
+  .tax-head__title {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    margin: 0 0 0.5rem;
+  }
+
+  .tax-head__count {
+    color: var(--ink-faded);
+    margin: 0;
+  }
+
+  .tax-foreword {
+    max-width: 60ch;
+    margin: 0 0 clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  .gloss-section {
+    margin-top: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  .gloss-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Hairline-separated entries, like every other list on the site. No cards. */
+  .gloss-item {
+    padding: 0.9rem 0;
+  }
+
+  .gloss-item + .gloss-item {
+    border-top: 1px solid var(--hairline);
+  }
+
+  .gloss-item a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    text-decoration-color: transparent;
+  }
+
+  .gloss-item a:hover,
+  .gloss-item a:focus-visible {
+    text-decoration-color: var(--vine);
+  }
+
+  .gloss-item__term {
+    font-weight: 600;
+  }
+
+  .gloss-item__short {
+    display: block;
+    color: var(--ink-faded);
+    max-width: 60ch;
+  }
+</style>
