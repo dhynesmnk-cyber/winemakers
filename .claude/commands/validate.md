@@ -73,6 +73,17 @@ Every `primary_region` exists in `regions.ts` and is among that producer's `regi
 
 Reads frontmatter with `read_frontmatter`, not `parse_frontmatter` — a file failing check 1's schema bar must still have its regions checked rather than vanishing from this check's count.
 
+### 15. Deploy-guard self-test — *G7*
+`python3 -m admin.pipeline.validate_deploy`.
+
+**A test, not an assertion.** Check 7 asserts that nothing illegal is tracked right now; this asks whether the guard *would refuse* if something were. Six fixture cases, each in a throwaway repository built as a bare origin plus a clone so `pull` and `push` behave as they do in production. `deploy.py` takes `root` and `site_dir` as parameters, so the fixtures drive the same functions the admin calls.
+
+The central case force-adds **and commits** `temp_data/harvest_queue.json`, so `git status` reports a clean tree and only `git ls-files` knows it is there. That trap is asserted before the guard is tested against it.
+
+Covers: a clean tree passing; the tracked `temp_data/` file; a tracked `.env` refused while `.env.example` is not; a changed path outside the publish set; `npm run build` failure blocking the push; and a happy path that commits and pushes only allowed paths. That last one is a positive control — without it every refusal case would also pass against a deploy that never worked at all.
+
+`_poll_netlify` is the one patched boundary, because the fixture's commit will never appear in anyone's Netlify account. The two build-gate cases need `npm`; without it they are skipped, reported as a note, and the gate's refusing branch is exercised instead.
+
 ### 16. No-JS and reduced-motion render — *G1*
 The built site renders correctly with JavaScript disabled: every producer, every programmatic route, and every navigation affordance is reachable. Under `prefers-reduced-motion: reduce`, every element renders fully visible in its final position. Any content that only appears after JS runs = fail.
 
@@ -93,7 +104,7 @@ Listed here so the suite's shape is visible from the start. Each lands as its ow
 | 12 | ~~**Region taxonomy lint**~~ — **SHIPPED 2026-08-08 at Gate 6.** Moved to the core section above | G6 |
 | 13 | **Four-surface schema diff** — `python3 -m admin.pipeline.schema_surfaces` exits 0. SCHEMA.md §2 table, the zod schema, `admin/schema.py`'s `KNOWN_FIELDS` and the SQLite DDL name-match exactly; child tables exist for every array field; the prompts and `mdx_preview.py` describe the structured fields | G2 |
 | 14 | **Provenance integrity** — every populated `VERIFIABLE_FIELDS` entry carries a `{source, tier, date}` record; no tier is lower than the same field's tier in the previous commit | G4 |
-| 15 | **Deploy-guard self-test** — a fixture proving the tracked-file guard *refuses* a staged illegal file, and passes a clean tree. **This is a test, not an assertion** — it must exercise the guard code, not merely restate the invariant check 7 already covers | G7 |
+| 15 | ~~**Deploy-guard self-test**~~ — **SHIPPED 2026-08-08 at Gate 7.** Moved to the core section above; row kept so the numbering stays readable | G7 |
 | 17 | **Internal-linking graph** — every published producer is linked from ≥3 aggregation pages; every comparison and region page is reachable from a hub; zero orphans. Pages below the minimum-producer threshold must skip-and-log, visible in the build output, never fail | G9 |
 | 18 | **JSON-LD structural validation** — `Organization`, `WebSite`, `LocalBusiness`, `BreadcrumbList`, `FAQPage`, `ItemList`, `DefinedTermSet`, `DefinedTerm` across every page type | G10 |
 | 19 | **`llms.txt` integrity** — references only live routes | G10 |
