@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import re
 import sys
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -55,9 +56,16 @@ from admin.config import (  # noqa: E402
     VESSEL_KEYS,
     WINE_STYLE_KEYS,
 )
+from admin.pipeline.ownership import read_sidecar  # noqa: E402
 
 KEBAB = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 URL = re.compile(r"^https?://")
+
+#: The exact message for an entirely absent `ownership_source`, named once so
+#: the check-1 note tier below cannot drift from the error it demotes. A
+#: *malformed* `ownership_source` produces a different message and is never
+#: demoted.
+OWNERSHIP_ABSENT = "ownership_source: required object {source, method, date}"
 
 #: Region and subregion slugs are the one vocabulary that lives in TypeScript
 #: only (`site/src/data/regions.ts`), because it is the site's taxonomy and the
@@ -219,7 +227,7 @@ def validate_frontmatter(data: dict[str, Any]) -> list[str]:
     # ownership_source — no producer publishes without a determination.
     ownership = data.get("ownership_source")
     if not isinstance(ownership, dict):
-        errors.append("ownership_source: required object {source, method, date}")
+        errors.append(OWNERSHIP_ABSENT)
     else:
         if not isinstance(ownership.get("source"), str) or not ownership["source"].strip():
             errors.append("ownership_source.source: required, non-empty")
@@ -349,21 +357,97 @@ def _cross_field(data: dict[str, Any]) -> list[str]:
     return errors
 
 
-def check_1_schema() -> list[str]:
-    """Every MDX in `_published` and `_staging`, per file, per field."""
+# =============================================================================
+# The note tier
+#
+# Amended 2026-08-08. Check 1 applies the SCHEMA.md §2 contract to `_staging`
+# as well as `_published`, and that contract is a PUBLISH-time one: no producer
+# publishes without a dated source that positively states who owns the business
+# (SCHEMA.md §4.2). A draft sitting in the queue has not published yet.
+#
+# `orchestrator.py` deliberately leaves `ownership_source` absent whenever the
+# Harvester extracted no ownership statement. `producer_statement` would be the
+# determination deciding itself from prose, which CLAUDE.md rule 8 forbids, and
+# with no statement there is no other honest route to a `method`. The field is
+# left for a reviewer to record from real evidence, and `approval_blocks` keeps
+# approval refused until they do.
+#
+# So a `check`-verdict draft with no `ownership_source` is the designed output
+# of the pipeline, not a defect. Failing check 1 on it would mean the suite
+# could never pass while the queue held one, which at Gate 8's coverage is
+# permanent — and a check that always fails is a check nobody reads. That is
+# the same reasoning `validate_ownership.py` records for its own advisory tier.
+#
+# The demotion is deliberately narrow: it requires the determination sidecar to
+# exist and to record a verdict that explains the absence. A hand-placed
+# staging file that simply forgot the field has no sidecar and still fails, so
+# the Gate 3 done-condition keeps its check-1 backstop. Nothing here changes
+# what `_published` requires, and nothing here relaxes the approve gate.
+# =============================================================================
+
+
+def _demote_to_note(message: str, *, staging: bool, verdict: str | None) -> bool:
+    """True when `message` is a reviewer's pending field, not a schema defect.
+
+    Kept pure so every case is self-testable without touching the live queue.
+    """
+    return (
+        staging
+        and message == OWNERSHIP_ABSENT
+        # No sidecar means nothing explains the absence.
+        and verdict is not None
+        # On `clear` the orchestrator stamps the field. Missing it there is a
+        # real fault, not a reviewer's outstanding work.
+        and verdict != "clear"
+    )
+
+
+def _determination_verdict(slug: str, directory: Path = STAGING_DIR) -> str | None:
+    """The sidecar's recorded verdict, or None when there is not one to read.
+
+    Absent, unparseable and verdict-less sidecars all read as None, which is
+    the failing-loud direction. `directory` mirrors `ownership.read_sidecar`'s
+    own signature so the self-test can point at a fixture rather than at live
+    queue state.
+    """
+    sidecar = read_sidecar(slug, directory)
+    if not sidecar:
+        return None
+    verdict = sidecar.get("verdict")
+    return verdict if isinstance(verdict, str) else None
+
+
+def check_1_schema() -> tuple[list[str], list[str]]:
+    """Every MDX in `_published` and `_staging`, per file, per field.
+
+    Returns `(errors, notes)`, the shape checks 8 and 14 already use. See the
+    note tier above for the one message that earns a note; everything else, in
+    either directory, is an error.
+    """
     errors: list[str] = []
+    notes: list[str] = []
     for directory in (PUBLISHED_DIR, STAGING_DIR):
         if not directory.is_dir():
             continue
+        staging = directory == STAGING_DIR
         for path in sorted(directory.glob("*.mdx")):
             data, parse_error = parse_frontmatter(path)
             if parse_error:
                 errors.append(f"{path.name}: {parse_error}")
                 continue
             assert data is not None
+            verdict = _determination_verdict(path.stem) if staging else None
             for message in validate_frontmatter(data):
+                if _demote_to_note(message, staging=staging, verdict=verdict):
+                    notes.append(
+                        f"{path.name}: ownership_source is not yet recorded. The "
+                        f"determination verdict is {verdict!r}; a reviewer records "
+                        f"the source from real evidence and approval stays blocked "
+                        f"until they do (UX.md §1.4.3)."
+                    )
+                    continue
                 errors.append(f"{path.name}: {message}")
-    return errors
+    return errors, notes
 
 
 def check_2_slugs() -> list[str]:
@@ -469,22 +553,79 @@ def _selftest() -> list[str]:
                 f"{expect_field!r}: {found}"
             )
 
+    # ── The note tier (amended 2026-08-08) ────────────────────────────────
+    #
+    # The demotion is the one place this check can be talked out of failing,
+    # so every case runs here. Built from the same constants the real check
+    # uses, so a reworded message fails the self-test rather than silently
+    # turning the tier off.
+    malformed = "ownership_source.method: must be one of " + ", ".join(
+        OWNERSHIP_EVIDENCE_METHODS
+    )
+    for label, message, staging, verdict, expect_note in (
+        ("staging, absent, verdict check", OWNERSHIP_ABSENT, True, "check", True),
+        ("staging, absent, no sidecar", OWNERSHIP_ABSENT, True, None, False),
+        ("staging, absent, verdict clear", OWNERSHIP_ABSENT, True, "clear", False),
+        ("staging, malformed, verdict check", malformed, True, "check", False),
+        ("published, absent, verdict check", OWNERSHIP_ABSENT, False, "check", False),
+    ):
+        if _demote_to_note(message, staging=staging, verdict=verdict) is not expect_note:
+            errors.append(
+                f"selftest: the note tier got {label!r} wrong — expected "
+                f"{'a note' if expect_note else 'an error'}"
+            )
+
+    # Reading the sidecar. Absent, unparseable and verdict-less must all read
+    # as None, because that is what stops the demotion being a blanket
+    # exemption for anything sitting in `_staging`.
+    with tempfile.TemporaryDirectory() as raw:
+        fixtures = Path(raw)
+        (fixtures / "recorded.ownership.json").write_text(
+            '{"verdict": "check"}', encoding="utf-8"
+        )
+        (fixtures / "verdictless.ownership.json").write_text("{}", encoding="utf-8")
+        (fixtures / "unparseable.ownership.json").write_text("{not json", encoding="utf-8")
+        for slug, expected in (
+            ("recorded", "check"),
+            ("verdictless", None),
+            ("unparseable", None),
+            ("absent", None),
+        ):
+            found_verdict = _determination_verdict(slug, fixtures)
+            if found_verdict != expected:
+                errors.append(
+                    f"selftest: sidecar fixture {slug!r} read as {found_verdict!r}, "
+                    f"expected {expected!r}"
+                )
+
     return errors
 
 
+def _print_notes(notes: list[str]) -> None:
+    """Reported in their own section, never counted toward the exit code."""
+    if not notes:
+        return
+    print(f"  {len(notes)} note(s) — queue state awaiting a reviewer, not a failure:")
+    for note in notes:
+        print(f"    {note}")
+
+
 def main() -> int:
-    errors = _selftest() + check_1_schema() + check_2_slugs()
+    schema_errors, notes = check_1_schema()
+    errors = _selftest() + schema_errors + check_2_slugs()
     if errors:
         print(f"VALIDATE 1-2 FAIL — {len(errors)} error(s)")
         for message in errors:
             print(f"  {message}")
+        _print_notes(notes)
         return 1
     published = len(list(PUBLISHED_DIR.glob("*.mdx"))) if PUBLISHED_DIR.is_dir() else 0
     staged = len(list(STAGING_DIR.glob("*.mdx"))) if STAGING_DIR.is_dir() else 0
     print(
         f"VALIDATE 1-2 PASS — selftest ok; {published} published, {staged} staged, "
-        f"0 errors"
+        f"0 errors, {len(notes)} note(s)"
     )
+    _print_notes(notes)
     return 0
 
 

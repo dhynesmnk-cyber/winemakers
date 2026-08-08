@@ -14,7 +14,7 @@ Checks land with the gate that needs them, each as its own commit right after th
 
 A summary table — check number, name, result, details — then the word **VALIDATE PASS** or **VALIDATE FAIL** on its own line.
 
-`VALIDATE PASS` requires every applicable check to pass. Warnings (check 6) do not fail the suite, but every hit must be listed with file and line so a human can judge it.
+`VALIDATE PASS` requires every applicable check to pass. Warnings (check 6) and notes (checks 1, 8 and 14) do not fail the suite, but every hit must be listed with file and line so a human can judge it.
 
 ---
 
@@ -26,6 +26,12 @@ Every MDX file in `site/src/content/producers/_published/` **and** `content-stag
 Also assert the §2a cross-field rules that zod owns: certifier co-requirements (2, 3), `primary_region` ∈ `regions` (4), `shop_url` when `buy_online` (6), `cellar_door_hours` absent when `cellar_door: none` (7).
 
 Report per file, per field. Any failure = fail.
+
+*Amended 2026-08-08 (Gate 7): one message, in `_staging` only, is reported as a **note** rather than an error — an entirely absent `ownership_source`, and only when the determination sidecar exists and records a verdict other than `clear`.*
+
+*The contract above is a publish-time one: no producer publishes without a dated source that positively states who owns the business (SCHEMA.md §4.2). A draft in the queue has not published. `orchestrator.py` deliberately leaves the field absent when the Harvester extracted no ownership statement, because `producer_statement` would then be the determination deciding itself from prose (CLAUDE.md rule 8) and there is no other honest route to a `method`; a reviewer records it from real evidence instead. Failing check 1 on that state would mean the suite could never pass while the queue held a `check` draft, which at Gate 8's coverage is permanent, and a check that always fails is a check nobody reads. That is the reasoning check 8 already records for its own advisory tier.*
+
+*The demotion is narrow by design, and every boundary is asserted in the module's self-test. A malformed `ownership_source` still fails. A staging file with no sidecar still fails, so a hand-placed draft that simply forgot the field is still caught and Gate 3's done-condition keeps its backstop. A `clear` verdict missing the field still fails, because the orchestrator stamps it on `clear` and its absence there is a real fault. `_published` is untouched: there, an absent `ownership_source` is always an error. Approval is untouched too — `schema.validate_frontmatter` and `ownership.approval_blocks` both still refuse, which is what keeps this a reporting change and nothing more.*
 
 ### 2. Slug integrity — *G1*
 No duplicate slugs across `_staging` + `_published`. All filenames kebab-case. Slug is never a frontmatter field.
