@@ -1,0 +1,134 @@
+---
+/**
+ * TaxonomyPage.astro — the shared shell for every programmatic listing.
+ *
+ * DESIGN.md §7 says region, subregion, state, variety and practice pages are
+ * "the same shell", and says region pages must be indistinguishable in quality
+ * from the homepage. One component is how that stays true: a change to the
+ * heading rhythm or the pager lands on all five at once rather than on whichever
+ * four someone remembered.
+ *
+ * Order, per DESIGN.md §7 and UX.md §2.4:
+ *   breadcrumb, heading (+ optional 16px glyph), foreword, the `links` slot
+ *   (subregions / siblings / regions-in-state), the producer rows, the pager,
+ *   then the `footnote` slot (the glossary definition, at the foot, linked
+ *   rather than duplicated).
+ *
+ * PAGE 2 AND UP carry the same foreword and heading as page 1 and add
+ * `, page 2` to the `<title>` only (UX.md §2.2). The heading does not change,
+ * because the reader is still on the same listing.
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Breadcrumbs from "./Breadcrumbs.astro";
+import Icon from "./Icon.astro";
+import Pager from "./Pager.astro";
+import ProducerEntry from "./ProducerEntry.astro";
+import type { Crumb, Paged } from "../data/taxonomy.ts";
+import type { IconKey } from "../icons/paths.ts";
+
+interface Props {
+  /** The `<h1>`, in words. */
+  heading: string;
+  /** The `<title>` base, in the house register. `, page N` is appended here. */
+  title: string;
+  description: string;
+  crumbs: Crumb[];
+  foreword: string | null;
+  paged: Paged;
+  /** Rendered at 16px beside the heading. Variety and practice pages only. */
+  glyph?: IconKey;
+  /** The mono eyebrow above the producer rows. */
+  openerLabel?: string;
+}
+
+const {
+  heading,
+  title,
+  description,
+  crumbs,
+  foreword,
+  paged,
+  glyph,
+  openerLabel = "Producers",
+} = Astro.props;
+
+const pageTitle = paged.current > 1 ? `${title}, page ${paged.current}` : title;
+
+// The count line is the honest one-line answer to "how much is here", and it
+// reads in words rather than as a bare figure floating beside the heading.
+const countLine =
+  paged.totalItems === 1 ? "1 producer" : `${paged.totalItems} producers`;
+---
+
+<BaseLayout title={pageTitle} description={description}>
+  {/*
+    rel=prev/next in the head as well as on the pager's own anchors (UX.md
+    §2.2). The head links are for crawlers, the anchors are for readers, and
+    both are required on every page in a series.
+  */}
+  <Fragment slot="head">
+    {paged.prev && <link rel="prev" href={new URL(paged.prev, Astro.url).href} />}
+    {paged.next && <link rel="next" href={new URL(paged.next, Astro.url).href} />}
+  </Fragment>
+
+  <div class="reading-spine">
+    <Breadcrumbs crumbs={crumbs} />
+
+    <header class="tax-head">
+      <h1 class="tax-head__title">
+        {glyph && <Icon name={glyph} context="taxonomy_header" />}
+        {heading}
+      </h1>
+      <p class="tax-head__count mono mono-caps">{countLine}</p>
+    </header>
+
+    {foreword && <p class="tax-foreword">{foreword}</p>}
+
+    <slot name="links" />
+    <slot name="note" />
+
+    <section class="section-gap">
+      <p class="section-opener draw-line">{openerLabel}</p>
+
+      <ul class="entry-list">
+        {
+          paged.items.map((producer) => (
+            <ProducerEntry slug={producer.id} data={producer.data} />
+          ))
+        }
+      </ul>
+
+      <Pager paged={paged} />
+    </section>
+
+    <slot name="footnote" />
+  </div>
+</BaseLayout>
+
+<style>
+  .tax-head {
+    margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
+  }
+
+  .tax-head__title {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    margin: 0 0 0.5rem;
+    /* The glyph sits on the baseline of the first line rather than centring
+       against a multi-line heading. */
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+
+  .tax-head__count {
+    color: var(--ink-faded);
+    margin: 0;
+  }
+
+  /* The foreword is prose, in the body face, at reading width. It is not an
+     intro block, a callout or a lede: no rule, no fill, no larger type. */
+  .tax-foreword {
+    max-width: 60ch;
+    margin: 0 0 clamp(1.5rem, 3vw, 2.5rem);
+  }
+</style>

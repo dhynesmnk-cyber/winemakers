@@ -1,0 +1,120 @@
+---
+/**
+ * Pager.astro — UX.md §2.2. Server-rendered, crawlable pagination.
+ *
+ * A LIST OF LINKS. Previous, the page numbers, next. Never a button, never
+ * "load more", never infinite scroll. Infinite scroll is the pattern
+ * pagination exists to avoid: it breaks the back button, hides the tail of a
+ * list from crawlers, and gives a reader no way to say where they are.
+ *
+ * There is no JavaScript on this component and there is nothing to hydrate.
+ * Every page in the series is a plain anchor to a path that exists on disk.
+ *
+ * A listing that fits on one page renders NOTHING rather than a pager reading
+ * `1` (UX.md §2.2) — the caller checks `paged.showPager`, and this component
+ * checks it again so a caller that forgets cannot produce one.
+ */
+import type { Paged } from "../data/taxonomy.ts";
+
+interface Props {
+  paged: Paged;
+}
+
+const { paged } = Astro.props;
+---
+
+{
+  paged.showPager && (
+    <nav class="pager" aria-label="Pagination">
+      <ul class="pager__list mono">
+        <li class="pager__step">
+          {paged.prev ? (
+            <a href={paged.prev} rel="prev">
+              Previous
+            </a>
+          ) : (
+            <span aria-hidden="true">Previous</span>
+          )}
+        </li>
+
+        {paged.links.map((link) => (
+          <li>
+            {link.current ? (
+              <span class="pager__current" aria-current="page">
+                {link.n}
+              </span>
+            ) : (
+              <a href={link.href} aria-label={`Page ${link.n}`}>
+                {link.n}
+              </a>
+            )}
+          </li>
+        ))}
+
+        <li class="pager__step">
+          {paged.next ? (
+            <a href={paged.next} rel="next">
+              Next
+            </a>
+          ) : (
+            <span aria-hidden="true">Next</span>
+          )}
+        </li>
+      </ul>
+    </nav>
+  )
+}
+
+<style>
+  .pager {
+    margin-top: clamp(2.5rem, 5vw, 4rem);
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .pager__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 1rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .pager__list li {
+    /* A 44px touch target, per DESIGN.md's interactive minimum. */
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .pager__list a {
+    text-decoration-color: transparent;
+  }
+
+  .pager__list a:hover,
+  .pager__list a:focus-visible {
+    text-decoration-color: var(--vine);
+  }
+
+  /* The disabled ends of the series are still read in the flow, in the faded
+     ink, without a border or a fill. They are not buttons and never look
+     pressed. */
+  .pager__list span {
+    color: var(--ink-faded);
+  }
+
+  /* The current page carries a --vine underline, the same active-state signal
+     the text filters use (DESIGN.md §5). No pill, no chip, no fill, no box. */
+  .pager__current {
+    color: var(--ink);
+    border-bottom: 2px solid var(--vine);
+  }
+
+  .pager__step {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.75rem;
+  }
+</style>

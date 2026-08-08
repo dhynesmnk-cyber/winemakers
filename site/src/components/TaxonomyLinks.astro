@@ -1,0 +1,89 @@
+---
+/**
+ * TaxonomyLinks.astro — a row of plain mono links with counts.
+ *
+ * Used for the subregion row on a region page, the sibling row on a subregion
+ * page, the region list on a state page, and the region chooser on the
+ * homepage. One component, because all four are the same object: a present-only
+ * list of taxonomy members, each a plain anchor with its producer count.
+ *
+ * THE COUNT IS A PLAIN NUMERAL, NEVER A BADGE (UX.md §2.1 item 4):
+ * `Adelaide Hills · 46`. No pill, no chip, no circle, no background fill, no
+ * superscript. It is set in the mono face like every other figure on the site
+ * (DESIGN.md §3: figures never appear in the display face).
+ *
+ * Present-only is the CALLER's job — everything passed here renders. Nothing in
+ * this component filters, so a zero cannot reach it without the caller having
+ * already broken the rule.
+ */
+import type { TaxonomyMember } from "../data/taxonomy.ts";
+
+interface Props {
+  members: TaxonomyMember[];
+  /** Marks one member as the page the reader is already on. */
+  currentSlug?: string;
+  class?: string;
+}
+
+const { members, currentSlug, class: className } = Astro.props;
+---
+
+{
+  members.length > 0 && (
+    <ul class:list={["tax-links", "mono", className]}>
+      {members.map((member) => (
+        <li>
+          {member.slug === currentSlug ? (
+            <span class="tax-links__current" aria-current="page">
+              {member.name} <span class="tax-links__count">{member.count}</span>
+            </span>
+          ) : (
+            <a href={member.href}>
+              {member.name} <span class="tax-links__count">{member.count}</span>
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+<style>
+  .tax-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.5rem;
+    list-style: none;
+    margin: 0 0 clamp(2rem, 4vw, 3rem);
+    padding: 0;
+  }
+
+  .tax-links li {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .tax-links a {
+    text-decoration-color: transparent;
+  }
+
+  .tax-links a:hover,
+  .tax-links a:focus-visible {
+    text-decoration-color: var(--vine);
+  }
+
+  .tax-links__current {
+    border-bottom: 2px solid var(--vine);
+  }
+
+  /* The interpunct is generated so the count reads as a separate figure without
+     a literal character sitting in the link text. */
+  .tax-links__count {
+    color: var(--ink-faded);
+  }
+
+  .tax-links__count::before {
+    content: "· ";
+  }
+</style>

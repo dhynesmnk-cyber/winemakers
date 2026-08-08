@@ -1,0 +1,72 @@
+---
+/**
+ * Breadcrumbs.astro — the crumb trail every programmatic page carries
+ * (UX.md §2.4).
+ *
+ * Plain mono text and real anchors. The last crumb is the current page and is
+ * NOT a link — a self-link in a trail gives a reader a control that does
+ * nothing and gives a screen reader an extra stop for no gain.
+ *
+ * `BreadcrumbList` JSON-LD is Gate 10's (`/validate` check 18). This component
+ * is the visible trail only; the structured-data version reads the same crumb
+ * array, so the two cannot describe different paths.
+ */
+import type { Crumb } from "../data/taxonomy.ts";
+
+interface Props {
+  crumbs: Crumb[];
+}
+
+const { crumbs } = Astro.props;
+---
+
+<nav class="crumbs" aria-label="Breadcrumb">
+  <ol class="crumbs__list mono">
+    {
+      crumbs.map((crumb) => (
+        <li>
+          {crumb.href ? (
+            <a href={crumb.href}>{crumb.label}</a>
+          ) : (
+            <span aria-current="page">{crumb.label}</span>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</nav>
+
+<style>
+  .crumbs {
+    margin-bottom: clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  .crumbs__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    color: var(--ink-faded);
+  }
+
+  /* The separator is generated, so it is never selected with the text and never
+     read out as a word. An interpunct, not a chevron: no icons in navigation
+     furniture (DESIGN.md §6). */
+  .crumbs__list li + li::before {
+    content: "·";
+    margin-right: 0.5rem;
+  }
+
+  .crumbs__list a {
+    color: var(--ink-faded);
+    text-decoration-color: transparent;
+  }
+
+  .crumbs__list a:hover,
+  .crumbs__list a:focus-visible {
+    color: var(--ink);
+    text-decoration-color: var(--vine);
+  }
+</style>
