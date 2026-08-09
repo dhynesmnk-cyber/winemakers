@@ -666,9 +666,104 @@ def _batch_selftest() -> list[str]:
     return errors
 
 
+def _abn_selftest() -> list[str]:
+    """The ABN reaches the determination from the HTML, or not at all.
+
+    Guards the 2026-08-09 Gate 8 fix. The Harvester is handed trafilatura's
+    extraction, which has already deleted the footer and the terms of sale, so
+    every case below puts the ABN *only* in the HTML — exactly where the real
+    Bleasdale page had it and the model could not see it.
+
+    The negatives matter as much as the positive. If the checksum stopped being
+    applied, a phone number would become an ownership signal, and the failure
+    would look like a determination rather than a parsing bug.
+    """
+    errors: list[str] = []
+
+    def check(condition: bool, message: str) -> None:
+        if not condition:
+            errors.append(message)
+
+    # Unit level: the finder itself.
+    real = "52007529311"            # Bleasdale, checksum-valid
+    denied = "55004094599"          # Wolf Blass, the one ABN in data/ownership.json
+    check(fetcher.valid_abn(real), "valid_abn rejects a real ABN")
+    check(not fetcher.valid_abn("52007529312"), "valid_abn accepts a bad checksum")
+    check(
+        fetcher.find_abns(f"<footer>ABN {real[:2]} {real[2:5]} {real[5:8]} {real[8:]}</footer>")
+        == [real],
+        "find_abns misses a spaced ABN in a footer",
+    )
+    check(
+        fetcher.find_abns(f"<p>Call {real}</p>") == [],
+        "find_abns matched eleven bare digits with no ABN label",
+    )
+    check(
+        fetcher.find_abns(f'<script>var a="ABN {real}";</script>') == [],
+        "find_abns read an ABN out of a script body",
+    )
+
+    # Pipeline level: HTML-only ABN, absent from the text the model is given.
+    body = "Fixture Wines is a garagiste operation. " * 120
+    html = f"<html><body><p>{body}</p><footer>ABN {real}</footer></body></html>"
+
+    with Harness() as harness:
+        fetcher.fetch = _stub_fetch(text=body, html=html)
+        check(
+            fetcher.find_abns(body) == [],
+            "fixture is not honest: the ABN is visible in the extracted text",
+        )
+        result, lines = _harvest([harvester_json(), DRAFT_MDX, DRAFT_MDX])
+        sidecar = ownership.read_sidecar(result.slug, harness.staging) or {}
+        abn_row = next(
+            (r for r in sidecar.get("signals", []) if r.get("key") == "abn"), {}
+        )
+        check(
+            abn_row.get("items") == [real],
+            f"HTML-only ABN did not reach the determination (got {abn_row.get('items')!r})",
+        )
+        check(
+            "abn found in page HTML" in _text(lines),
+            "the recovered ABN was not logged for the reviewer",
+        )
+        check(
+            sidecar.get("verdict") == "check",
+            f"an extracted ABN must escalate to check, got {sidecar.get('verdict')!r}",
+        )
+
+    # A deny-listed ABN found only in the HTML must still reject.
+    with Harness() as harness:
+        fetcher.fetch = _stub_fetch(
+            text=body, html=f"<html><body><p>{body}</p><footer>ABN {denied}</footer></body></html>"
+        )
+        result, _ = _harvest([harvester_json(), DRAFT_MDX, DRAFT_MDX])
+        check(
+            result.state == harvest.BLOCKED,
+            f"a deny-listed ABN in the footer did not block the draft (got {result.state})",
+        )
+        check(harness.drafts == [], "a draft was written despite a deny-list ABN match")
+
+    # A checksum-invalid number must not become a signal at all.
+    with Harness() as harness:
+        fetcher.fetch = _stub_fetch(
+            text=body, html=f"<html><body><p>{body}</p><footer>ABN 52 007 529 312</footer></body></html>"
+        )
+        result, _ = _harvest([harvester_json(), DRAFT_MDX, DRAFT_MDX])
+        sidecar = ownership.read_sidecar(result.slug, harness.staging) or {}
+        abn_row = next(
+            (r for r in sidecar.get("signals", []) if r.get("key") == "abn"), {}
+        )
+        check(
+            not abn_row.get("items"),
+            f"a checksum-invalid number became an ABN signal ({abn_row.get('items')!r})",
+        )
+
+    return errors
+
+
 def main() -> int:
     try:
-        errors = _selftest() + _batch_selftest()
+        errors = _selftest() + _batch_selftest() + _abn_selftest()
     except Exception as exc:  # noqa: BLE001
         import traceback
 
@@ -684,7 +779,8 @@ def main() -> int:
         "PIPELINE FIXTURES PASS — failure table rows 1, 1a, 2, 3, 4, 5, 7, 8, 9 and 11, "
         "boilerplate refusal both ways, off-site redirect refusal, certification "
         "downgrade, token ledger, "
-        "Gatekeeper fallback, and a ten-URL batch with two isolated failures"
+        "Gatekeeper fallback, a ten-URL batch with two isolated failures, and the "
+        "HTML-only ABN reaching the determination with its checksum enforced"
     )
     return 0
 
