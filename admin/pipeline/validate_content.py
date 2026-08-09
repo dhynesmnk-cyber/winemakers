@@ -56,6 +56,7 @@ from admin.config import (  # noqa: E402
     VESSEL_KEYS,
     WINE_STYLE_KEYS,
 )
+from admin.pipeline import ts_data  # noqa: E402
 from admin.pipeline.ownership import read_sidecar  # noqa: E402
 
 KEBAB = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -71,18 +72,23 @@ OWNERSHIP_ABSENT = "ownership_source: required object {source, method, date}"
 #: only (`site/src/data/regions.ts`), because it is the site's taxonomy and the
 #: admin has no reason to own it. Parsed rather than mirrored, so there is no
 #: fourth hand-kept copy to drift.
-_REGIONS_TS = Path(__file__).resolve().parents[2] / "site" / "src" / "data" / "regions.ts"
-
-
+#:
+#: Amended 2026-08-09 (Gate 8). This module used to carry its own pair of
+#: regexes, each matching `slug`/`name`/`zone` or `slug`/`name`/`region` on
+#: three consecutive lines. That shape holds for a region and not for a
+#: subregion, so the subregion expression matched **10 of 42** and check 1
+#: reported the other 32 as "not a known subregion" — every Mornington
+#: Peninsula subregion among them, along with half of McLaren Vale's and all of
+#: Tasmania's. Valid producers were being failed by the validator.
+#:
+#: `ts_data` parses the array literal properly and was written at Gate 6 for
+#: exactly this reason; its own docstring warns that one expression per field is
+#: how a parser silently returns the wrong record. Check 12 already used it and
+#: saw all 42, so the suite disagreed with itself. There is now one parser.
 def _region_slugs() -> tuple[set[str], dict[str, str]]:
     """Return (region slugs, {subregion slug: parent region slug})."""
-    text = _REGIONS_TS.read_text(encoding="utf-8")
-    regions = set(re.findall(r'slug:\s*"([^"]+)",\s*\n\s*name:[^\n]*\n\s*zone:', text))
-    subs = dict(
-        re.findall(
-            r'slug:\s*"([^"]+)",\s*\n\s*name:[^\n]*\n\s*region:\s*"([^"]+)"', text
-        )
-    )
+    regions = {record["slug"] for record in ts_data.regions()}
+    subs = {record["slug"]: record["region"] for record in ts_data.subregions()}
     return regions, subs
 
 
