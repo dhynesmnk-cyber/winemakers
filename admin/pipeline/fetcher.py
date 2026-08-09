@@ -313,6 +313,60 @@ def extract_text(html: str) -> str:
     return (text or "").strip()
 
 
+#: An `ABN` label, then eleven digits that may be spaced or hyphenated in any of
+#: the groupings operators actually use (`12 345 678 901`, `12-345-678-901`).
+#: Anchored on the label because a bare eleven-digit run is as likely to be a
+#: phone number or a liquor licence.
+_ABN_LABELLED = re.compile(r"\bA\.?B\.?N\.?\b[^0-9]{0,12}((?:\d[\s\-]{0,2}){11})", re.I)
+
+#: `PROMPTS/harvester.md` tells the Harvester to read the ABN off "the footer,
+#: the copyright line, the terms of sale". `extract_text` deletes all three:
+#: boilerplate removal is trafilatura's whole job and `favour_precision=True`
+#: makes it keener. The model was being asked for something already thrown away,
+#: and across 97 staged drafts it returned an ABN zero times while producers
+#: publish them in plain sight.
+#:
+#: So the ABN is read here, from the raw HTML, by rule rather than by model. It
+#: is a checksummed identifier, not prose — a regex plus the ABR's own modulus
+#: test cannot hallucinate one, which is the ownership-check skill's "never
+#: guess an ABN" honoured rather than merely hoped for.
+_ABN_WEIGHTS = (10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19)
+
+_TAGS = re.compile(r"<(script|style)\b.*?</\1>|<[^>]+>", re.I | re.S)
+
+
+def valid_abn(digits: str) -> bool:
+    """The ABR's published modulus-89 check.
+
+    Subtract one from the leading digit, weight all eleven, and the sum is
+    divisible by 89. It rejects roughly 98% of arbitrary eleven-digit runs, so
+    it is what lets a page's phone number and its ABN be told apart.
+    """
+    if len(digits) != 11 or not digits.isdigit():
+        return False
+    weighted = (int(digits[0]) - 1) * _ABN_WEIGHTS[0]
+    weighted += sum(int(d) * w for d, w in zip(digits[1:], _ABN_WEIGHTS[1:]))
+    return weighted % 89 == 0
+
+
+def find_abns(html: str) -> list[str]:
+    """Every checksum-valid ABN printed in the page, in order, deduplicated.
+
+    Reads the raw HTML rather than the extraction, because the footer and the
+    terms of sale are exactly what the extraction removes. Tags are stripped
+    first so that an ABN split across `<span>`s still reads as one number.
+    """
+    if not html:
+        return []
+    plain = _TAGS.sub(" ", html)
+    found: list[str] = []
+    for match in _ABN_LABELLED.finditer(plain):
+        digits = re.sub(r"\D", "", match.group(1))
+        if valid_abn(digits) and digits not in found:
+            found.append(digits)
+    return found
+
+
 # =============================================================================
 # 3a. Boilerplate detection
 # =============================================================================

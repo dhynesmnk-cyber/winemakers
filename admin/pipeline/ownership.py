@@ -687,19 +687,37 @@ def deny_list_check(
     # line refers to. Distinguishing them is what stops every draft on a site
     # without an ABN from being forced to `check`, which would make `clear`
     # unreachable and the common path slow (UX.md §1.4.3).
-    supplied = abn not in (None, "")
-    digits = normalise_abn(abn)
-    abn_match = check_abn(abn, register) if digits else None
-    if not supplied:
+    # A page may print more than one ABN — a winery and its restaurant company
+    # is the ordinary case — so the input is a scalar or a list. Every readable
+    # one is checked, because a hit on the second is as disqualifying as a hit
+    # on the first, and the row reports the first match found.
+    candidates: list[Any]
+    if abn in (None, "", [], {}):
+        candidates = []
+    elif isinstance(abn, (list, tuple)):
+        candidates = [item for item in abn if item not in (None, "")]
+    else:
+        candidates = [abn]
+
+    readable = [digits for digits in (normalise_abn(item) for item in candidates) if digits]
+    abn_match = next(
+        (found for found in (check_abn(digits, register) for digits in readable) if found),
+        None,
+    )
+    if not candidates:
         state = "not checked"
-    elif not digits:
+    elif not readable:
         state = "unreadable"
     else:
         state = "match" if abn_match else "no match"
     rows.append(
         Row(
             check="abn",
-            value=format_abn(abn) if digits else str(abn or ""),
+            value=(
+                ", ".join(format_abn(digits) for digits in readable)
+                if readable
+                else ", ".join(str(item) for item in candidates)
+            ),
             state=state,
             match=abn_match,
         )
@@ -989,8 +1007,18 @@ def determine(
     machine verdict floored at `check` so a machine abort becomes a human
     decision. It downgrades a machine verdict; it never skips the human.
 
-    The ABN checked is the one the Harvester extracted into
-    `ownership_signals.abn`. This module does not fetch, parse or guess one.
+    The ABN checked is whatever reached `ownership_signals.abn`, as a single
+    value or a list. This module does not fetch, parse or guess one.
+
+    **Amended 2026-08-09 (Gate 8).** This previously said the ABN "is the one
+    the Harvester extracted", which stopped being true when `harvest.py` began
+    merging `fetcher.find_abns` into the signal. The Harvester is handed
+    trafilatura's extraction, which has already removed the footer and the
+    terms of sale — the two places an ABN is actually printed — so it returned
+    one zero times across 97 staged drafts. The ABN is now read from the raw
+    HTML by regex and the ABR's modulus-89 check. The boundary this sentence
+    was drawing still holds: the fetching and parsing happen in `fetcher.py`,
+    and this module still only weighs what it is handed.
     """
     register = register if register is not None else load_register()
     signals = signals if isinstance(signals, dict) else {}

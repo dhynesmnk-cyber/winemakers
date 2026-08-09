@@ -226,11 +226,30 @@ def harvest_one(
 
     slug = _slug_for(name, url)
 
+    # ── 4a. The ABN, read from the HTML rather than asked of the model ────
+    # The Harvester is given `fetched.text`, which trafilatura has already
+    # stripped of the footer and the terms of sale — the two places an ABN
+    # actually lives. `find_abns` reads the raw HTML and checksums what it
+    # finds, so this is evidence by rule, not by model.
+    signals = dict(harvest.get("ownership_signals") or {})
+    raw_abn = signals.get("abn")
+    model_abns = [raw_abn] if isinstance(raw_abn, (str, int)) and raw_abn else list(raw_abn or [])
+    html_abns = fetcher.find_abns(fetched.html)
+    merged_abns = list(dict.fromkeys([str(a) for a in model_abns if a] + html_abns))
+    if merged_abns:
+        signals["abn"] = merged_abns
+        new = [a for a in html_abns if str(a) not in {str(m) for m in model_abns}]
+        if new:
+            log(
+                "info",
+                f"abn found in page HTML  {', '.join(ownership.format_abn(a) for a in new)}",
+            )
+
     # ── 5. The full determination, before the Architect ───────────────────
     determination = ownership.screen_candidate(
         url,
         name=name,
-        signals=harvest.get("ownership_signals"),
+        signals=signals,
         harvester_verdict=harvest.get("independence"),
         floor=floor,
     )
