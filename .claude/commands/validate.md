@@ -147,6 +147,19 @@ Six bodies through `mdx_preview.render_body`, asserting three properties: tag ba
 
 Two fixtures exist because of how the defect was possible rather than what it broke: one body carrying angle brackets in its own prose, because the sentinel and the payload were made of the same character, and one hostile body, because harvested prose is untrusted text rendered into the admin.
 
+### 21. Editorial-gate self-test — *G8*
+`python3 -m admin.pipeline.validate_editorial`.
+
+**A test, not an assertion**, on the same footing as check 15. Check 6 reports what the corpus says; this asks whether the approve action *would refuse* a draft carrying an absolute ban.
+
+Seven fixture cases, one per blocking list, so a category dropped from `BLOCKING_LINT_KINDS` fails here rather than silently ceasing to be enforced. Also asserts that `summary` and the FAQ answers are linted and not the body alone, that a `<Pull>` quotation does **not** block, and that a `conditional claim` does **not** block.
+
+**Added against a real failure of the model stage.** The Gatekeeper passed a draft using `curated` twice — ban 1 in `PROMPTS/architect.md`, a plain string on an enumerated list check 6 already matches perfectly. A model is the wrong instrument for a fixed list, so the enumerated bans became an approve-time gate using the same matcher, and the model budget stays on judgement the lists cannot express.
+
+`conditional claim` is excluded by design: `single-vineyard`, `old vines`, `family-owned` and `award-winning` are permitted when the entry states their evidence, so whether a hit is a fault depends on the rest of the entry. Of thirteen hits in one real batch, seven were entries correctly naming the owning family or attributing the claim and reporting the gap. A gate that blocked those would teach a reviewer to route around it.
+
+The staged drafts the gate currently refuses are printed on every run, as notes rather than failures — a draft in the queue has not published, and the gate is what stops it.
+
 ---
 
 ## Checks pending their gate
