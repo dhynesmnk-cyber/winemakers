@@ -52,6 +52,7 @@ VOCABULARY_TUPLES: dict[str, str] = {
     "variety": "VARIETY_KEYS",
     "confidence-tier": "CONFIDENCE_TIERS",
     "ownership-evidence": "OWNERSHIP_EVIDENCE_METHODS",
+    "ownership-state": "OWNERSHIP_STATES",
     "state": "STATES",
 }
 

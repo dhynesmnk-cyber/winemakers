@@ -62,12 +62,18 @@ const datelineItems: { text: string; href?: string }[] = [
   ...(data.founded_year ? [{ text: `Founded ${data.founded_year}` }] : []),
 ];
 
+// SCHEMA.md §1.15. `unconfirmed` carries no source by contract (§2a rule 13),
+// so every read below is guarded rather than assumed. The site makes no
+// independence claim for an unconfirmed entry, which is why the claim line in
+// the provenance footer is inside the `confirmed` branch and not above it.
+const ownershipConfirmed = data.ownership_status === "confirmed";
 const ownership = data.ownership_source;
-const ownershipIsUrl = /^https?:\/\//.test(ownership.source);
-const methodLabel =
-  OWNERSHIP_EVIDENCE_LABELS[
-    ownership.method as keyof typeof OWNERSHIP_EVIDENCE_LABELS
-  ];
+const ownershipIsUrl = Boolean(ownership) && /^https?:\/\//.test(ownership.source);
+const methodLabel = ownership
+  ? OWNERSHIP_EVIDENCE_LABELS[
+      ownership.method as keyof typeof OWNERSHIP_EVIDENCE_LABELS
+    ]
+  : "";
 
 // Present-only provenance list. A field the producer does not state carries no
 // record, and no row is emitted for it.
@@ -95,6 +101,28 @@ const verificationRows = Object.entries(data.verification ?? {}).filter(
         ))}
       </p>
     </header>
+
+    {/*
+      SCHEMA.md §1.15. Sits above the fact row rather than in the provenance
+      footer, because the engagement that added the state requires the notice
+      not to be a footnote: a reader who never scrolls to the citation block
+      must still have been told.
+
+      Deliberately NOT `--claret` and deliberately not boxed. DESIGN.md §2:
+      claret appears on a public page only when something has gone wrong, and
+      an unconfirmed determination is a fact about what is published, not a
+      fault. It is a mono line in `--ink-faded` on a hairline, which is the
+      same register as the dateline it sits under.
+    */}
+    {
+      !ownershipConfirmed && (
+        <p class="ownership-notice mono">
+          Ownership not confirmed. No published source names who owns this
+          producer, so this directory makes no claim about its independence.{" "}
+          <a href="/methodology/">What this means</a>.
+        </p>
+      )
+    }
 
     <div class="fact-row-wrap">
       <FactRow data={data} context="fact_row" linked />
@@ -241,20 +269,32 @@ const verificationRows = Object.entries(data.verification ?? {}).filter(
       It must read as a CITATION, not a certification.
     */}
     <footer class="provenance mono">
-      <p>
-        <a href="/methodology/">Independent</a>. No parent company.
-      </p>
-      <p>
-        Ownership checked on {isoDate(ownership.date)} against{" "}
-        {
-          ownershipIsUrl ? (
-            <a href={ownership.source} rel="noopener">{ownership.source}</a>
-          ) : (
-            ownership.source
-          )
-        }{" "}
-        ({methodLabel.toLowerCase()}).
-      </p>
+      {
+        ownershipConfirmed ? (
+          <>
+            <p>
+              <a href="/methodology/">Independent</a>. No parent company.
+            </p>
+            <p>
+              Ownership checked on {isoDate(ownership.date)} against{" "}
+              {ownershipIsUrl ? (
+                <a href={ownership.source} rel="noopener">{ownership.source}</a>
+              ) : (
+                ownership.source
+              )}{" "}
+              ({methodLabel.toLowerCase()}).
+            </p>
+          </>
+        ) : (
+          <p>
+            No parent company is recorded for this producer, and no published
+            source names who owns it. This directory therefore makes no claim
+            either way about its independence. <a href="/methodology/">
+              How ownership is checked
+            </a>.
+          </p>
+        )
+      }
       <p>
         Entry drafted {isoDate(data.drafted)}. Verified {isoDate(data.verified)}.
         Source: <a href={data.source_url} rel="noopener">{data.source_url}</a>.
@@ -297,6 +337,15 @@ const verificationRows = Object.entries(data.verification ?? {}).filter(
     color: var(--ink-faded);
     margin: 1.25rem 0 0;
     max-width: 60ch;
+  }
+
+  /* A rule and a line of mono. No box, no fill, no radius (DESIGN.md §4). */
+  .ownership-notice {
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--hairline);
+    color: var(--ink-faded);
+    max-width: 65ch;
   }
 
   .fact-row-wrap {

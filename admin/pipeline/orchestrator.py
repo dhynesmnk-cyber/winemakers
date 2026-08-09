@@ -169,6 +169,7 @@ PIPELINE_OWNED_FIELDS = (
     "verification",
     "change_log",
     "parent_company",
+    "ownership_status",
     "ownership_source",
 )
 
@@ -475,18 +476,30 @@ def _finalize_frontmatter(
         # no statement there is no route to name honestly, so the field is left
         # for a human exactly as UX.md §1.5 row 12 leaves empty `regions`, and
         # approval stays blocked until it is filled (`approval_blocks`).
+        #
+        # Amended 2026-08-09: the else-branch no longer leaves the draft in a
+        # state that can never publish. It stamps `unconfirmed`, which is the
+        # honest record of "we looked and nobody publishes this" and is
+        # publishable with its notice. What did NOT change is the bar for
+        # `confirmed` — it still requires an extracted statement, and no agent's
+        # `method` survives into it.
         if ownership_module.states_ownership(getattr(determination, "signals", []) or []):
+            data["ownership_status"] = "confirmed"
             data["ownership_source"] = {
                 "source": source_url,
                 "method": "producer_statement",
                 "date": today,
             }
         else:
-            data.pop("ownership_source", None)
+            data["ownership_status"] = "unconfirmed"
+            data["ownership_source"] = None
             log(
                 "warn",
-                "no ownership statement extracted, so ownership_source is left "
-                "for a human to record. Approval is blocked until it is.",
+                "no ownership statement extracted, so this draft is unconfirmed: "
+                "it publishes carrying a visible notice that the site has not "
+                "confirmed who owns the business, and makes no independence "
+                "claim for it. A reviewer recording a real source moves it to "
+                "confirmed.",
             )
         if source:
             log("info", f"ownership determination recorded: {source}")

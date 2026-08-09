@@ -115,6 +115,7 @@ def check_3_derived() -> list[str]:
 _FIXTURE: dict[str, Any] = {
     "name": "Selftest Wines",
     "parent_company": None,
+    "ownership_status": "confirmed",
     "ownership_source": {
         "source": "https://example.invalid/about",
         "method": "producer_statement",

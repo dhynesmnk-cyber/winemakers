@@ -61,6 +61,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from admin.config import (  # noqa: E402
     DB_PATH,
     LOGISTICS_KEYS,
+    OWNERSHIP_STATES,
     PRACTICE_KEYS,
     PRODUCERS_JSON_PATH,
     PUBLISHED_DIR,
@@ -84,9 +85,15 @@ CREATE TABLE producers (
   name TEXT NOT NULL,
   parent_company TEXT,            -- always NULL on published rows; column kept so
                                   -- the invariant is queryable, not merely asserted
-  ownership_source TEXT NOT NULL,
-  ownership_source_method TEXT NOT NULL,
-  ownership_source_date TEXT NOT NULL,
+  ownership_status TEXT NOT NULL,  -- OWNERSHIP_STATES (SCHEMA.md §1.15)
+  -- The three below dropped NOT NULL on 2026-08-09, when `unconfirmed` was
+  -- added. They are NULL on an unconfirmed row and only there. SQL cannot
+  -- express "required when ownership_status = 'confirmed'", so §2a rules 11
+  -- and 13 live in zod and in check 8 instead. Keep the column NULLable and
+  -- the pairing enforced above it, rather than splitting the table in two.
+  ownership_source TEXT,
+  ownership_source_method TEXT,
+  ownership_source_date TEXT,
   category TEXT NOT NULL,
   founded_year INTEGER,
   website TEXT NOT NULL,
@@ -177,6 +184,7 @@ CREATE TABLE producer_vessels (
 PRODUCER_SCALAR_COLUMNS = (
     "name",
     "parent_company",
+    "ownership_status",
     "ownership_source",
     "ownership_source_method",
     "ownership_source_date",
@@ -226,7 +234,7 @@ ARRAY_FIELD_TABLES = {
 #: and logged, and the rebuild carries on.
 REQUIRED_FIELDS = (
     "name",
-    "ownership_source",
+    "ownership_status",
     "category",
     "website",
     "location",
@@ -291,11 +299,29 @@ def parse_frontmatter(path: Path) -> dict[str, Any]:
         raise ValueError(f"{slug}: missing required field parent_company")
     if not isinstance(data["location"], dict) or not data["location"].get("state"):
         raise ValueError(f"{slug}: location.state is required")
-    ownership = data["ownership_source"]
-    if not isinstance(ownership, dict) or not all(
-        ownership.get(key) for key in ("source", "method", "date")
-    ):
-        raise ValueError(f"{slug}: ownership_source needs source, method and date")
+    # SCHEMA.md §2a rules 11 and 13, at the DB boundary. `ownership_source` is
+    # NULLable since 2026-08-09, so the row-insertable bar is now the *pairing*
+    # rather than the source's presence: `confirmed` must carry all three parts,
+    # `unconfirmed` must carry none. A row that satisfies neither would sit in
+    # SQLite claiming a determination nothing backs.
+    status = data["ownership_status"]
+    if status not in OWNERSHIP_STATES:
+        raise ValueError(
+            f"{slug}: ownership_status must be one of {', '.join(OWNERSHIP_STATES)}"
+        )
+    ownership = data.get("ownership_source")
+    if status == "confirmed":
+        if not isinstance(ownership, dict) or not all(
+            ownership.get(key) for key in ("source", "method", "date")
+        ):
+            raise ValueError(
+                f"{slug}: ownership_status is confirmed, so ownership_source "
+                f"needs source, method and date"
+            )
+    elif ownership is not None:
+        raise ValueError(
+            f"{slug}: ownership_status is unconfirmed, so ownership_source must be null"
+        )
     practices = data.get("practices")
     if not isinstance(practices, dict) or any(
         key not in practices for key in PRACTICE_KEYS
@@ -344,6 +370,7 @@ def _producer_params(slug: str, data: dict[str, Any]) -> dict[str, Any]:
         # Always NULL on a published row. The column exists so `/validate`
         # check 8 can ask the question in SQL rather than trusting an assertion.
         "parent_company": data.get("parent_company"),
+        "ownership_status": data["ownership_status"],
         "ownership_source": ownership.get("source"),
         "ownership_source_method": ownership.get("method"),
         "ownership_source_date": _iso(ownership.get("date")),
@@ -504,6 +531,13 @@ def fetch_all_producers(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             "slug": row["slug"],
             "name": row["name"],
             "summary": row["summary"],
+            # Carried since 2026-08-09 because the notice has to travel. Every
+            # aggregation card is built from this JSON, and a region page
+            # listing unconfirmed entries without saying so is exactly the
+            # misrepresentation the state was added to avoid. The *source* is
+            # deliberately not carried: the entry page reads that from
+            # frontmatter through `getCollection`, and a card has no room for it.
+            "ownership_status": row["ownership_status"],
             "category": row["category"],
             "suburb": row["suburb"],
             "state": row["state"],

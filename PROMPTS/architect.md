@@ -81,7 +81,8 @@ Use double quotes and escape any double quote inside the value as `\"`.
 |---|---|
 | `name` | The producer's trading name, from the record. |
 | `parent_company` | **Always `null`.** You never set this. A producer with a parent company does not reach you. |
-| `ownership_source` | `{source, method, date}`. `source` is the URL the ownership statement came from, `method` is one of `registry`, `producer_statement`, `trade_source`, `date` is today. |
+| `ownership_status` | **Always `confirmed`.** You never decide this. The pipeline overwrites it with the real determination before the draft is staged, and it is `unconfirmed` whenever no source names who owns the business. Write the key so the frontmatter is complete; its value is not yours. |
+| `ownership_source` | `{source, method, date}`, or `null`. `source` is the URL the ownership statement came from, `method` is one of `registry`, `producer_statement`, `trade_source`, `date` is today. **You never decide this either** — the pipeline replaces whatever you write, because choosing a `method` from prose would be the determination deciding itself. Write `null` when the page states no ownership. |
 | `category` | One of `estate_winery`, `urban_winery`, `negociant`, `garagiste`, `cooperative`, `other`. |
 | `founded_year` | Four-digit year, or omit if the record has none. |
 | `website` | The producer's own site. |

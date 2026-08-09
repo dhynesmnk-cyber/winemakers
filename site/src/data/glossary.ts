@@ -42,6 +42,7 @@ export type VocabularyId =
   | "variety"
   | "confidence-tier"
   | "ownership-evidence"
+  | "ownership-state"
   | "state";
 
 export interface GlossaryEntry {
@@ -1286,6 +1287,32 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
     definition:
       "Wine media, a regional association register, or an importer or distributor listing that states ownership. It must be named and dated, and it must state ownership rather than imply it.",
     see_also: ["ownership-evidence-registry", "ownership-evidence-producer-statement"],
+  },
+
+  /* ═══ §1.15 OWNERSHIP_STATES ════════════════════════════════════════════ */
+  {
+    slug: "ownership-state-confirmed",
+    vocabulary: "ownership-state",
+    value: "confirmed",
+    term: "Ownership confirmed",
+    short: "A dated source names who owns this business, and it is nobody else.",
+    definition:
+      "One of the three kinds of evidence was found and recorded with its date and its web address: a registry lookup, the producer's own published statement, or a named trade source. The entry carries that source, and the directory's independence claim applies to it.",
+    excludes:
+      "It does not mean anyone audited a share register. It means a source states who owns the business and this directory recorded where that statement lives.",
+    see_also: ["ownership-state-unconfirmed", "ownership-evidence-producer-statement"],
+  },
+  {
+    slug: "ownership-state-unconfirmed",
+    vocabulary: "ownership-state",
+    value: "unconfirmed",
+    term: "Ownership not confirmed",
+    short: "Nobody publishes who owns this business, so this directory does not say.",
+    definition:
+      "No registry lookup, published statement or named trade source could be found that names who owns this producer. The entry is listed because the wine and the place are documented from published sources, but the directory makes no claim about its independence either way. Most small producers never publish an ownership statement, so this state is common and it is not a mark against anyone.",
+    excludes:
+      "It is not a suggestion that the producer is owned by somebody. It is not a weaker grade of confirmation. Any producer whose name, domain or business number matches a known portfolio owner is excluded from the directory entirely rather than listed in this state.",
+    see_also: ["ownership-state-confirmed", "ownership-evidence-producer-statement"],
   },
 
   /* ═══ §1.14 STATES ══════════════════════════════════════════════════════ */

@@ -9,6 +9,7 @@
     "name": "Basket Range Wine",
     "organic": "practising",
     "organic_certifier": null,
+    "ownership_status": "confirmed",
     "practices": {
       "minimal_so2": false,
       "unfiltered": false,
@@ -50,6 +51,7 @@
     "name": "d'Arenberg",
     "organic": "certified",
     "organic_certifier": "The National Association for Sustainable Agriculture Australia (NASAA)",
+    "ownership_status": "confirmed",
     "practices": {
       "minimal_so2": false,
       "unfiltered": false,
@@ -105,6 +107,7 @@
     "name": "Example Label Only",
     "organic": "none",
     "organic_certifier": null,
+    "ownership_status": "confirmed",
     "practices": {
       "minimal_so2": false,
       "unfiltered": false,
@@ -144,6 +147,7 @@
     "name": "Example Wines",
     "organic": "practising",
     "organic_certifier": null,
+    "ownership_status": "confirmed",
     "practices": {
       "minimal_so2": false,
       "unfiltered": true,

@@ -510,11 +510,43 @@ def _selftest() -> list[str]:
         check("producer_statement" not in staged,
               "SILENCE: the draft claims a producer_statement that does not "
               "exist. An agent's ownership_source survived the pipeline stamp.")
-        blocks = ownership.approval_blocks(
-            {"parent_company": None}, {"verdict": "check"}
+        # Amended 2026-08-09, and this is the one assertion in the module whose
+        # MEANING moved rather than its mechanism, so it is worth being explicit
+        # about what is still guaranteed.
+        #
+        # Until this date a silent page produced a draft that could never be
+        # approved, and this fixture asserted exactly that. `unconfirmed` is the
+        # deliberate decision to publish such a producer with a visible notice
+        # instead of withholding it, so the block is gone ON PURPOSE and
+        # asserting its return would re-impose the thing that was removed.
+        #
+        # What must NOT move, and is asserted below: the verdict is still
+        # `check` and not `clear` (above), the draft still claims no
+        # `producer_statement` (above), the stamped state is `unconfirmed` with
+        # a null source rather than a quietly absent key, and a draft claiming
+        # `confirmed` on this same silent evidence is still refused. Silence is
+        # still not independence; it is now *recorded* rather than blocking.
+        check("ownership_status: unconfirmed" in staged,
+              "silence: the draft was not stamped unconfirmed. A silent page "
+              "must carry the state explicitly, never an absent key.")
+        check(
+            not ownership.approval_blocks(
+                {"parent_company": None, "ownership_status": "unconfirmed",
+                 "ownership_source": None},
+                {"verdict": "check"},
+            ),
+            "silence: an unconfirmed draft with a null source was blocked. The "
+            "state cannot publish anything and the change is inert.",
         )
-        check(any("ownership_source" in block for block in blocks),
-              "silence: approval is not blocked on the missing ownership_source")
+        check(
+            any("ownership_source" in block for block in ownership.approval_blocks(
+                {"parent_company": None, "ownership_status": "confirmed",
+                 "ownership_source": None},
+                {"verdict": "check"},
+            )),
+            "SILENCE WAS READ AS INDEPENDENCE: a draft claiming confirmed with "
+            "no source was approvable.",
+        )
 
     # The positive case the 2026-08-07 amendment exists to protect must still
     # reach `clear`, or the fix above has simply re-broken it the other way.

@@ -99,9 +99,50 @@ against the entry.
 
 That sentence carries more weight here than any other. "A genuine family
 business" names no family. "Independently owned and operated" names no owner.
-"Since 1974, our family has" says nothing about who owns it today. Where the
-strongest available evidence is a page that stays silent on the question, the
-entry is held for review rather than published.
+"Since 1974, our family has" says nothing about who owns it today.
+
+## When nobody publishes who owns a winery
+
+Most small producers never publish an ownership statement. They are not hiding
+anything; it simply does not occur to a working winery to put its shareholding
+on its website, and there is no public register in Australia that fills the gap.
+The business register will name the entity that trades, but it does not show who
+stands behind it. So for a large share of Australian wine, the honest answer to
+"who owns this?" is that we looked and could not find out.
+
+That leaves three possible things to do, and only one of them is honest. We could
+guess from how the website reads, which is the one test that fails in both
+directions at once. We could leave every such producer out, which would mean a
+directory of Australian wine missing most of the small producers it exists to
+document. Or we can list them and say plainly what we do not know.
+
+**Every entry on this site is therefore in one of two states, and the entry says
+which:**
+
+- **Ownership confirmed.** A dated source names who owns the business — a
+  register lookup, the producer's own published statement, or a named trade
+  source. The entry shows that source and its date. The independence claim on
+  this site applies to it.
+- **Ownership not confirmed.** No such source could be found. The entry is
+  listed, it carries a visible notice saying so, and **this site makes no claim
+  about that producer's independence in either direction.**
+
+The second state is not a suspicion and it is not a lesser grade of the first.
+It records the absence of published evidence, nothing more. It is common, and it
+is common among exactly the small independent makers this directory was built
+for.
+
+Three things do not change when an entry is unconfirmed. A producer known to
+have a parent company is still excluded outright — unconfirmed means the owner
+is unknown to us, never that a parent is known and tolerated. A producer whose
+name, domain or business number matches a known portfolio owner is still
+excluded, because that is a case where somebody *does* publish the ownership and
+it is the wrong answer. And the entry is still written from published sources
+under the same rules as every other.
+
+If you want only the producers whose ownership has been confirmed, the notice on
+each entry is what tells you, and it appears on listing pages as well as on the
+entry itself.
 
 Independence is treated as a fact about ownership. It is never inferred from how
 a website reads. Corporate portfolio brands are built to read as small and
@@ -194,12 +235,20 @@ kept current after that.)*
 
 ## Last updated
 
-**2026-08-07.**
+**2026-08-09.**
 
 Substantive changes to the definition of independence, with dates:
 
 - **2026-08-07.** First published definition. Any corporate ownership blocks
   publication, including minority stakes and multi-label family groups.
+- **2026-08-09.** Added the *ownership not confirmed* state. Until this date, a
+  producer whose ownership could not be established from a published source was
+  not listed at all. It is now listed, with a visible notice, and this site
+  makes no independence claim for it. **The rule itself did not change**: a
+  documented parent company still blocks publication, and a match against the
+  register of known portfolio owners still blocks publication. What changed is
+  that silence is now recorded and shown to you, rather than being treated as
+  grounds for leaving a producer out.
 
 A definition that changes silently is not a definition. Every future change to
 what "independent" means on this site is added to this list, with its date, and

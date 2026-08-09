@@ -33,6 +33,7 @@ import {
   FRUIT_SOURCE,
   LOGISTICS_KEYS,
   OWNERSHIP_EVIDENCE_METHODS,
+  OWNERSHIP_STATES,
   PRACTICE_KEYS,
   PRODUCTION_BANDS,
   STATES,
@@ -111,13 +112,21 @@ const changeLogSchema = z
   )
   .optional();
 
+/**
+ * Nullable since 2026-08-09. `null` is the `unconfirmed` state's positive
+ * record that no source was found — not an omission, which is why the key
+ * stays required. §2a rules 11 and 13 in the `.superRefine()` below are what
+ * pair it with `ownership_status`; the type alone cannot express "required
+ * when".
+ */
 const ownershipSourceSchema = z
   .object({
     source: z.string().min(1),
     method: enumOf(OWNERSHIP_EVIDENCE_METHODS),
     date: z.coerce.date(),
   })
-  .strict();
+  .strict()
+  .nullable();
 
 const locationSchema = z
   .object({
@@ -183,7 +192,14 @@ const producerFrontmatter = z
      */
     parent_company: z.string().nullable(),
 
-    /** No producer publishes without an ownership determination and a source. */
+    /**
+     * Whether a dated source names who owns this business (SCHEMA.md §1.15).
+     * `unconfirmed` publishes with a visible notice and the site makes no
+     * independence claim for the entry. It is never a fourth evidence route.
+     */
+    ownership_status: enumOf(OWNERSHIP_STATES),
+
+    /** Required on `confirmed`, forbidden on `unconfirmed`. §2a rules 11, 13. */
     ownership_source: ownershipSourceSchema,
 
     category: enumOf(CATEGORIES),
@@ -272,6 +288,34 @@ const producerFrontmatter = z
             'Register: "LOT I. — THE HOME BLOCK, LOOKING WEST."',
         });
       }
+    }
+
+    // Rules 11 and 13 — the ownership state and its evidence, both ways.
+    //
+    // Shaped deliberately like rules 2 and 3 below: a state enum plus the
+    // evidence that state implies, each an error without the other. The
+    // failure this prevents is an entry claiming `confirmed` with nothing
+    // behind it, which would be indistinguishable from a real determination
+    // to every downstream consumer and to every reader.
+    if (data.ownership_status === "confirmed" && !data.ownership_source) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ownership_source"],
+        message:
+          "ownership_status: confirmed requires an ownership_source with a " +
+          "source, a method and a date (SCHEMA.md §2a rule 11). Where no " +
+          "source names the owner, the correct value is unconfirmed.",
+      });
+    }
+    if (data.ownership_status === "unconfirmed" && data.ownership_source) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ownership_source"],
+        message:
+          "ownership_status: unconfirmed requires ownership_source to be null " +
+          "(SCHEMA.md §2a rule 13). An entry carrying a real source should be " +
+          "confirmed; the two states are not a confidence ranking.",
+      });
     }
 
     // Rules 2 and 3 — certification requires a NAMED certifier, both ways.

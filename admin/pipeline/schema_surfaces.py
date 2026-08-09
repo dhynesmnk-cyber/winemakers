@@ -94,6 +94,7 @@ SHIPPED_SURFACES = {
 FIELD_DISPOSITION: dict[str, tuple[str, object]] = {
     "name": ("column", "name"),
     "parent_company": ("column", "parent_company"),
+    "ownership_status": ("column", "ownership_status"),
     "ownership_source": (
         "flattened",
         ("ownership_source", "ownership_source_method", "ownership_source_date"),

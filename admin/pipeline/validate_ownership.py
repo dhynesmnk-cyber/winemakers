@@ -40,6 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from admin.config import (  # noqa: E402
     DETERMINATIONS_DIR,
     OWNERSHIP_EVIDENCE_METHODS,
+    OWNERSHIP_STATES,
     PUBLISHED_DIR,
 )
 from admin.pipeline import ownership  # noqa: E402
@@ -106,11 +107,43 @@ def check_8_ownership() -> tuple[list[str], list[str]]:
                 f"(SCHEMA.md §4.1). This producer must be unpublished."
             )
 
-        # SCHEMA.md §2a rule 11 and §4.2. A source and a date, both.
+        # SCHEMA.md §2a rules 11 and 13, amended 2026-08-09. The pairing, both
+        # ways: `confirmed` needs a whole source, `unconfirmed` needs none.
+        #
+        # The failure this is shaped to catch is `confirmed` with nothing behind
+        # it, the one combination of the four that puts a claim on the page the
+        # evidence does not support. `unconfirmed` carrying a stray source is
+        # the milder fault — the entry under-claims — but it still fails,
+        # because the states are a pairing and not a confidence ranking, and a
+        # source recorded where no page renders it is a source nobody can check.
+        #
+        # Rule 14 needs nothing here. It requires the deny-list to be silent on
+        # an `unconfirmed` entry, and the standing re-audit below already fails
+        # on *any* published match in *either* state, which is the stronger
+        # assertion. Rule 14's teeth are at approval time, in `approval_blocks`,
+        # where a draft can still be stopped before it publishes.
+        status = data.get("ownership_status")
         source = data.get("ownership_source")
-        if not isinstance(source, dict):
-            errors.append(f"{path.name}: ownership_source is missing (SCHEMA.md §4.2)")
-        else:
+        if status not in OWNERSHIP_STATES:
+            errors.append(
+                f"{path.name}: ownership_status is {status!r}, must be one of "
+                + ", ".join(OWNERSHIP_STATES)
+                + " (SCHEMA.md §1.15)"
+            )
+        elif status == "unconfirmed" and source is not None:
+            errors.append(
+                f"{path.name}: ownership_status is unconfirmed but "
+                f"ownership_source is set (SCHEMA.md §2a rule 13). Either the "
+                f"source names an owner, and the status is confirmed, or it "
+                f"does not, and the source comes out."
+            )
+
+        if status == "confirmed" and not isinstance(source, dict):
+            errors.append(
+                f"{path.name}: ownership_status is confirmed but ownership_source "
+                f"is missing (SCHEMA.md §2a rule 11, §4.2)"
+            )
+        elif isinstance(source, dict):
             if not str(source.get("source") or "").strip():
                 errors.append(f"{path.name}: ownership_source.source is empty")
             if not isinstance(source.get("date"), (date, datetime)) and not str(
@@ -212,6 +245,27 @@ _FIXTURE_REGISTER: dict[str, Any] = {
             "source": "https://example.invalid/virtual",
             "updated": "2026-08-07",
         },
+        {
+            # Added 2026-08-09. The only `check`-verdict record in the fixture,
+            # and the one the `unconfirmed` rules need.
+            #
+            # Every record above is `reject`, which never reaches the review
+            # queue at all (UX.md §1.4.3) — so none of them can exercise a rule
+            # about what a *reviewer* may do with a draft in front of them. A
+            # `check` record is the one that does: SCHEMA.md §4.3 gives it to
+            # attributions resting on trade reporting rather than a registry,
+            # the draft is staged carrying the flag, and §2a rule 14 is what
+            # stops the reviewer publishing it as `unconfirmed`.
+            "parent": "Fixture Trade-Reported Group",
+            "category": "corporate_portfolio",
+            "verdict": "check",
+            "labels": ["Reported Creek Wines"],
+            "domains": ["reportedcreek.example"],
+            "aliases": [],
+            "abns": [],
+            "source": "https://example.invalid/reported",
+            "updated": "2026-08-07",
+        },
     ],
 }
 
@@ -289,6 +343,7 @@ def _selftest() -> list[str]:
     #    unresolved, and must still block on a recorded source alone.
     complete = {
         "parent_company": None,
+        "ownership_status": "confirmed",
         "ownership_source": {
             "source": "https://ambiguous.example/about",
             "method": "producer_statement",
@@ -307,6 +362,68 @@ def _selftest() -> list[str]:
         errors.append("selftest: a fully resolved check was still blocked")
     if ownership.chip_for(resolved) != "RESOLVED":
         errors.append("selftest: a fully resolved check did not chip RESOLVED")
+
+    # ── SCHEMA.md §2a rules 11, 13 and 14 — the `unconfirmed` state, added
+    #    2026-08-09. Three assertions, and the third is the load-bearing one.
+    #
+    #    `unconfirmed` exists so a producer nobody publishes ownership for can
+    #    be listed honestly. The failure mode it introduces is that it becomes
+    #    the door a deny-listed label walks through: the register names a
+    #    parent, no page states ownership, and a reviewer reaches for the state
+    #    that does not require a source. Rule 14 is what shuts that, and it
+    #    must hold even when every signal has been resolved — which is exactly
+    #    the state the fixture below is in.
+    unconfirmed_ok = {
+        "parent_company": None,
+        "ownership_status": "unconfirmed",
+        "ownership_source": None,
+    }
+    if ownership.approval_blocks(unconfirmed_ok, resolved):
+        errors.append(
+            "selftest: an unconfirmed draft with a null source and a resolved "
+            "determination was blocked. The state cannot publish anything."
+        )
+
+    if not ownership.approval_blocks(
+        {**unconfirmed_ok, "ownership_source": {
+            "source": "https://example.com/about",
+            "method": "producer_statement",
+            "date": date(2026, 8, 9),
+        }},
+        resolved,
+    ):
+        errors.append("selftest: unconfirmed carrying a source was approvable (r13)")
+
+    if not ownership.approval_blocks(
+        {"parent_company": None, "ownership_status": "confirmed", "ownership_source": None},
+        resolved,
+    ):
+        errors.append("selftest: confirmed with no source was approvable (r11)")
+
+    # A `check`-verdict hit, because that is the one that reaches a reviewer.
+    # Every signal is resolved and the source is null, so the ONLY thing left
+    # standing between this draft and publication is rule 14.
+    hit = ownership.determine(
+        name="Reported Creek Wines",
+        website="https://reportedcreek.example",
+        signals=_NAMES_ITS_OWNERS,
+        register=register,
+    )
+    if hit.verdict != "check":
+        errors.append(
+            f"selftest: the fixture's check-verdict record returned "
+            f"{hit.verdict!r}. Rule 14's fixture is not exercising a queued draft."
+        )
+    hit_record = hit.as_dict()
+    for row in hit_record.get("signals") or []:
+        row["resolution"] = "not_relevant"
+    for row in hit_record.get("hits_to_resolve") or []:
+        row["resolution"] = "not_relevant"
+    if not ownership.approval_blocks(unconfirmed_ok, hit_record):
+        errors.append(
+            "selftest: a deny-list hit was approvable as unconfirmed (r14). "
+            "Unconfirmed means no source names an owner; the register names one."
+        )
 
     # ── The 2026-08-07 escalating-signal split (SCHEMA.md §4.5, UX.md §1.4.2).
     #

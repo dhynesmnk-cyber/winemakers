@@ -53,6 +53,22 @@ const href = `/producer/${slug}/`;
 
       <p class="entry__summary">{data.summary}</p>
 
+      {/*
+        SCHEMA.md §1.15, and the reason the state travels in `producers.json`
+        at all. A region page that lists unconfirmed entries without saying so
+        is the misrepresentation the state was added to avoid, so the notice
+        rides the card and not only the entry page.
+
+        One short mono line, appended to the dateline register rather than
+        given a badge, a pill or a colour. It is a fact about the evidence, not
+        a warning (DESIGN.md §2 on `--claret`).
+      */}
+      {
+        data.ownership_status === "unconfirmed" && (
+          <p class="entry__ownership mono mono-caps">Ownership not confirmed</p>
+        )
+      }
+
       <FactRow data={data} context="list_entry" compact />
     </div>
 
@@ -111,6 +127,11 @@ const href = `/producer/${slug}/`;
     font-style: italic;
     margin: 0 0 0.8rem;
     max-width: 60ch;
+  }
+
+  .entry__ownership {
+    color: var(--ink-faded);
+    margin: 0 0 0.6rem;
   }
 
   /* No mount, no shadow, no rotation, no radius. */

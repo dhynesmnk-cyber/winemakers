@@ -194,6 +194,17 @@ export const OWNERSHIP_EVIDENCE_METHODS = [
   "trade_source",
 ] as const;
 
+/**
+ * SCHEMA.md §1.15 — added 2026-08-09.
+ *
+ * Whether a dated source positively states who owns the business. `unconfirmed`
+ * publishes with a visible notice and the site makes no independence claim for
+ * the entry. It is the absence of evidence, never a fourth evidence route.
+ *
+ * Mirrored by hand in `admin/config.py`. Nothing generates one from the other.
+ */
+export const OWNERSHIP_STATES = ["confirmed", "unconfirmed"] as const;
+
 /** SCHEMA.md §1.14 */
 export const STATES = ["VIC", "NSW", "QLD", "SA", "WA", "TAS", "NT", "ACT"] as const;
 
@@ -209,6 +220,7 @@ export type WineStyleKey = (typeof WINE_STYLE_KEYS)[number];
 export type ConfidenceTier = (typeof CONFIDENCE_TIERS)[number];
 export type VerifiableField = (typeof VERIFIABLE_FIELDS)[number];
 export type OwnershipEvidenceMethod = (typeof OWNERSHIP_EVIDENCE_METHODS)[number];
+export type OwnershipState = (typeof OWNERSHIP_STATES)[number];
 export type State = (typeof STATES)[number];
 
 /**
@@ -352,6 +364,7 @@ export const OWNERSHIP_EVIDENCE_LABELS = labelsFor(
   "ownership-evidence",
   OWNERSHIP_EVIDENCE_METHODS,
 );
+export const OWNERSHIP_STATE_LABELS = labelsFor("ownership-state", OWNERSHIP_STATES);
 export const STATE_NAMES = labelsFor("state", STATES);
 
 /* ═══════════════════════════════════════════════════════════════════════════

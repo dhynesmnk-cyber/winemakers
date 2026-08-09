@@ -53,6 +53,7 @@ from admin.config import (  # noqa: E402
     FRUIT_SOURCE,
     LOGISTICS_KEYS,
     OWNERSHIP_EVIDENCE_METHODS,
+    OWNERSHIP_STATES,
     PRACTICE_KEYS,
     PRODUCTION_BAND_RANGES,
     PRODUCTION_BANDS,
@@ -85,6 +86,7 @@ REGIONS_TS_PATH = ROOT / "site" / "src" / "data" / "regions.ts"
 KNOWN_FIELDS = (
     "name",
     "parent_company",
+    "ownership_status",
     "ownership_source",
     "category",
     "founded_year",
@@ -145,6 +147,7 @@ _VOCABULARY_IDS = {
     "variety": "VARIETY_KEYS",
     "confidence-tier": "CONFIDENCE_TIERS",
     "ownership-evidence": "OWNERSHIP_EVIDENCE_METHODS",
+    "ownership-state": "OWNERSHIP_STATES",
     "state": "STATES",
 }
 
@@ -286,6 +289,19 @@ FIELDS: dict[str, dict[str, Any]] = {
         "help": (
             "null means independent, and it is the only publishable value "
             "(SCHEMA.md §4.1)."
+        ),
+    },
+    "ownership_status": {
+        "group": "ownership",
+        "label": "Ownership status",
+        "widget": "select",
+        "vocab": "ownership-state",
+        "values": OWNERSHIP_STATES,
+        "required": True,
+        "help": (
+            "confirmed needs a source naming who owns the business. "
+            "unconfirmed publishes with a visible notice and makes no "
+            "independence claim (SCHEMA.md §1.15)."
         ),
     },
     "ownership_source": {"group": "ownership", "label": "Ownership source", "widget": "ownership_source"},
@@ -706,9 +722,30 @@ def validate_frontmatter(data: dict[str, Any]) -> dict[str, str]:
     elif data["parent_company"] is not None and not isinstance(data["parent_company"], str):
         errors["parent_company"] = "parent_company must be a string or null"
 
+    # SCHEMA.md §2a rules 11 and 13. Amended 2026-08-09: `ownership_source` is
+    # required on `confirmed` and forbidden on `unconfirmed`, rather than
+    # required outright. The editor is the surface a reviewer actually drives,
+    # so both directions carry the sentence explaining which value to pick
+    # instead of only naming the rule.
+    status = data.get("ownership_status")
+    if status not in OWNERSHIP_STATES:
+        errors["ownership_status"] = (
+            f"ownership_status must be one of {', '.join(OWNERSHIP_STATES)}"
+        )
+
     ownership = data.get("ownership_source")
-    if not isinstance(ownership, dict):
-        errors["ownership_source"] = "ownership_source is required"
+    if status == "unconfirmed":
+        if ownership is not None:
+            errors["ownership_source"] = (
+                "ownership_status is unconfirmed, so ownership_source must be "
+                "null. If this source names who owns the business, set "
+                "ownership_status to confirmed instead."
+            )
+    elif not isinstance(ownership, dict):
+        errors["ownership_source"] = (
+            "ownership_status is confirmed, so ownership_source is required. "
+            "If no source names the owner, set ownership_status to unconfirmed."
+        )
     else:
         if not str(ownership.get("source") or "").strip():
             errors["ownership_source"] = "ownership_source needs a source"

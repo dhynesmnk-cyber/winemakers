@@ -104,6 +104,7 @@ from admin.config import (  # noqa: E402
     BLOCKED_DIR,
     DETERMINATIONS_DIR,
     OWNERSHIP_JSON_PATH,
+    OWNERSHIP_STATES,
     STAGING_DIR,
 )
 
@@ -1211,11 +1212,31 @@ def approval_blocks(data: dict[str, Any], sidecar: dict[str, Any] | None) -> lis
     # is the rule that carries the weight after the 2026-08-07 amendment: a
     # `clear` is now reachable on a producer whose page states its ownership, so
     # the recorded source is what stands behind that determination.
+    #
+    # Amended 2026-08-09 (CLAUDE.md, Engagement 2026-08-09 second). A missing
+    # `ownership_source` is no longer a block on its own — it is a block on a
+    # draft claiming `confirmed`. On `unconfirmed` its *presence* is the fault,
+    # because the two states are a pairing and not a confidence ranking.
+    status = str(data.get("ownership_status") or "")
     ownership = data.get("ownership_source")
-    if not isinstance(ownership, dict):
+    if status not in OWNERSHIP_STATES:
         blocks.append(
-            "ownership_source is missing. Every producer publishes with a dated "
-            "source that positively states who owns the business (SCHEMA.md §4.2)."
+            f"ownership_status is not set. It must be one of "
+            f"{', '.join(OWNERSHIP_STATES)} (SCHEMA.md §1.15)."
+        )
+    elif status == "unconfirmed":
+        if ownership is not None:
+            blocks.append(
+                "ownership_status is unconfirmed but ownership_source is set. "
+                "If the source names who owns the business, set the status to "
+                "confirmed; otherwise clear the source."
+            )
+    elif not isinstance(ownership, dict):
+        blocks.append(
+            "ownership_status is confirmed but ownership_source is missing. "
+            "A confirmed entry publishes with a dated source that positively "
+            "states who owns the business (SCHEMA.md §4.2). Where no such "
+            "source exists, unconfirmed is the honest value."
         )
     else:
         missing = [
@@ -1227,6 +1248,22 @@ def approval_blocks(data: dict[str, Any], sidecar: dict[str, Any] | None) -> lis
             blocks.append(f"ownership_source is missing {', '.join(missing)}")
 
     verdict = str((sidecar or {}).get("verdict") or "").lower()
+
+    # SCHEMA.md §2a rule 14, and the line that stops `unconfirmed` becoming the
+    # door a deny-listed label walks through. `unconfirmed` says nobody
+    # publishes who owns this business. A register hit says somebody does, and
+    # names them. The two cannot both be true, so the hit wins and keeps
+    # blocking in either state — this is checked before the `check` branch
+    # below, because it must hold even if every signal has been resolved.
+    if status == "unconfirmed" and (sidecar or {}).get("hits_to_resolve"):
+        hits = (sidecar or {}).get("hits_to_resolve") or []
+        parents = sorted({str(hit.get("parent") or "?") for hit in hits})
+        blocks.append(
+            f"ownership_status is unconfirmed but the deny-list matched "
+            f"{', '.join(parents)}. Unconfirmed means no source names an owner; "
+            f"a register hit names one. Resolve the hit and record a source, or "
+            f"reject the draft (SCHEMA.md §2a rule 14)."
+        )
 
     # A `reject` never reaches the review pane (UX.md §1.4.3). If one is sitting
     # in the queue, something wrote a draft it should not have.

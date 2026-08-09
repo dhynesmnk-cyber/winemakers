@@ -100,6 +100,16 @@ Certification and ownership need provenance more than tasting fees do. Deliberat
 
 Which of §4.2's three routes established the ownership determination. Recorded on every entry so the evidence base is auditable in aggregate — "how many producers rest on the producer's own word?" is a question the methodology page should be able to answer, and it cannot be reconstructed from a bare source URL.
 
+### 1.15 `OWNERSHIP_STATES`
+
+`confirmed` · `unconfirmed`
+
+*Added 2026-08-09, signed off (CLAUDE.md, Engagement 2026-08-09 second).* Whether a dated source positively states who owns the business. `confirmed` carries an `ownership_source` and the site's independence claim applies to the entry. `unconfirmed` carries none, publishes with a visible notice, and **the site makes no independence claim for it.**
+
+Numbered 1.15 rather than inserted at 1.14, because `STATES` is referenced by number in code comments and in the §1.13 correction note above; renumbering it would silently invalidate both.
+
+`unconfirmed` is ignorance, never tolerance. `parent_company` must still be null (§2a rule 10) and a deny-list hit is never publishable in this state (§2a rule 14).
+
 ### 1.14 `STATES`
 
 `VIC` · `NSW` · `QLD` · `SA` · `WA` · `TAS` · `NT` · `ACT`
@@ -116,7 +126,8 @@ Slug = filename (`jauma-wines.mdx`), kebab-case, unique across `_staging` + `_pu
 |---|---|---|---|
 | `name` | string | ✓ | The producer's actual trading name. |
 | `parent_company` | string \| null | ✓ | **`null` = independent. Any non-null value blocks publication.** The key is always present — an absent key is an undetermined producer, which is not publishable. See §4. |
-| `ownership_source` | object | ✓ | `{ source: string, method: enum, date: date }`. `method` is one of `OWNERSHIP_EVIDENCE_METHODS` (§1.13 — *corrected 2026-08-07, previously cited as §1.14, which is `STATES`*) and records *which* of the three routes in §4.2 was used. No producer publishes without an ownership determination and a source. Documents a *negative* (see §4.2). |
+| `ownership_status` | enum | ✓ | One of `OWNERSHIP_STATES` (§1.15). `confirmed` requires `ownership_source`; `unconfirmed` requires its absence. *Added 2026-08-09.* |
+| `ownership_source` | object \| null | ✓ | `{ source: string, method: enum, date: date }`, or `null`. `method` is one of `OWNERSHIP_EVIDENCE_METHODS` (§1.13 — *corrected 2026-08-07, previously cited as §1.14, which is `STATES`*) and records *which* of the three routes in §4.2 was used. Documents a *negative* (see §4.2). **Amended 2026-08-09:** this previously read "No producer publishes without an ownership determination and a source." A producer still publishes only with a determination — that clause is untouched and `ownership_status` is now its record — but the *source* is required on `confirmed` alone. The key is always present; `null` is a positive statement that no source was found, not an omission. |
 | `category` | enum | ✓ | One of `CATEGORIES` (§1.1). Never a near-synonym. |
 | `founded_year` | number \| null | – | Four-digit year. Null when not published. |
 | `website` | string (url) | ✓ | The producer's own site. |
@@ -178,8 +189,12 @@ These are the refinements that cannot be expressed by a single field's type. Tho
 | 8 | **`tasting_fee.fee_aud` must fall within the range of dollar amounts stated in the `cost` string.** A structured fee the cost string cannot corroborate is a failure — delete the whole `tasting_fee` object rather than leave an uncorroborated figure | `/validate` 10 |
 | 9 | `annual_production_cases`, when present, must fall inside `production_band` | `/validate` 10 |
 | 10 | **`parent_company` must be `null`** on every published file | `/validate` 8 |
-| 11 | `ownership_source` must be present with a non-empty `source` and a `date` | `/validate` 8 |
+| 11 | `ownership_status: confirmed` requires `ownership_source` present with a non-empty `source`, a `date` and a `method` in `OWNERSHIP_EVIDENCE_METHODS` | zod `.superRefine()` + `/validate` 8 |
 | 12 | Every populated `VERIFIABLE_FIELDS` entry carries a `{source, tier, date}` record; no tier downgrades against the previous commit | `/validate` 14 |
+| 13 | `ownership_status: unconfirmed` requires `ownership_source` to be `null` | zod `.superRefine()` + `/validate` 8 |
+| 14 | **`ownership_status: unconfirmed` requires the deny-list to be silent on name, domain and ABN.** A register hit is never publishable as unconfirmed | `/validate` 8 + `ownership.approval_blocks` |
+
+Rules 11 and 13 are the same co-requirement read in both directions, and they are deliberately shaped like rules 2 and 3 (`organic`/`organic_certifier`): a state enum plus the evidence that state implies, each forbidden without the other. The asymmetry that matters is rule 14, which has no counterpart on `confirmed` — a register hit blocks in *either* state, and `unconfirmed` must never become the door a deny-listed label walks through because nobody found a source for it.
 
 Rule 8 mirrors the reference's price↔cost cross-check, which lives in Python rather than zod because the regex that scrapes dollar amounts from the freeform string is shared with the display helper. Keep that split: one regex, one home.
 
@@ -203,9 +218,11 @@ CREATE TABLE producers (
   name TEXT NOT NULL,
   parent_company TEXT,            -- always NULL on published rows; column kept so
                                   -- the invariant is queryable, not merely asserted
-  ownership_source TEXT NOT NULL,
-  ownership_source_method TEXT NOT NULL,
-  ownership_source_date TEXT NOT NULL,
+  ownership_status TEXT NOT NULL,  -- OWNERSHIP_STATES (§1.15); added 2026-08-09
+  ownership_source TEXT,           -- NULL on `unconfirmed` rows, and only there.
+  ownership_source_method TEXT,    -- The three dropped NOT NULL on the same date;
+  ownership_source_date TEXT,      -- §2a rules 11 and 13 are what enforce the pairing
+                                   -- now, because SQL cannot express "required when".
   category TEXT NOT NULL,
   founded_year INTEGER,
   website TEXT NOT NULL,
@@ -313,6 +330,14 @@ Because the rule is strict, `ownership_source` documents the *absence* of a corp
 3. A named independent trade source (wine media, regional association register, importer or distributor listing) stating ownership — `trade_source`.
 
 **Any one of the three is sufficient**, provided it is specific about who owns the business and is recorded with a date. A source that merely fails to mention a parent is not evidence of absence — it must positively state ownership. Where the three conflict, the registry lookup wins and the conflict is noted in `confidence_notes`.
+
+**Amended 2026-08-09, signed off.** Everything above is unchanged and still governs `ownership_status: confirmed`. What changed is what happens when none of the three routes yields anything.
+
+Until this date the answer was: the producer does not publish. Measured against a real corpus that turned out to mean 43 of 98 drafts were unpublishable not because anything was wrong with them but because nobody publishes who owns them — and the largest bucket in the queue was silence, which the contract had no state for. `clear` asserts a fact. `check` blocks indefinitely. Neither is honest about "we looked and found nothing."
+
+`unconfirmed` is that third state, and its entire justification is that **it does not make the claim.** The entry is listed; the notice on it says the site has not confirmed who owns the business; the methodology page says the same thing in general terms and gives the count. A reader who wants only confirmed-independent producers can still get exactly that set, because the state is a field and not a caveat buried in prose.
+
+What this is not: it is **not** a fourth evidence route, and it must never be written as one. `unconfirmed` records the absence of evidence. The moment it is used to publish a producer somebody had a bad feeling about, or to wave through a register hit that lacked a registry confirmation, it has become the thing §4.1 exists to prevent. Rules 10 and 14 in §2a are what hold that line: null `parent_company` always, deny-list silence always.
 
 ### 4.3 `data/ownership.json`
 
@@ -439,6 +464,7 @@ Place in `_published` at G1. Every required field present; optional fields shown
 ---
 name: Example Wines
 parent_company: null
+ownership_status: confirmed
 ownership_source:
   source: https://example.com/about
   method: producer_statement

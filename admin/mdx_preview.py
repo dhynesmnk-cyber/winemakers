@@ -381,17 +381,38 @@ def _provenance(data: dict[str, Any], cid: str) -> str:
         else html.escape(source)
     )
 
-    lines = ['<p><a href="/methodology/">Independent</a>. No parent company.</p>']
-    if source and ownership_date and method:
+    # Amended 2026-08-09 (SCHEMA.md §1.15). The preview is the reviewer's only
+    # sight of what the page will actually say, so it must branch exactly as
+    # `producer/[slug].astro` does. Showing the independence claim over an
+    # unconfirmed draft would put the reviewer's approval behind a sentence the
+    # published page is not going to print.
+    #
+    # `unconfirmed` is a finished state, so it is NOT `preview-missing` — that
+    # class means "a reviewer still owes this field", and dressing a valid
+    # determination as an outstanding task is how a reviewer learns to ignore
+    # the marker. The genuinely missing case is a `confirmed` draft with no
+    # source, which keeps the class and the blocking sentence.
+    status = str(data.get("ownership_status") or "")
+    lines: list[str] = []
+    if status == "unconfirmed":
         lines.append(
-            f"<p>Ownership checked on {ownership_date.isoformat()} against {source_html} "
-            f"({html.escape(schema.label_for('ownership-evidence', method).lower())}).</p>"
+            "<p>No published source names who owns this producer, so the "
+            'directory makes no claim about its independence. '
+            '<a href="/methodology/">How ownership is checked</a>.</p>'
         )
     else:
-        lines.append(
-            '<p class="preview-missing">No ownership source recorded yet. '
-            "This draft cannot be approved without one.</p>"
-        )
+        lines.append('<p><a href="/methodology/">Independent</a>. No parent company.</p>')
+        if source and ownership_date and method:
+            lines.append(
+                f"<p>Ownership checked on {ownership_date.isoformat()} against {source_html} "
+                f"({html.escape(schema.label_for('ownership-evidence', method).lower())}).</p>"
+            )
+        else:
+            lines.append(
+                '<p class="preview-missing">No ownership source recorded yet. '
+                "This draft cannot be approved as confirmed without one. Set "
+                "ownership_status to unconfirmed if no source names the owner.</p>"
+            )
 
     drafted = schema.as_date(data.get("drafted"))
     verified = schema.as_date(data.get("verified"))

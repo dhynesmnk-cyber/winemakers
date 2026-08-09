@@ -63,6 +63,7 @@ from admin.config import (  # noqa: E402
     LOGISTICS_KEYS,
     MAX_LOG_LINES,
     OWNERSHIP_EVIDENCE_METHODS,
+    OWNERSHIP_STATES,
     OWNERSHIP_JSON_PATH,
     PRACTICE_KEYS,
     PRODUCTION_BANDS,
@@ -305,6 +306,9 @@ def _editor_config() -> dict[str, Any]:
             "wine_styles": schema.options_for("wine-style", WINE_STYLE_KEYS),
             "ownership_method": schema.options_for(
                 "ownership-evidence", OWNERSHIP_EVIDENCE_METHODS
+            ),
+            "ownership_status": schema.options_for(
+                "ownership-state", OWNERSHIP_STATES
             ),
             "regions": [
                 {"value": slug, "label": schema.region_name(slug)}

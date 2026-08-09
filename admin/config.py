@@ -384,6 +384,16 @@ VERIFIABLE_FIELDS = (
 # SCHEMA.md §1.13
 OWNERSHIP_EVIDENCE_METHODS = ("registry", "producer_statement", "trade_source")
 
+# SCHEMA.md §1.15 — added 2026-08-09.
+#
+# Whether a dated source positively states who owns the business. `unconfirmed`
+# publishes with a visible notice and the site makes no independence claim for
+# the entry. It is the absence of evidence, never a fourth evidence route.
+#
+# Hand-mirrored from `site/src/config.ts`. Nothing generates one from the other,
+# and `schema_surfaces` is what notices when they drift.
+OWNERSHIP_STATES = ("confirmed", "unconfirmed")
+
 # SCHEMA.md §1.14
 STATES = ("VIC", "NSW", "QLD", "SA", "WA", "TAS", "NT", "ACT")
 

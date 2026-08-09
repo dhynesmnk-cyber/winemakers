@@ -46,6 +46,7 @@ from admin.config import (  # noqa: E402
     FRUIT_SOURCE,
     LOGISTICS_KEYS,
     OWNERSHIP_EVIDENCE_METHODS,
+    OWNERSHIP_STATES,
     PRACTICE_KEYS,
     PRODUCTION_BANDS,
     PUBLISHED_DIR,
@@ -67,6 +68,14 @@ URL = re.compile(r"^https?://")
 #: *malformed* `ownership_source` produces a different message and is never
 #: demoted.
 OWNERSHIP_ABSENT = "ownership_source: required object {source, method, date}"
+
+#: The other half of the §2a rule 11/13 pairing. Never demoted to a note in
+#: either directory: unlike an absent source on a `check` draft, a source
+#: recorded against an `unconfirmed` status is not a reviewer's outstanding
+#: work — it is two fields disagreeing, and one of them is wrong now.
+OWNERSHIP_UNCONFIRMED_WITH_SOURCE = (
+    "ownership_source: must be null when ownership_status is unconfirmed"
+)
 
 #: Region and subregion slugs are the one vocabulary that lives in TypeScript
 #: only (`site/src/data/regions.ts`), because it is the site's taxonomy and the
@@ -230,9 +239,20 @@ def validate_frontmatter(data: dict[str, Any]) -> list[str]:
                     f"location.{axis}: {value} outside Australia ({bounds[0]}..{bounds[1]})"
                 )
 
-    # ownership_source — no producer publishes without a determination.
+    # ownership_status / ownership_source — SCHEMA.md §2a rules 11 and 13.
+    # The determination is still mandatory; since 2026-08-09 it has two
+    # publishable outcomes and `ownership_status` is the record of which.
+    status = data.get("ownership_status")
+    if status not in OWNERSHIP_STATES:
+        errors.append(
+            "ownership_status: must be one of " + ", ".join(OWNERSHIP_STATES)
+        )
+
     ownership = data.get("ownership_source")
-    if not isinstance(ownership, dict):
+    if status == "unconfirmed":
+        if ownership is not None:
+            errors.append(OWNERSHIP_UNCONFIRMED_WITH_SOURCE)
+    elif not isinstance(ownership, dict):
         errors.append(OWNERSHIP_ABSENT)
     else:
         if not isinstance(ownership.get("source"), str) or not ownership["source"].strip():
@@ -389,6 +409,23 @@ def _cross_field(data: dict[str, Any]) -> list[str]:
 # staging file that simply forgot the field has no sidecar and still fails, so
 # the Gate 3 done-condition keeps its check-1 backstop. Nothing here changes
 # what `_published` requires, and nothing here relaxes the approve gate.
+#
+# ── Superseded 2026-08-09 ────────────────────────────────────────────────────
+#
+# The `unconfirmed` state removed the condition this tier existed to paper
+# over. `orchestrator.py` no longer leaves `ownership_source` absent: it stamps
+# `ownership_status: unconfirmed` with a null source, which is a complete,
+# publishable, schema-valid record of "we looked and nobody publishes this".
+# There is no longer a designed pipeline output that check 1 has to forgive.
+#
+# `_demote_to_note` is therefore now unreachable in practice and returns False
+# for every draft the current pipeline writes. It is kept, with its self-tests,
+# for exactly one reason: a draft harvested before this date and still sitting
+# in the queue has the old shape, and failing the suite on files the pipeline
+# itself wrote under the previous contract would be the "check nobody reads"
+# failure this comment already warns about. It goes when the queue no longer
+# holds one. The reasoning above stands as history; the narrow-by-design
+# boundaries it describes still hold for as long as the function is live.
 # =============================================================================
 
 
@@ -493,6 +530,7 @@ def _selftest() -> list[str]:
     clean: dict[str, Any] = {
         "name": "Selftest Wines",
         "parent_company": None,
+        "ownership_status": "confirmed",
         "ownership_source": {
             "source": "https://example.com/about",
             "method": "producer_statement",
@@ -541,6 +579,26 @@ def _selftest() -> list[str]:
         ("unknown region slug", {"regions": ["not-a-region"], "primary_region": "not-a-region"}, "regions"),
         ("duplicate varieties", {"varieties": ["shiraz", "shiraz"]}, "varieties"),
         ("ownership_source missing", {"ownership_source": ...}, "ownership_source"),
+        # §2a rules 11 and 13, both directions. The first is the one that
+        # matters: `confirmed` with nothing behind it puts a claim on the page
+        # the evidence does not support, and it is indistinguishable from a
+        # real determination to every consumer downstream of this check.
+        (
+            "§2a r11 confirmed without a source",
+            {"ownership_status": "confirmed", "ownership_source": ...},
+            "ownership_source",
+        ),
+        (
+            "§2a r13 unconfirmed carrying a source",
+            {"ownership_status": "unconfirmed"},
+            "ownership_source",
+        ),
+        (
+            "§1.15 ownership_status not a member",
+            {"ownership_status": "probably_fine"},
+            "ownership_status",
+        ),
+        ("§1.15 ownership_status absent", {"ownership_status": ...}, "ownership_status"),
     ]
 
     for label, patch, expect_field in corruptions:
