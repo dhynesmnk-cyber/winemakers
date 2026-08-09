@@ -311,6 +311,23 @@ def ownership_gate(slug: str, data: dict[str, Any]) -> list[str]:
 #: batch, seven were entries correctly naming the owning family or attributing
 #: the claim and flagging the gap. Blocking those would train a reviewer to
 #: override the gate, which is worse than not having one.
+#: `US spelling` was in this tuple for one afternoon and came out on evidence.
+#: Run against 85 real drafts it blocked six on `program`, and the six were not
+#: one thing:
+#:
+#:   * `the Life After Racing program` — a PROPER NOUN, the name of a real
+#:     scheme. "Correcting" it would misstate a named thing, which is a worse
+#:     error than the one being prevented;
+#:   * `an event program` — a genuine breach of the house rule;
+#:   * `a Cabernet-led red program`, `a referral program`, `a membership
+#:     program` — senses the house rule does not reach. gatekeeper.md's own
+#:     prose under the list says `program` stays `program` for software and a
+#:     programme of events is a `programme`, which is a judgement about sense
+#:     that a string match cannot make.
+#:
+#: So it stays a check 6 warning, where a human judges it, and the gate keeps
+#: only categories where the match is the fault. The distinction this tuple is
+#: drawing is not "how serious" but "can a regex be sure".
 BLOCKING_LINT_KINDS = (
     "banned word",
     "hedge",
@@ -318,7 +335,6 @@ BLOCKING_LINT_KINDS = (
     "first-person visit tell",
     "not-X-but-Y",
     "project vocabulary",
-    "US spelling",
     "em dash",
 )
 

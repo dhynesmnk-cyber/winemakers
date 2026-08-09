@@ -53,9 +53,9 @@ CASES: tuple[tuple[str, str, bool], ...] = (
         True,
     ),
     (
-        "US spelling",
-        "The winery has a long history of organic farming and color in its wines.",
-        True,
+        "US spelling must NOT block",
+        "The cellar door runs an events program through the summer.",
+        False,
     ),
     (
         "first-person visit tell",
@@ -121,8 +121,16 @@ def _selftest() -> list[str]:
     for kind in staging.BLOCKING_LINT_KINDS:
         if kind not in known:
             errors.append(f"BLOCKING_LINT_KINDS names {kind!r}, which the linter never emits")
-    if "conditional claim" in staging.BLOCKING_LINT_KINDS:
-        errors.append("conditional claim must not be a blocking kind")
+
+    # The two categories a regex cannot be sure about. Both are asserted absent
+    # so that adding either back is a deliberate act with a failing test in
+    # front of it, rather than a tidy-up someone does on a quiet afternoon.
+    for judgement_kind in ("conditional claim", "US spelling"):
+        if judgement_kind in staging.BLOCKING_LINT_KINDS:
+            errors.append(
+                f"{judgement_kind!r} must not block: it needs a human read. "
+                f"See the tuple's own note for the evidence."
+            )
 
     return errors
 
