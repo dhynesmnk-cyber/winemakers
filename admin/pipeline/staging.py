@@ -296,6 +296,57 @@ def ownership_gate(slug: str, data: dict[str, Any]) -> list[str]:
     return ownership.approval_blocks(data, ownership.read_sidecar(slug))
 
 
+#: Lint categories that are absolute bans, and therefore block approval.
+#:
+#: Added 2026-08-09 (Gate 8). Every list here is enumerated in
+#: `PROMPTS/gatekeeper.md` and matched deterministically by check 6, so a model
+#: is the wrong thing to enforce them with: the Gatekeeper passed a draft using
+#: `curated` twice, which is ban 1 in `PROMPTS/architect.md` and a plain string
+#: match. A regex that already scores 100% costs nothing to run at the gate.
+#:
+#: `conditional claim` is deliberately ABSENT. Those four phrases —
+#: `single-vineyard`, `old vines`, `family-owned`, `award-winning` — are
+#: conditional by definition: each is permitted when the entry states its
+#: evidence, which only a reader can confirm. Of thirteen hits across one real
+#: batch, seven were entries correctly naming the owning family or attributing
+#: the claim and flagging the gap. Blocking those would train a reviewer to
+#: override the gate, which is worse than not having one.
+BLOCKING_LINT_KINDS = (
+    "banned word",
+    "hedge",
+    "tasting descriptor",
+    "first-person visit tell",
+    "not-X-but-Y",
+    "project vocabulary",
+    "US spelling",
+    "em dash",
+)
+
+
+def editorial_gate(body: str, data: dict[str, Any]) -> list[str]:
+    """What blocks approval on editorial grounds. Empty means the gate is open.
+
+    Lints the body plus the two other places a reader sees prose — `summary`
+    and the FAQ answers — because check 6 covers all three and a ban that
+    applied only to the body would let `curated` publish in a summary.
+    """
+    from admin.pipeline import validate_register
+
+    parts = [body, str(data.get("summary") or "")]
+    for pair in data.get("faq") or []:
+        if isinstance(pair, dict):
+            parts.append(str(pair.get("question") or ""))
+            parts.append(str(pair.get("answer") or ""))
+
+    blocks: list[str] = []
+    for hit in validate_register.lint_text("\n".join(parts)):
+        if hit["kind"] in BLOCKING_LINT_KINDS:
+            blocks.append(
+                f"{hit['kind']}: {hit['phrase']!r} — {hit['excerpt'][:70]}"
+            )
+    return blocks
+
+
 # =============================================================================
 # 4. Approve, reject, undo, unpublish
 # =============================================================================
@@ -337,6 +388,7 @@ def approve(slug: str, log: Logger = _null_log) -> dict[str, Any]:
 
     1. validate the frontmatter; any failure blocks and highlights,
     2. assert the ownership gate; failure blocks with the missing element named,
+    2a. assert the editorial gate; an absolute ban blocks with the phrase named,
     3. move the file from `_staging/` to `_published/`,
     4. move the ownership sidecar to the determinations directory,
     5. rebuild the derived data,
@@ -358,6 +410,11 @@ def approve(slug: str, log: Logger = _null_log) -> dict[str, Any]:
     if blocks:
         log("error", f"approve blocked by the ownership gate: {'; '.join(blocks)}")
         raise ActionBlocked("the ownership gate is not satisfied", blocks=blocks)
+
+    editorial = editorial_gate(body, data)
+    if editorial:
+        log("error", f"approve blocked by the editorial gate: {'; '.join(editorial)}")
+        raise ActionBlocked("the editorial gate is not satisfied", blocks=editorial)
 
     target = PUBLISHED_DIR / f"{slug}.mdx"
     target.parent.mkdir(parents=True, exist_ok=True)

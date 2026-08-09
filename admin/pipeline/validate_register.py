@@ -166,6 +166,30 @@ _OVERRIDES = {
     # starts after the plains have finished — and fires constantly on correct
     # copy. Observed on the first real draft this pipeline produced.
     "finish": rf"\b(?:the|a|an|its|long|short|clean|dry|crisp|lingering|tannic){_GAP}finish\b",
+    # `Experience the difference` is the brochure imperative. `whose experience
+    # the record puts at thirty vintages` is an ordinary noun followed by an
+    # ordinary determiner, and the two share a character sequence and nothing
+    # else. Require the imperative: no article or possessive in front of it.
+    #
+    # Added 2026-08-09 (Gate 8) when the editorial approve gate refused a real
+    # draft on this match. An advisory warning on a false positive costs a
+    # reader's attention; a *blocking* gate on one costs the gate its
+    # authority, because the reviewer learns to route around it.
+    "experience the": (
+        rf"(?<!\bhis\s)(?<!\bher\s)(?<!\bits\s)(?<!\bour\s)(?<!\btheir\s)"
+        rf"(?<!\bwhose\s)(?<!\bthe\s)(?<!\ban\s)(?<!\bno\s)"
+        rf"\bexperience{_GAP}the\b"
+    ),
+    # `notes of cherry` is the tasting descriptor. `the record's note of an
+    # onsite winery` is the plain sense of the word, and this project's own
+    # register uses it constantly, because reporting what the record does and
+    # does not say is the house style. Require a sensory object.
+    # `\s+` rather than `_GAP` here, deliberately. `_GAP` ends in `[ \t]*`,
+    # which can backtrack to zero width, and then the negative lookahead is
+    # tested against the space instead of the following word and always passes.
+    # `\s+` must consume at least one character, so the lookahead lands where
+    # it is meant to.
+    "note of": r"\bnotes?\s+of\s+(?!an?\b|the\b|its\b|any\b|this\b|that\b)",
 }
 
 
