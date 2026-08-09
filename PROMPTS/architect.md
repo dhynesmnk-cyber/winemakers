@@ -105,7 +105,7 @@ Use double quotes and escape any double quote inside the value as `\"`.
 | `annual_production_cases` | Only when the record states a figure, and it must sit inside the band. |
 | `buy_online`, `ships_nationally` | Booleans. |
 | `shop_url` | Required when `buy_online: true`. |
-| `logistics` | Any of the ten boolean keys that the record supports. Omit the object entirely when none are known. |
+| `logistics` | Any of these exact boolean keys that the record supports, and **no others**: `{{LOGISTICS_KEYS}}`. Omit the object entirely when none are known. |
 | `summary` | **160 characters maximum.** One line, in register, no full-stop-free fragment and no marketing. |
 | `drafted`, `verified` | Today's date. |
 | `source_url` | The harvest URL. |

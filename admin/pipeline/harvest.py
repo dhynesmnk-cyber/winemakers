@@ -38,6 +38,7 @@ from typing import Any, Callable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from admin.config import (  # noqa: E402
+    LOGISTICS_KEYS,
     MODEL_ARCHITECT,
     MODEL_GATEKEEPER,
     MODEL_HARVESTER,
@@ -294,6 +295,14 @@ def harvest_one(
                 REGION_SLUGS=", ".join(schema.REGION_SLUGS),
                 SUBREGION_SLUGS=", ".join(schema.SUBREGION_SLUGS),
                 VARIETY_SLUGS=", ".join(orchestrator.VARIETY_KEYS),
+                # Injected rather than typed into the prompt, so the one list in
+                # `config.py` stays the only copy. Every other closed vocabulary
+                # in the prompt's frontmatter table is enumerated inline;
+                # `logistics` said "the ten boolean keys" and named none of
+                # them, and the Architect duly invented `food_service`,
+                # `picnic_area`, `restaurant_onsite`, `tours_offered` and
+                # `wheelchair_accessible` across five of thirty-five drafts.
+                LOGISTICS_KEYS=", ".join(LOGISTICS_KEYS),
             ),
             validate=lambda text: (text, orchestrator._validate_mdx(text)),
             log=log,
