@@ -40,8 +40,24 @@ export const SITE_NAME = "SITE_NAME_PENDING";
 /** PLACEHOLDER, same rule as SITE_NAME. DESIGN.md §5c. */
 export const SITE_TAGLINE = "A field guide to independent Australian winemakers";
 
-/** Placeholder host. Set at the domain switch, not before (TRD.md §2.4). */
-export const SITE_URL = "https://example.invalid";
+/**
+ * The public host. **Interim, and deliberately not the brand domain** — see
+ * TRD.md §2.4's 2026-08-09 amendment.
+ *
+ * This was `https://example.invalid` until 2026-08-09, which put 156 dead
+ * `<loc>` entries in the production sitemap: Astro feeds this constant to
+ * `astro.config.mjs`'s `site:`, so every absolute URL the build emits was
+ * pointing at a host that does not resolve.
+ *
+ * The Netlify subdomain is not a guess at the brand. TRD.md §2.4 already
+ * treats it as the public host until a custom domain exists, and 301s it to
+ * the apex afterwards. `SITE_NAME` stays pending: the domain switch and the
+ * brand name are separate decisions and only one of them has been made.
+ *
+ * `admin/config.py` mirrors this, and `.env`'s `SITE_URL` overrides that
+ * mirror at runtime, so the value has to match in all three.
+ */
+export const SITE_URL = "https://winemakers.netlify.app";
 
 export const SITE_CONTACT_EMAIL = "hello@example.invalid";
 

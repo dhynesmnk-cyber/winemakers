@@ -171,7 +171,17 @@ ADMIN_PORT = int(env("ADMIN_PORT", "8787"))
 ADMIN_USERNAME = env("ADMIN_USERNAME")
 ADMIN_PASSWORD = env("ADMIN_PASSWORD")
 
-SITE_URL = env("SITE_URL", "https://example.com").rstrip("/")
+#: The public host, mirroring `site/src/config.ts` (TRD.md §2.4, amended
+#: 2026-08-09). Interim and deliberately not the brand domain.
+#:
+#: This is not cosmetic on the Python side. `deploy.py` builds the IndexNow
+#: `keyLocation` and every submitted URL from it, so a placeholder here means
+#: a ping IndexNow rejects, and `HARVEST_USER_AGENT` below links it as the
+#: methodology page shown to every producer whose site is read.
+#:
+#: **`.env` overrides this default**, so changing it here is not enough on a
+#: machine whose `.env` sets `SITE_URL` to something else.
+SITE_URL = env("SITE_URL", "https://winemakers.netlify.app").rstrip("/")
 
 NETLIFY_AUTH_TOKEN = env("NETLIFY_AUTH_TOKEN")
 NETLIFY_SITE_ID = env("NETLIFY_SITE_ID")
