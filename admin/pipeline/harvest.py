@@ -235,6 +235,9 @@ def harvest_one(
     raw_abn = signals.get("abn")
     model_abns = [raw_abn] if isinstance(raw_abn, (str, int)) and raw_abn else list(raw_abn or [])
     html_abns = fetcher.find_abns(fetched.html)
+    if not html_abns and not model_abns:
+        # Only now, and only for the ABN. One extra request in the common case.
+        html_abns = fetcher.probe_abns(fetched.final_url, log=log, seen=fetched.final_url)
     merged_abns = list(dict.fromkeys([str(a) for a in model_abns if a] + html_abns))
     if merged_abns:
         signals["abn"] = merged_abns

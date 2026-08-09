@@ -551,6 +551,108 @@ def fetch(
     return fetched
 
 
+#: Link text and hrefs that mark a site's legal page. Matched case-insensitively
+#: against both, so `/pages/terms-of-service` and a footer link reading
+#: "Terms & Conditions" both qualify.
+_LEGAL_LINK = re.compile(
+    r"terms|conditions|privacy|legal|policies|contact-us|about-us", re.I
+)
+
+#: At most this many extra requests per producer, and only when the harvested
+#: page yielded no ABN. A ceiling, not a target — the loop stops at the first
+#: ABN it finds, so the common case is one request or none.
+ABN_PROBE_BUDGET = 3
+
+
+def probe_abns(base_url: str, *, log: Logger = _null_log, seen: str = "") -> list[str]:
+    """Look for an ABN on the homepage and the site's legal page.
+
+    The pipeline fetches exactly one page per producer, and an ABN is often not
+    on it: Foxey's Hangout prints one on the homepage while the harvest read
+    `/About-Us`. A site-wide footer covers most producers, but not all, and a
+    name match against the register only ever reaches about 45% where an ABN is
+    an exact join. So when the harvested page yields nothing, look in the two
+    places an operator actually publishes one.
+
+    **The extraction gates are deliberately not run here.** A terms-of-sale page
+    is boilerplate by definition and `enforce_extraction_rules` exists to refuse
+    exactly that — but this is not harvesting prose from the page, it is reading
+    one checksummed number out of it. Running the content gates would reject the
+    single most likely place for an ABN to be.
+
+    Never raises. A probe that fails is a producer without a discovered ABN,
+    which is the ordinary case and not an error.
+    """
+    parsed = urlparse(base_url)
+    if not parsed.scheme or not parsed.netloc:
+        return []
+    home = f"{parsed.scheme}://{parsed.netloc}/"
+
+    def read(url: str) -> str:
+        if check_robots_default:
+            allowed, rule = robots_allows(url, log)
+            if not allowed:
+                log("info", f"abn probe: robots.txt disallows {url} ({rule})")
+                return ""
+            _respect_crawl_delay(url, log)
+        html, _final, _status, _size = _fetch_httpx(url)
+        return html
+
+    budget = ABN_PROBE_BUDGET
+    targets: list[str] = []
+    if home.rstrip("/") != (seen or "").rstrip("/"):
+        targets.append(home)
+
+    home_html = ""
+    for url in list(targets):
+        try:
+            home_html = read(url)
+        except Exception as exc:  # noqa: BLE001
+            log("info", f"abn probe: {url} unreachable ({type(exc).__name__})")
+            continue
+        budget -= 1
+        found = find_abns(home_html)
+        if found:
+            log("info", f"abn probe: found on {url}")
+            return found
+
+    # Follow the site's own legal links rather than guessing paths, so a Shopify
+    # `/pages/terms-of-service` and a hand-rolled `/terms` both resolve without
+    # a list of guesses that goes stale.
+    for href in _legal_links(home_html or "", home)[:budget]:
+        if href.rstrip("/") == (seen or "").rstrip("/"):
+            continue
+        try:
+            found = find_abns(read(href))
+        except Exception as exc:  # noqa: BLE001
+            log("info", f"abn probe: {href} unreachable ({type(exc).__name__})")
+            continue
+        if found:
+            log("info", f"abn probe: found on {href}")
+            return found
+    return []
+
+
+def _legal_links(html: str, base: str) -> list[str]:
+    """Same-host legal-page URLs from the page's own links, deduplicated."""
+    out: list[str] = []
+    host = urlparse(base).netloc
+    for match in re.finditer(r'<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', html, re.I | re.S):
+        href, label = match.group(1), _TAGS.sub(" ", match.group(2))
+        if not _LEGAL_LINK.search(href) and not _LEGAL_LINK.search(label):
+            continue
+        full = urljoin(base, href.strip())
+        if urlparse(full).netloc != host or full in out:
+            continue
+        out.append(full)
+    return out
+
+
+#: Module-level so a fixture can turn robots checking off exactly as `fetch`
+#: allows, without the probe growing a parameter no production caller sets.
+check_robots_default = True
+
+
 def enforce_extraction_rules(fetched: Fetched) -> None:
     """The two content gates, in one place so a caller cannot skip half of them.
 

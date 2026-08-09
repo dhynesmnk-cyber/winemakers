@@ -743,6 +743,66 @@ def _abn_selftest() -> list[str]:
         )
         check(harness.drafts == [], "a draft was written despite a deny-list ABN match")
 
+    # The probe: harvested page has no ABN, the homepage does. Foxey's Hangout
+    # is the real case — the harvest read /About-Us and the ABN is on `/`.
+    saved_httpx, saved_robots = fetcher._fetch_httpx, fetcher.check_robots_default
+    try:
+        fetcher.check_robots_default = False
+        pages = {
+            "https://fixture.test/": f"<html><footer>ABN {real}</footer>"
+                                     '<a href="/pages/terms">Terms</a></html>',
+        }
+        requested: list[str] = []
+
+        def fake_httpx(url: str):
+            requested.append(url)
+            return pages.get(url, "<html><body>nothing here</body></html>"), url, 200, 40
+
+        fetcher._fetch_httpx = fake_httpx
+
+        with Harness() as harness:
+            fetcher.fetch = _stub_fetch(text=body, html=f"<html><p>{body}</p></html>")
+            result, lines = _harvest(
+                [harvester_json(), DRAFT_MDX, DRAFT_MDX], url="https://fixture.test/about"
+            )
+            sidecar = ownership.read_sidecar(result.slug, harness.staging) or {}
+            abn_row = next(
+                (r for r in sidecar.get("signals", []) if r.get("key") == "abn"), {}
+            )
+            check(
+                abn_row.get("items") == [real],
+                f"the probe did not recover the homepage ABN (got {abn_row.get('items')!r})",
+            )
+            check(
+                "abn probe: found on" in _text(lines),
+                "the probe did not say where it found the ABN",
+            )
+
+        # The probe must not run at all when the harvested page already has one.
+        requested.clear()
+        with Harness() as harness:
+            fetcher.fetch = _stub_fetch(
+                text=body, html=f"<html><p>{body}</p><footer>ABN {real}</footer></html>"
+            )
+            _harvest([harvester_json(), DRAFT_MDX, DRAFT_MDX], url="https://fixture.test/about")
+            check(
+                requested == [],
+                f"the probe spent requests on a page that already had an ABN ({requested})",
+            )
+
+        # A site with no ABN anywhere costs the budget and nothing more.
+        requested.clear()
+        pages.clear()
+        with Harness() as harness:
+            fetcher.fetch = _stub_fetch(text=body, html=f"<html><p>{body}</p></html>")
+            _harvest([harvester_json(), DRAFT_MDX, DRAFT_MDX], url="https://fixture.test/about")
+            check(
+                len(requested) <= fetcher.ABN_PROBE_BUDGET,
+                f"the probe exceeded its budget ({len(requested)} requests)",
+            )
+    finally:
+        fetcher._fetch_httpx, fetcher.check_robots_default = saved_httpx, saved_robots
+
     # A checksum-invalid number must not become a signal at all.
     with Harness() as harness:
         fetcher.fetch = _stub_fetch(
@@ -780,7 +840,8 @@ def main() -> int:
         "boilerplate refusal both ways, off-site redirect refusal, certification "
         "downgrade, token ledger, "
         "Gatekeeper fallback, a ten-URL batch with two isolated failures, and the "
-        "HTML-only ABN reaching the determination with its checksum enforced"
+        "HTML-only ABN reaching the determination with its checksum enforced, "
+        "recovered by the probe when the harvested page has none and skipped when it does"
     )
     return 0
 
