@@ -3,6 +3,40 @@
     "biodynamic": "none",
     "biodynamic_certifier": null,
     "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Barristers Block",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills",
+      "wrattonbully"
+    ],
+    "slug": "barristers-block",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Adelaide Hills",
+    "summary": "Adelaide Hills cellar door named for a six-year legal fight to save the vineyard, with food and a historic Hayshed on site.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": [
+      "red"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
     "cellar_door": "none",
     "fruit_source": "estate",
     "has_image": true,
@@ -40,6 +74,382 @@
       "skin_contact",
       "white"
     ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Baxter Valley Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "baxter-valley-estate",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Family-owned Mornington Peninsula estate, established 1992, all estate fruit, cellar door sales and free local delivery available.",
+    "varieties": [
+      "chardonnay",
+      "merlot",
+      "sauvignon-blanc",
+      "shiraz"
+    ],
+    "vessels": [
+      "oak_barrique"
+    ],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Bec Hardy",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "bec-hardy",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "McLaren Vale",
+    "summary": "McLaren Vale cellar door and restaurant from the Hardy family, home to the Bec Hardy range and the Pertaringa label.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Berrigan Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills",
+      "mount-benson"
+    ],
+    "slug": "berrigan-wines",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Nairne",
+    "summary": "Estate winery at Nairne, Adelaide Hills, describing itself as family owned and operated by Dan Berrigan and Wendi Ticao.",
+    "varieties": [
+      "cabernet-sauvignon",
+      "chardonnay",
+      "gruner-veltliner",
+      "sangiovese",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Buttermans Track Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "buttermans-track-wines",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": "St Andrews",
+    "summary": "Weekend cellar door at St Andrews pouring pinot noir, syrah, sangiovese and riesling, with weekday visits by appointment.",
+    "varieties": [
+      "chardonnay",
+      "pinot-noir",
+      "riesling",
+      "sangiovese"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "rose",
+      "sparkling",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "mixed",
+    "has_image": false,
+    "name": "Chain of Ponds",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "chain-of-ponds",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Gumeracha",
+    "summary": "Estate winery near Gumeracha in the Adelaide Hills, founded 1985, first vintage 1988, sourcing both estate and purchased fruit.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Chalk Hill Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "chalk-hill-wines",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "McLaren Vale",
+    "summary": "McLaren Vale estate winery trading since 1964, run by the Harvey family across six vineyards, with daily tastings and a reserve label, Alpha Crucis.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Coriole",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "coriole",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Estate winery in McLaren Vale, founded in 1960 by Hugh and Molly Lloyd. Still run by the Lloyd family, growing Italian varieties since 1985.",
+    "varieties": [
+      "chenin-blanc",
+      "fiano",
+      "grenache",
+      "montepulciano",
+      "negroamaro",
+      "nero-davola",
+      "sangiovese",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "other",
+    "cellar_door": "none",
+    "fruit_source": "mixed",
+    "has_image": false,
+    "name": "Coulter Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "coulter-wines",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Adelaide Hills producer sourcing named vineyard fruit for Sangiovese, Chardonnay, Pinot Noir, Barbera and Cabernet Sauvignon.",
+    "varieties": [
+      "barbera",
+      "cabernet-sauvignon",
+      "chardonnay",
+      "pinot-noir",
+      "sangiovese"
+    ],
+    "vessels": [
+      "oak_barrique"
+    ],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "mixed",
+    "has_image": false,
+    "name": "CRFT Wines",
+    "organic": "certified",
+    "organic_certifier": "NASAA",
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills",
+      "barossa-valley"
+    ],
+    "slug": "crft-wines",
+    "state": "SA",
+    "subregions": [
+      "piccadilly-valley"
+    ],
+    "suburb": "Carey Gully",
+    "summary": "Adelaide Hills estate at Carey Gully, NASAA-certified organic, making single-vineyard Pinot Noir, Chardonnay and Grüner Veltliner plus Barossa Shiraz.",
+    "varieties": [
+      "chardonnay",
+      "gruner-veltliner",
+      "pinot-noir",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Crittenden Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "crittenden-wines",
+    "state": "VIC",
+    "subregions": [
+      "dromana"
+    ],
+    "suburb": "Dromana",
+    "summary": "Lakeside Mornington Peninsula estate at Dromana with cellar door tastings, a restaurant and a one-night truffle dinner",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
   },
   {
     "biodynamic": "certified",
@@ -94,6 +504,164 @@
       "fortified",
       "red",
       "sparkling",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Dexter Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "dexter-wines",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Mornington Peninsula estate producing only Pinot Noir and Chardonnay from a single vineyard site, owned by Tod and Debbie Dexter.",
+    "varieties": [
+      "chardonnay",
+      "pinot-noir"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Dominique Portet",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "dominique-portet",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": "Coldstream",
+    "summary": "Estate winery at Coldstream in the Yarra Valley, founded 2000 by Dominique Portet, now continued by son Ben Portet.",
+    "varieties": [
+      "cabernet-sauvignon",
+      "chardonnay",
+      "pinot-noir"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Elan Vineyard",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": true
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "elan-vineyard",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": "Balnarring",
+    "summary": "Estate vineyard in Balnarring, Mornington Peninsula, planted in the early 1980s, growing seven varieties on a non-irrigated slope.",
+    "varieties": [
+      "chardonnay",
+      "gamay",
+      "merlot",
+      "pinot-noir",
+      "shiraz"
+    ],
+    "vessels": [
+      "oak_barrique"
+    ],
+    "wine_styles": [
+      "red",
+      "sparkling",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "practising",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Elysian Springs",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "elysian-springs",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Mt Pleasant",
+    "summary": "Estate vineyard at Mt Pleasant, planted 1984 at the northern edge of Adelaide Hills, farmed organically and biodynamically without certification.",
+    "varieties": [
+      "chardonnay",
+      "pinot-meunier",
+      "pinot-noir",
+      "sauvignon-blanc",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
       "white"
     ]
   },
@@ -179,6 +747,1942 @@
     "wine_styles": [
       "red",
       "skin_contact",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "practising",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Grosset",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "clare-valley",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills",
+      "clare-valley"
+    ],
+    "slug": "grosset",
+    "state": "SA",
+    "subregions": [
+      "lenswood",
+      "piccadilly-valley"
+    ],
+    "suburb": null,
+    "summary": "Estate winery in Clare Valley and Adelaide Hills, founded 1981, practising organic and biodynamic viticulture.",
+    "varieties": [
+      "chardonnay",
+      "fiano",
+      "pinot-noir",
+      "riesling",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Henschke",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "eden-valley",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills",
+      "barossa-valley",
+      "eden-valley"
+    ],
+    "slug": "henschke",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Keyneton",
+    "summary": "Family-run estate at Keyneton, SA, tracing six generations to 1868, home of Hill of Grace and Mount Edelstone shiraz.",
+    "varieties": [
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Hirsch Hill",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "hirsch-hill",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Yarra Valley estate planted 1998: family-run, now part of Hirsch Wine Group after a 2024 acquisition of a historic winery site.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Howard Vineyard",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "howard-vineyard",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Nairne",
+    "summary": "Cellar door and restaurant in the Adelaide Hills at Nairne, describing itself as a second-generation family business.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Hugh Hamilton Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "hugh-hamilton-wines",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "McLaren Vale estate run by the fifth and sixth generation of the Hamilton wine family, with cellar door tastings overlooking the vineyards.",
+    "varieties": [
+      "cabernet-sauvignon",
+      "pinot-gris",
+      "saperavi",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Hurley Vineyard",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "hurley-vineyard",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": "Balnarring",
+    "summary": "Pinot Noir estate at Balnarring, Mornington Peninsula, with weekend cellar door and Braille wine labels.",
+    "varieties": [
+      "pinot-noir"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Inkwell Wines",
+    "organic": "certified",
+    "organic_certifier": "Regenerative Organic Certified®",
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": true
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "inkwell-wines",
+    "state": "SA",
+    "subregions": [
+      "tatachilla"
+    ],
+    "suburb": "Tatachilla",
+    "summary": "Regenerative Organic Certified estate winery in McLaren Vale, fermenting with wild yeast since 2005 from twelve hectares of estate vineyard.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Karrawatta",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills",
+      "langhorne-creek",
+      "mclaren-vale"
+    ],
+    "slug": "karrawatta",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Family-owned vineyards in Adelaide Hills, McLaren Vale, and Langhorne Creek, run by the Gilbert family since Joseph Gilbert's 1847 vintage.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Kerri Greens Wine",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "kerri-greens-wine",
+    "state": "VIC",
+    "subregions": [
+      "red-hill"
+    ],
+    "suburb": null,
+    "summary": "Mornington Peninsula estate winery run by Lucas and Alyce Blanck, sourcing fruit from self-managed vineyards in Balnarring and Red Hill.",
+    "varieties": [
+      "pinot-noir",
+      "riesling"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "rose",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "by_appointment",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Kyberd Hills",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "kyberd-hills",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Mornington Peninsula producer run by Michael Kyberd, making Pinot Noir, Chardonnay and Tempranillo, with private tastings by appointment.",
+    "varieties": [
+      "chardonnay",
+      "pinot-noir",
+      "tempranillo"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Lobethal Road",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "lobethal-road",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Cellar door between Lobethal and Mount Torrens in the Adelaide Hills, open Thursday to Monday with a seasonal lunch service.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Longview",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "longview",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Macclesfield",
+    "summary": "Adelaide Hills estate winery, established 1995, with a cellar door plus on-site spa, accommodation and event spaces.",
+    "varieties": [
+      "pinot-noir"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "by_appointment",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Main Ridge Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "main-ridge-estate",
+    "state": "VIC",
+    "subregions": [
+      "red-hill"
+    ],
+    "suburb": "Red Hill",
+    "summary": "Small family winery on Red Hill, Mornington Peninsula, making single-vineyard chardonnay since 1975.",
+    "varieties": [
+      "chardonnay"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "by_appointment",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Malcolm Creek Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "malcolm-creek-wines",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Adelaide Hills estate at Ashwood Estate vineyard, specialising in aged Cabernet Sauvignon and sparkling wine, tastings by appointment.",
+    "varieties": [
+      "cabernet-sauvignon",
+      "chardonnay"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "rose",
+      "sparkling",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "by_appointment",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Maxwell Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "maxwell-wines",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "McLaren Vale",
+    "summary": "McLaren Vale estate winery on limestone slopes, offering a paid guided tour and barrel tasting experience.",
+    "varieties": [],
+    "vessels": [
+      "oak_barrique"
+    ],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Merricks Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "merricks-estate",
+    "state": "VIC",
+    "subregions": [
+      "merricks"
+    ],
+    "suburb": "Merricks",
+    "summary": "Estate vineyard at Merricks planted 1977 by the Kefford family, one of the Mornington Peninsula's first commercial plantings.",
+    "varieties": [
+      "cabernet-sauvignon",
+      "chardonnay",
+      "pinot-noir",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "rose",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Montalto",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "montalto",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Estate winery on the Mornington Peninsula with a restaurant, casual dining, and a vineyard sculpture trail.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "mixed",
+    "has_image": false,
+    "name": "Moorooduc Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": true
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "moorooduc-estate",
+    "state": "VIC",
+    "subregions": [
+      "moorooduc"
+    ],
+    "suburb": "Moorooduc",
+    "summary": "Mornington Peninsula estate founded 1982 by Richard and Jill McIntyre, wild ferment wines from five owned and leased vineyards.",
+    "varieties": [
+      "cabernet-sauvignon",
+      "chardonnay",
+      "nebbiolo",
+      "pinot-gris",
+      "pinot-noir",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "by_appointment",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Mordrelle Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "mordrelle-wines",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Hahndorf",
+    "summary": "Family-run Hahndorf producer, established 2010, making a broad range of still, sparkling and rosé wines by appointment.",
+    "varieties": [
+      "barbera",
+      "cabernet-sauvignon",
+      "chardonnay",
+      "malbec",
+      "merlot",
+      "pinot-noir",
+      "sauvignon-blanc",
+      "tempranillo"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "rose",
+      "sparkling",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "practising",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Mt Bera Vineyards",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "mt-bera-vineyards",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Gumeracha",
+    "summary": "Certified organic and biodynamic estate vineyard in the Adelaide Hills, owned by the Horner family since the 1990s.",
+    "varieties": [
+      "blaufrankisch",
+      "cabernet-sauvignon",
+      "gruner-veltliner",
+      "merlot",
+      "pinot-gris",
+      "pinot-noir",
+      "sangiovese",
+      "shiraz",
+      "tempranillo",
+      "touriga-nacional"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Mt Lofty Ranges Vineyard",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "mt-lofty-ranges-vineyard",
+    "state": "SA",
+    "subregions": [
+      "lenswood"
+    ],
+    "suburb": "Adelaide Hills",
+    "summary": "Estate winery in Lenswood, Adelaide Hills, growing chardonnay, riesling and sauvignon blanc, with a chef-hatted restaurant on site.",
+    "varieties": [
+      "chardonnay",
+      "riesling",
+      "sauvignon-blanc"
+    ],
+    "vessels": [
+      "oak_barrique"
+    ],
+    "wine_styles": [
+      "sparkling",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Murdoch Hill",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": true
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "murdoch-hill",
+    "state": "SA",
+    "subregions": [
+      "lenswood"
+    ],
+    "suburb": "Oakbank",
+    "summary": "Family-owned Adelaide Hills estate at Oakbank, farming Lenswood vineyards since 1998; tasting room open Thursday to Tuesday.",
+    "varieties": [
+      "chardonnay",
+      "sauvignon-blanc"
+    ],
+    "vessels": [
+      "oak_barrique",
+      "oak_foudre"
+    ],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Nazaaray Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "nazaaray-estate",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Estate on the Mornington Peninsula, purchased in 1991 by winemaker Param Ghumman and his wife Nirmal, a doctor.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "practising",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Ngeringa",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "ngeringa",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Biodynamic estate winery at Mount Barker Summit in the Adelaide Hills, family-owned by Janet and Erinn Klein since 2001.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Oakridge",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "oakridge",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Yarra Valley estate winery with cellar door visits, known chiefly for its 864 Vintage Release.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Oliver's Taranga",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "olivers-taranga",
+    "state": "SA",
+    "subregions": [
+      "seaview"
+    ],
+    "suburb": "McLaren Vale",
+    "summary": "McLaren Vale estate at Seaview, family-owned by the Olivers since 1839, growing Shiraz, Grenache and early Fiano, Vermentino, Sagrantino plantings.",
+    "varieties": [
+      "fiano",
+      "grenache",
+      "mataro",
+      "sagrantino",
+      "shiraz",
+      "tempranillo",
+      "vermentino"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "fortified",
+      "red",
+      "sparkling",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Pike & Joyce",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "pike-joyce",
+    "state": "SA",
+    "subregions": [
+      "lenswood"
+    ],
+    "suburb": "Lenswood",
+    "summary": "Estate vineyard at Lenswood in the Adelaide Hills, fruit sent to Pikes' Clare Valley winery for vinification; cellar door open daily.",
+    "varieties": [
+      "chardonnay",
+      "dolcetto",
+      "gewurztraminer",
+      "gruner-veltliner",
+      "nebbiolo",
+      "pinot-gris",
+      "pinot-noir",
+      "riesling",
+      "sauvignon-blanc",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "practising",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Prancing Horse Estate",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "prancing-horse-estate",
+    "state": "VIC",
+    "subregions": [
+      "red-hill"
+    ],
+    "suburb": "Red Hill South",
+    "summary": "Red Hill South estate practising organic and biodynamic viticulture since 1985, guided by Burgundy and Chablis winemakers.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Primo Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "primo-estate",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "McLaren Vale",
+    "summary": "Family-run McLaren Vale estate founded 1973, known for Cabernet, Riesling and Italian-variety wines made by three generations of the Grilli family.",
+    "varieties": [
+      "colombard",
+      "riesling"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "dessert",
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Punt Road Wines",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "punt-road-wines",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": "Coldstream",
+    "summary": "Family-run Coldstream estate on land planted with vines in 1860, farmed by the Napoleone family across three and four generations.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Quealy",
+    "organic": "certified",
+    "organic_certifier": "not named",
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "quealy",
+    "state": "VIC",
+    "subregions": [
+      "main-ridge"
+    ],
+    "suburb": "Balnarring",
+    "summary": "Estate-only Mornington Peninsula producer farming four vineyards around Balnarring, organic certified since 2019.",
+    "varieties": [
+      "chardonnay",
+      "pinot-gris",
+      "pinot-noir",
+      "riesling"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "mixed",
+    "has_image": false,
+    "name": "Samson Tall",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "samson-tall",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "McLaren Vale",
+    "summary": "McLaren Vale cellar door in an 1854 pug church, open daily, with wine made onsite from locally sourced fruit.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "by_appointment",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Sedgley & Sons",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "sedgley-sons",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": "Hastings",
+    "summary": "One-hectare Mornington Peninsula estate at Hastings producing Pinot Noir from Creadon Farm, tastings by appointment with Michael Sedgley.",
+    "varieties": [
+      "pinot-noir"
+    ],
+    "vessels": [
+      "oak_barrique"
+    ],
+    "wine_styles": [
+      "red"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Serrat",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "serrat",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": "Yarra Glen",
+    "summary": "Estate winery near Yarra Glen planted from 2001 by winemaker Tom Carson and Nadège Carson, growing a wide range of red and white varieties.",
+    "varieties": [
+      "barbera",
+      "chardonnay",
+      "grenache",
+      "malbec",
+      "nebbiolo",
+      "pinot-noir",
+      "shiraz",
+      "viognier"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Seville Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "seville-estate",
+    "state": "VIC",
+    "subregions": [
+      "upper-yarra"
+    ],
+    "suburb": null,
+    "summary": "Victoria's first Upper Yarra Valley winery, planted in 1972 on dry-grown volcanic soils; open Friday to Sunday, weekdays by appointment.",
+    "varieties": [
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Shaw + Smith",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "shaw-smith",
+    "state": "SA",
+    "subregions": [
+      "lenswood"
+    ],
+    "suburb": "Balhannah",
+    "summary": "Adelaide Hills estate at Balhannah, founded 1989, growing chardonnay, pinot noir and shiraz across two named vineyards.",
+    "varieties": [
+      "chardonnay",
+      "pinot-noir",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Shaws Road Winery",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "shaws-road-winery",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": "Arthurs Creek",
+    "summary": "Estate winery in Arthurs Creek, Yarra Valley, with cellar door, restaurant and B&B, from vines planted more than 40 years ago.",
+    "varieties": [
+      "chardonnay",
+      "pinot-noir"
+    ],
+    "vessels": [
+      "oak_barrique"
+    ],
+    "wine_styles": [
+      "red",
+      "sparkling",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Sherrah",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": true,
+      "unfiltered": false,
+      "unfined": true,
+      "wild_ferment": true
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "sherrah",
+    "state": "SA",
+    "subregions": [
+      "blewitt-springs",
+      "mclaren-flat",
+      "seaview",
+      "tatachilla"
+    ],
+    "suburb": null,
+    "summary": "Estate winery in McLaren Vale making single-vineyard Shiraz, Grenache, Fiano, Chenin Blanc and Nero d'Avola from named sites.",
+    "varieties": [
+      "chenin-blanc",
+      "fiano",
+      "grenache",
+      "nero-davola",
+      "shiraz"
+    ],
+    "vessels": [
+      "oak_barrique",
+      "stainless"
+    ],
+    "wine_styles": [
+      "fortified",
+      "red",
+      "rose",
+      "skin_contact",
+      "sparkling",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Sidewood Estate",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "sidewood-estate",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Family-owned Adelaide Hills estate founded in 2004 by Owen and Cassandra Inglis, farming four vineyards under winemaker Dylan Lee.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Simon Tolley Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "simon-tolley-wines",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Woodside",
+    "summary": "Estate pinot noir grown at Woodside in the Adelaide Hills, run by a self-described fifth-generation vigneron.",
+    "varieties": [
+      "pinot-noir"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Sir Paz Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": true,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "sir-paz-estate",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Estate winery in the southern Yarra Valley making wine only from its own vines since 2001, with a cellar door and woodfire restaurant.",
+    "varieties": [
+      "chardonnay",
+      "merlot",
+      "pinot-noir",
+      "sauvignon-blanc",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "rose",
+      "sparkling",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "practising",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Staindl Wines",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "staindl-wines",
+    "state": "VIC",
+    "subregions": [
+      "red-hill"
+    ],
+    "suburb": null,
+    "summary": "Single-vineyard Mornington Peninsula wines from Red Hill South, grown under organic and biodynamic practices without named certification.",
+    "varieties": [
+      "chardonnay",
+      "gewurztraminer",
+      "pinot-noir",
+      "riesling"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Storm Ridge Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "storm-ridge-estate",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Estate winery in the Yarra Valley, established 1993, with a seasonal vineyard restaurant and flight or by-the-glass tastings.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Sutherland",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "sutherland",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Estate winery growing Shiraz, Grenache, Mourvèdre and Cinsault; location and founding year not stated on the producer's site.",
+    "varieties": [
+      "cinsault",
+      "grenache",
+      "shiraz"
+    ],
+    "vessels": [
+      "oak_barrique"
+    ],
+    "wine_styles": [
+      "red"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Verdun Park Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "verdun-park-wines",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Family-owned Adelaide Hills estate at Verdun, planted 1997, now trading online after retiring its cellar door and event program.",
+    "varieties": [
+      "sauvignon-blanc",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "by_appointment",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Vigna Bottin",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "vigna-bottin",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Family-run McLaren Vale estate growing Italian varieties since 1970, with organic practices and a seated tasting flight.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "other",
+    "cellar_door": "none",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Vinot Artisan",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "vinot-artisan",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Online-only producer selling pinot noir and shiraz by mail order; no cellar door; ships within Australia.",
+    "varieties": [
+      "pinot-noir",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Vinteloper",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "vinteloper",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Adelaide Hills",
+    "summary": "Adelaide Hills producer with an open cellar door, working with pinot noir and a stated sustainability approach.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": [
+      "red"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Wantirna Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "wantirna-estate",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Yarra Valley estate planted in 1963, one of the valley's first modern vineyards, still farmed and made by the Egan family.",
+    "varieties": [
+      "barbera",
+      "cabernet-franc",
+      "cabernet-sauvignon",
+      "chardonnay",
+      "dolcetto",
+      "merlot",
+      "pedro-ximenez",
+      "petit-verdot",
+      "pinot-noir"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Wicks Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "wicks-estate",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Estate winery growing all its own fruit on-site; its Sauvignon Blanc won Gold and 95 points at the Melbourne Royal Wine Show.",
+    "varieties": [
+      "sauvignon-blanc"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "practising",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Woodhaven Vineyard",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "woodhaven-vineyard",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": "Red Hill",
+    "summary": "Estate vineyard on Red Hill practising organic and biodynamic viticulture since first planting in 2003; state not specified.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Yeringberg",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "yeringberg",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Yarra Valley estate founded in 1863 by Baron de Pury, still run by his descendants Sandra and David de Pury.",
+    "varieties": [
+      "marsanne"
+    ],
+    "vessels": [],
+    "wine_styles": [
       "white"
     ]
   }
