@@ -1,5 +1,54 @@
 [
   {
+    "biodynamic": "certified",
+    "biodynamic_certifier": "Not named on page",
+    "category": "estate_winery",
+    "cellar_door": "by_appointment",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Aphelion",
+    "organic": "certified",
+    "organic_certifier": "Not named on page",
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": true,
+      "unfiltered": true,
+      "unfined": true,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "aphelion",
+    "state": "SA",
+    "subregions": [
+      "blewitt-springs",
+      "clarendon",
+      "kangarilla",
+      "seaview",
+      "whites-valley"
+    ],
+    "suburb": null,
+    "summary": "McLaren Vale producer built around Grenache, sourcing named single vineyards including Brini and Yangarra, certified organic and biodynamic",
+    "varieties": [
+      "chenin-blanc",
+      "grenache"
+    ],
+    "vessels": [
+      "ceramic",
+      "concrete",
+      "oak_barrique",
+      "oak_foudre",
+      "stainless"
+    ],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
     "biodynamic": "none",
     "biodynamic_certifier": null,
     "category": "estate_winery",
@@ -151,6 +200,37 @@
     "biodynamic": "none",
     "biodynamic_certifier": null,
     "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Bekkers Wine",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "bekkers-wine",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "McLaren Vale",
+    "summary": "McLaren Vale estate winery run by viticulturist Toby Bekkers and winemaker Emmanuelle Bekkers, with an allocation-based release model.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
     "cellar_door": "none",
     "fruit_source": "estate",
     "has_image": false,
@@ -290,6 +370,43 @@
     "varieties": [],
     "vessels": [],
     "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "by_appointment",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Copperhead Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "copperhead-wines",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": "Yering",
+    "summary": "Hans and Anna Orth's Yarra Valley vineyard at Yering, growing Chardonnay and Shiraz, with tastings by appointment only.",
+    "varieties": [
+      "chardonnay",
+      "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
   },
   {
     "biodynamic": "none",
@@ -450,6 +567,42 @@
     "varieties": [],
     "vessels": [],
     "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Dandelion Vineyards",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "mclaren-vale"
+    ],
+    "slug": "dandelion-vineyards",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "McLaren Vale",
+    "summary": "Estate winery in McLaren Vale growing Fiano and Chardonnay, with a daily tasting room called the Wonder Room.",
+    "varieties": [
+      "chardonnay",
+      "fiano"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "white"
+    ]
   },
   {
     "biodynamic": "certified",
@@ -754,6 +907,44 @@
     "biodynamic": "practising",
     "biodynamic_certifier": null,
     "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Foxeys Hangout",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "foxeys-hangout",
+    "state": "VIC",
+    "subregions": [
+      "red-hill"
+    ],
+    "suburb": "Red Hill",
+    "summary": "Red Hill estate on the Mornington Peninsula, certified organic and biodynamically managed vineyards, pinot noir and sparkling wine.",
+    "varieties": [
+      "pinot-noir"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "sparkling"
+    ]
+  },
+  {
+    "biodynamic": "practising",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
     "cellar_door": "none",
     "fruit_source": "estate",
     "has_image": false,
@@ -787,6 +978,46 @@
       "pinot-noir",
       "riesling",
       "shiraz"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "other",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Heirloom Vineyards",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills",
+      "mclaren-vale"
+    ],
+    "slug": "heirloom-vineyards",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Adelaide Hills and McLaren Vale producer working estate fruit from two vineyards into single-variety and blended wines.",
+    "varieties": [
+      "chardonnay",
+      "grenache",
+      "sauvignon-blanc",
+      "tempranillo"
     ],
     "vessels": [],
     "wine_styles": [
@@ -1110,6 +1341,117 @@
       "red",
       "white"
     ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "mixed",
+    "has_image": false,
+    "name": "La Prova",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills",
+      "king-valley",
+      "mclaren-vale"
+    ],
+    "slug": "la-prova",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "Adelaide Hills",
+    "summary": "Adelaide Hills producer founded 2008 by winemaker Sam Scott, sourcing Italian varieties from Adelaide Hills, King Valley and McLaren Vale.",
+    "varieties": [
+      "nero-davola",
+      "prosecco"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "sparkling"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Levantine Hill",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "levantine-hill",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Yarra Valley estate on steep clay loam slopes, two named vineyard blocks, six grape styles and an on-site truffière.",
+    "varieties": [
+      "cabernet-sauvignon",
+      "pinot-noir",
+      "sauvignon-blanc",
+      "semillon"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "rose",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "garagiste",
+    "cellar_door": "none",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Lino Ramble",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mclaren-vale",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills",
+      "mclaren-vale"
+    ],
+    "slug": "lino-ramble",
+    "state": "SA",
+    "subregions": [],
+    "suburb": "McLaren Vale",
+    "summary": "A McLaren Vale producer buying fruit from McLaren Vale and Adelaide Hills growers, now in its 14th vintage, with organic farming practised but uncertified.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
   },
   {
     "biodynamic": "none",
@@ -1676,6 +2018,50 @@
     "cellar_door": "open",
     "fruit_source": "estate",
     "has_image": false,
+    "name": "Ocean Eight",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "ocean-eight",
+    "state": "VIC",
+    "subregions": [
+      "merricks",
+      "moorooduc",
+      "red-hill",
+      "tuerong"
+    ],
+    "suburb": "Red Hill",
+    "summary": "Estate winery on the Mornington Peninsula, formed in 2004 after the Aylward family sold Kooyong, with vineyards at Red Hill, Merricks/Moorooduc and Tuerong.",
+    "varieties": [
+      "chardonnay",
+      "pinot-gris",
+      "pinot-noir"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "sparkling",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "open",
+    "fruit_source": "estate",
+    "has_image": false,
     "name": "Oliver's Taranga",
     "organic": "none",
     "organic_certifier": null,
@@ -1761,6 +2147,39 @@
       "red",
       "white"
     ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "by_appointment",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Portsea Estate",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "mornington-peninsula",
+    "production_band": "unknown",
+    "regions": [
+      "mornington-peninsula"
+    ],
+    "slug": "portsea-estate",
+    "state": "VIC",
+    "subregions": [
+      "main-ridge"
+    ],
+    "suburb": null,
+    "summary": "Estate vineyards on the Mornington Peninsula's southern tip, farmed regeneratively, with tastings by appointment only.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
   },
   {
     "biodynamic": "practising",
@@ -1909,6 +2328,37 @@
     "biodynamic": "none",
     "biodynamic_certifier": null,
     "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Riposte by Tim Knappstein and Son",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills"
+    ],
+    "slug": "riposte-by-tim-knappstein-and-son",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "South Australian producer describing itself as a family business, led by winemaker and owner Tim Knappstein in the Adelaide Hills.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
     "cellar_door": "open",
     "fruit_source": "mixed",
     "has_image": false,
@@ -1935,6 +2385,43 @@
     "varieties": [],
     "vessels": [],
     "wine_styles": []
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "garagiste",
+    "cellar_door": "none",
+    "fruit_source": "purchased",
+    "has_image": false,
+    "name": "Santolin Wines",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "unconfirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "yarra-valley",
+    "production_band": "unknown",
+    "regions": [
+      "yarra-valley"
+    ],
+    "slug": "santolin-wines",
+    "state": "VIC",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Yarra Valley pinot noir and chardonnay producer, started in 2012 with two tonnes of fruit and one barrel",
+    "varieties": [
+      "chardonnay",
+      "pinot-noir"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
   },
   {
     "biodynamic": "none",
@@ -2411,6 +2898,45 @@
     "cellar_door": "none",
     "fruit_source": "estate",
     "has_image": false,
+    "name": "Tapanappa",
+    "organic": "none",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "southern-fleurieu",
+    "production_band": "unknown",
+    "regions": [
+      "southern-fleurieu"
+    ],
+    "slug": "tapanappa",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "South Australian estate winery running Foggy Hill, Tiers and Whalebone vineyards, continuing Brian Croser's family project.",
+    "varieties": [
+      "cabernet-franc",
+      "chardonnay",
+      "merlot",
+      "pinot-noir"
+    ],
+    "vessels": [],
+    "wine_styles": [
+      "red",
+      "white"
+    ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
     "name": "Verdun Park Wines",
     "organic": "none",
     "organic_certifier": null,
@@ -2584,6 +3110,38 @@
       "red",
       "white"
     ]
+  },
+  {
+    "biodynamic": "none",
+    "biodynamic_certifier": null,
+    "category": "estate_winery",
+    "cellar_door": "none",
+    "fruit_source": "estate",
+    "has_image": false,
+    "name": "Watkins",
+    "organic": "practising",
+    "organic_certifier": null,
+    "ownership_status": "confirmed",
+    "practices": {
+      "minimal_so2": false,
+      "unfiltered": false,
+      "unfined": false,
+      "wild_ferment": false
+    },
+    "primary_region": "adelaide-hills",
+    "production_band": "unknown",
+    "regions": [
+      "adelaide-hills",
+      "langhorne-creek"
+    ],
+    "slug": "watkins",
+    "state": "SA",
+    "subregions": [],
+    "suburb": null,
+    "summary": "Family-owned South Australian producer sourcing estate fruit from Adelaide Hills and Langhorne Creek vineyards planted in 1997.",
+    "varieties": [],
+    "vessels": [],
+    "wine_styles": []
   },
   {
     "biodynamic": "none",
