@@ -781,6 +781,24 @@ def validate_frontmatter(data: dict[str, Any]) -> dict[str, str]:
                     f"{axis} is out of range for Australia "
                     f"({bounds[0]} to {bounds[1]}), got {value}"
                 )
+        # `address` and `suburb` are optional *strings* (SCHEMA.md §2), not
+        # nullable ones — the zod schema accepts the key absent or a string and
+        # nothing else. The Harvester's wire format says the opposite ("null
+        # over guess", §5), so a draft arrives carrying explicit nulls and
+        # `_finalize_frontmatter` drops them (§6). This is the belt: without a
+        # type check here the approve gate passed a null that the Astro build
+        # then rejected, which put the failure a whole stage downstream of the
+        # surface that should have caught it.
+        for key in ("address", "suburb"):
+            if key not in location:
+                continue
+            value = location.get(key)
+            if not isinstance(value, str) or not value.strip():
+                errors["location"] = (
+                    f"location.{key} must be a non-empty string when present, "
+                    f"got {value!r}. Where it is unknown, omit the key."
+                )
+
         extra = set(location) - {"address", "suburb", "state", "latitude", "longitude"}
         if extra:
             errors["location"] = f"location has unknown key(s): {', '.join(sorted(extra))}"

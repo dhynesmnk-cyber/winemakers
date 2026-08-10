@@ -447,6 +447,7 @@ The pipeline, not the agents, owns these — `_finalize_frontmatter()` stamps th
 - `drafted` and `verified` = today
 - **`determinations` re-imposed from the Harvester** onto `organic`, `organic_certifier`, `biodynamic`, `biodynamic_certifier`, `fruit_source`, `practices` and `varieties` — these are the Harvester's finding, not the Architect's or Gatekeeper's, and that is enforced rather than trusted to survive two rewrite passes
 - `location.latitude` / `location.longitude` from the geocoder
+- **`location.address` / `location.suburb` dropped when the Harvester returns them null.** §5's standing rule is "null over guess" and §2 declares both as optional *strings* — absent when unknown, never null. Both are right for their own surface and they are not the same shape, so the conversion happens here. Coordinates are deliberately excluded: a null `latitude` is a published statement that there is no map pin (§2), so it stays a null and stays a key. *Added 2026-08-10 (Gate 8): the step was always required by the §2/§5 pairing but was never written down, and neither `_finalize_frontmatter` nor `admin/schema.py` performed it. Five drafts reached `_published` carrying nulls and the Astro build rejected them — a stage later than the surface that should have caught it.*
 - `verification` stamped `published_by_producer` from the harvest URL
 - `change_log` computed against the previous frontmatter on re-harvest
 

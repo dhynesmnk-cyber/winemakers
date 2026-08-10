@@ -455,6 +455,18 @@ def _finalize_frontmatter(
             log("info", f"state normalised: {state!r} -> {normalised!r}")
             location["state"] = normalised
 
+    # SCHEMA.md §5 tells the Harvester "null over guess", so an unknown street
+    # address arrives as an explicit null. SCHEMA.md §2 declares `address` and
+    # `suburb` as *optional strings* — absent when unknown, never null. The two
+    # shapes are both correct and they are not the same shape, so the wire
+    # format is converted here rather than left for the zod schema to reject at
+    # build time. Coordinates are deliberately not treated this way: a null
+    # latitude is a published statement that there is no map pin (§2), so it
+    # stays a null and stays a key.
+    for key in ("address", "suburb"):
+        if not str(location.get(key) or "").strip():
+            location.pop(key, None)
+
     latitude, longitude = coordinates
     location["latitude"] = latitude
     location["longitude"] = longitude
