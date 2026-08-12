@@ -153,9 +153,11 @@ function otherVarieties(varieties: readonly string[] | undefined): string {
   .ctable {
     border-collapse: collapse;
     width: 100%;
-    /* Below this the columns wrap into illegibility, so the scroller takes
-       over. It is deliberately modest: most tables never reach it. */
-    min-width: 44rem;
+    /* Sized to fit INSIDE the 65ch reading spine at desktop widths, so the
+       scroller is reserved for the narrow screens DESIGN.md §164 scopes it to
+       rather than firing at 1280px. Below this the columns wrap into
+       illegibility and the scroller takes over. */
+    min-width: 39rem;
     text-align: left;
   }
 
@@ -181,7 +183,7 @@ function otherVarieties(varieties: readonly string[] | undefined): string {
     font-size: 0.8125rem;
     font-weight: 400;
     vertical-align: top;
-    padding: 0.75rem 1.25rem 0.75rem 0;
+    padding: 0.75rem 0.875rem 0.75rem 0;
   }
 
   .ctable thead th {
