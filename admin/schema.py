@@ -49,6 +49,7 @@ from admin.config import (  # noqa: E402
     CELLAR_DOOR_STATES,
     CERTIFICATION_STATES,
     CONFIDENCE_TIERS,
+    DENY_LIST_CHECKS,
     FAQ_MAX_ITEMS,
     FRUIT_SOURCE,
     LOGISTICS_KEYS,
@@ -88,6 +89,7 @@ KNOWN_FIELDS = (
     "parent_company",
     "ownership_status",
     "ownership_source",
+    "audit_exemptions",
     "category",
     "founded_year",
     "website",
@@ -425,6 +427,15 @@ FIELDS: dict[str, dict[str, Any]] = {
         "values": LOGISTICS_KEYS,
     },
     "faq": {"group": "faq", "label": "Questions", "widget": "faq", "max_items": FAQ_MAX_ITEMS},
+    # Read-only in the editor by design. An exemption is a judgement recorded
+    # against evidence, not a checkbox a reviewer ticks to clear a blocking
+    # hit — the review pane surfaces the deny-list row and its resolution, and
+    # writing the durable record is a deliberate edit to the file.
+    "audit_exemptions": {
+        "group": "provenance",
+        "label": "Audit exemptions",
+        "widget": "readonly_audit_exemptions",
+    },
     "verification": {"group": "provenance", "label": "Verification", "widget": "readonly_verification"},
     "change_log": {"group": "provenance", "label": "Change log", "widget": "readonly_change_log"},
     "drafted": {"group": "provenance", "label": "Drafted", "widget": "readonly_date"},
@@ -942,6 +953,69 @@ def validate_frontmatter(data: dict[str, Any]) -> dict[str, str]:
                 errors["logistics"] = f"logistics has unknown key(s): {', '.join(sorted(extra))}"
             elif wrong:
                 errors["logistics"] = f"logistics values must be true or false: {', '.join(wrong)}"
+
+    # ── Audit exemptions (SCHEMA.md §2, §2a rules 15 and 16) ──────────────
+    #
+    # Mirrors the zod `.superRefine()` half for half. Both halves of rule 15
+    # cannot be checked here either: exactness needs the live register, and
+    # /validate check 8 owns that.
+    exemptions = data.get("audit_exemptions")
+    if exemptions is not None:
+        if not isinstance(exemptions, list):
+            errors["audit_exemptions"] = "audit_exemptions must be a list"
+        else:
+            required = {"check", "matched", "parent", "register_updated", "date", "note"}
+            for index, entry in enumerate(exemptions):
+                if not isinstance(entry, dict):
+                    errors["audit_exemptions"] = f"audit_exemptions[{index}] must be an object"
+                    break
+                if set(entry) != required:
+                    errors["audit_exemptions"] = (
+                        f"audit_exemptions[{index}] must carry exactly "
+                        f"{', '.join(sorted(required))}"
+                    )
+                    break
+                if entry.get("check") not in DENY_LIST_CHECKS:
+                    errors["audit_exemptions"] = (
+                        f"audit_exemptions[{index}].check must be one of "
+                        f"{', '.join(DENY_LIST_CHECKS)}"
+                    )
+                    break
+                if entry.get("check") != "name":
+                    errors["audit_exemptions"] = (
+                        f"audit_exemptions[{index}].check is "
+                        f"{entry.get('check')!r}; only a contained name match is "
+                        f"exemptable (SCHEMA.md §2a rule 15). A domain or ABN hit "
+                        f"identifies the entity itself."
+                    )
+                    break
+                missing = [
+                    key
+                    for key in ("matched", "parent", "note")
+                    if not str(entry.get(key) or "").strip()
+                ]
+                if missing:
+                    errors["audit_exemptions"] = (
+                        f"audit_exemptions[{index}] needs a non-empty "
+                        f"{', '.join(missing)}"
+                    )
+                    break
+                undated = [
+                    key for key in ("register_updated", "date") if as_date(entry.get(key)) is None
+                ]
+                if undated:
+                    errors["audit_exemptions"] = (
+                        f"audit_exemptions[{index}] needs a valid "
+                        f"{', '.join(undated)}"
+                    )
+                    break
+            else:
+                # Rule 16. Only reached when every entry above parsed.
+                if exemptions and data.get("ownership_status") != "confirmed":
+                    errors["ownership_status"] = (
+                        "a producer carrying an audit_exemptions entry must be "
+                        "ownership_status: confirmed (SCHEMA.md §2a rule 16)"
+                    )
 
     # ── Provenance ────────────────────────────────────────────────────────
     verification = data.get("verification")

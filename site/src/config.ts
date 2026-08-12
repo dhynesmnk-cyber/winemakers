@@ -205,6 +205,17 @@ export const OWNERSHIP_EVIDENCE_METHODS = [
  */
 export const OWNERSHIP_STATES = ["confirmed", "unconfirmed"] as const;
 
+/**
+ * SCHEMA.md §1.16 — added 2026-08-10.
+ *
+ * The three independent paths the deny-list runs against `data/ownership.json`.
+ * `audit_exemptions` records which one a judged false positive answers, and
+ * only `name` is ever exemptable (SCHEMA.md §2a rule 15).
+ *
+ * Mirrored by hand in `admin/config.py`. Nothing generates one from the other.
+ */
+export const DENY_LIST_CHECKS = ["name", "domain", "abn"] as const;
+
 /** SCHEMA.md §1.14 */
 export const STATES = ["VIC", "NSW", "QLD", "SA", "WA", "TAS", "NT", "ACT"] as const;
 

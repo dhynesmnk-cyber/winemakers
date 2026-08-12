@@ -133,6 +133,10 @@ FIELD_DISPOSITION: dict[str, tuple[str, object]] = {
     # `has_image` is a derived flag, not the path. SCHEMA.md §3 stores whether
     # there is a photograph, not which one.
     "image": ("column", "has_image"),
+    # Audit metadata. No page renders it and no aggregation queries it; it
+    # exists so /validate check 8 can read a judgement out of a file that
+    # travels with the repository instead of out of gitignored volume state.
+    "audit_exemptions": ("rendered_only", "SCHEMA.md §2: audit record, not stored in SQLite"),
     "verification": ("rendered_only", "SCHEMA.md §3: not stored in SQLite"),
     "change_log": ("rendered_only", "SCHEMA.md §3: not stored in SQLite"),
     "drafted": ("rendered_only", "SCHEMA.md §3: metadata, same posture as verified"),
@@ -445,6 +449,7 @@ def _compare_config_pair(failures: list[str]) -> None:
         "CONFIDENCE_TIERS",
         "VERIFIABLE_FIELDS",
         "OWNERSHIP_EVIDENCE_METHODS",
+        "DENY_LIST_CHECKS",
         "STATES",
         "COVERAGE_REGIONS",
     ):

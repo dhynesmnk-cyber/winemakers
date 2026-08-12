@@ -114,6 +114,14 @@ Numbered 1.15 rather than inserted at 1.14, because `STATES` is referenced by nu
 
 `VIC` · `NSW` · `QLD` · `SA` · `WA` · `TAS` · `NT` · `ACT`
 
+### 1.16 `DENY_LIST_CHECKS`
+
+`name` · `domain` · `abn`
+
+*Added 2026-08-10, signed off.* The three independent paths `ownership.deny_list_check` runs against `data/ownership.json` (§4.3, UX.md §1.4.2). Named as a vocabulary because `audit_exemptions` (§2) has to say *which* of the three a recorded exemption answers, and a free string there would let an exemption written against one path silently appear to cover another.
+
+Only `name` is ever exemptable, and only on a contained match (§2a rule 15). The vocabulary carries all three so the recorded value is checked against the same closed set the audit iterates, rather than being the one place the three paths are spelled by hand.
+
 ---
 
 ## 2. MDX Frontmatter
@@ -128,6 +136,7 @@ Slug = filename (`jauma-wines.mdx`), kebab-case, unique across `_staging` + `_pu
 | `parent_company` | string \| null | ✓ | **`null` = independent. Any non-null value blocks publication.** The key is always present — an absent key is an undetermined producer, which is not publishable. See §4. |
 | `ownership_status` | enum | ✓ | One of `OWNERSHIP_STATES` (§1.15). `confirmed` requires `ownership_source`; `unconfirmed` requires its absence. *Added 2026-08-09.* |
 | `ownership_source` | object \| null | ✓ | `{ source: string, method: enum, date: date }`, or `null`. `method` is one of `OWNERSHIP_EVIDENCE_METHODS` (§1.13 — *corrected 2026-08-07, previously cited as §1.14, which is `STATES`*) and records *which* of the three routes in §4.2 was used. Documents a *negative* (see §4.2). **Amended 2026-08-09:** this previously read "No producer publishes without an ownership determination and a source." A producer still publishes only with a determination — that clause is untouched and `ownership_status` is now its record — but the *source* is required on `confirmed` alone. The key is always present; `null` is a positive statement that no source was found, not an omission. |
+| `audit_exemptions` | array | – | *Added 2026-08-10.* Deny-list hits judged false positives, each `{ check: enum, matched: string, parent: string, register_updated: date, date: date, note: string }`. `check` is one of `DENY_LIST_CHECKS` (§1.16). The **durable** record of a judgement that was previously only in the gitignored determination sidecar, which meant `/validate` check 8 could never be brought to green in a fresh clone. Absent or `[]` on almost every entry: an exemption is an exception, and §2a rules 15 to 17 keep it one. Rendered/metadata only; not stored in SQLite. |
 | `category` | enum | ✓ | One of `CATEGORIES` (§1.1). Never a near-synonym. |
 | `founded_year` | number \| null | – | Four-digit year. Null when not published. |
 | `website` | string (url) | ✓ | The producer's own site. |
@@ -193,6 +202,17 @@ These are the refinements that cannot be expressed by a single field's type. Tho
 | 12 | Every populated `VERIFIABLE_FIELDS` entry carries a `{source, tier, date}` record; no tier downgrades against the previous commit | `/validate` 14 |
 | 13 | `ownership_status: unconfirmed` requires `ownership_source` to be `null` | zod `.superRefine()` + `/validate` 8 |
 | 14 | **`ownership_status: unconfirmed` requires the deny-list to be silent on name, domain and ABN.** A register hit is never publishable as unconfirmed | `/validate` 8 + `ownership.approval_blocks` |
+| 15 | An `audit_exemptions` entry is valid only against a **contained (non-exact) `name`** match. An exact name match, a domain match and an ABN match each identify the entity itself, and none is ever exemptable | zod `.superRefine()` + `/validate` 8 |
+| 16 | An exemption does **not** relax rule 14. A producer carrying one must publish as `confirmed` | `/validate` 8 |
+| 17 | An exemption is honoured only while `parent` and `register_updated` still match the live register record. If the record moves, the exemption is **stale** and the hit fails again | `/validate` 8 |
+
+*Rules 15 to 17, added 2026-08-10, are one mechanism and are written as three because each closes a different way of abusing it.*
+
+**Rule 15** is the whole basis for the feature existing. A contained name match is the only deny-list hit with an innocent reading: a surname or a place name appearing inside a longer trading name. `ownership.check_name` already floors those to `check` and never rejects on them, for exactly this reason. A domain match means the producer's website *is* the register's listed domain and an ABN match means the same legal entity, and neither has a false-positive story worth writing a schema field for.
+
+**Rule 16** stops the exemption becoming a second route into `unconfirmed`. If the evidence is good enough to show the register matched the wrong business, it named the right owner on the way through, so `confirmed` is available. An exemption that let a producer publish with no ownership source *and* a suppressed register hit would be the one combination that defeats both halves of §4 at once.
+
+**Rule 17** is what keeps check 8 a standing audit rather than a one-time gate. The register grows, and the case this whole mechanism was built for is the case that must not become permanent: `Riposte by Tim Knappstein and Son` is exempt from the `Knappstein` label under Australian Yinmore Wines *as that record stood on 2026-08-07*. If somebody later buys Riposte and the record is updated to say so, the exemption goes stale on its own and the producer fails the audit again. **An exemption is a judgement about a register state, never a permanent waiver on a name.**
 
 Rules 11 and 13 are the same co-requirement read in both directions, and they are deliberately shaped like rules 2 and 3 (`organic`/`organic_certifier`): a state enum plus the evidence that state implies, each forbidden without the other. The asymmetry that matters is rule 14, which has no counterpart on `confirmed` — a register hit blocks in *either* state, and `unconfirmed` must never become the door a deny-listed label walks through because nobody found a source for it.
 

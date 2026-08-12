@@ -394,6 +394,16 @@ OWNERSHIP_EVIDENCE_METHODS = ("registry", "producer_statement", "trade_source")
 # and `schema_surfaces` is what notices when they drift.
 OWNERSHIP_STATES = ("confirmed", "unconfirmed")
 
+# SCHEMA.md §1.16 — added 2026-08-10.
+#
+# The three independent paths the deny-list runs against `data/ownership.json`.
+# `audit_exemptions` records which one a judged false positive answers, and only
+# `name` is ever exemptable (SCHEMA.md §2a rule 15).
+#
+# Hand-mirrored from `site/src/config.ts`. Nothing generates one from the other,
+# and `schema_surfaces` is what notices when they drift.
+DENY_LIST_CHECKS = ("name", "domain", "abn")
+
 # SCHEMA.md §1.14
 STATES = ("VIC", "NSW", "QLD", "SA", "WA", "TAS", "NT", "ACT")
 

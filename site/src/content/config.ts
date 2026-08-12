@@ -30,6 +30,7 @@ import {
   CELLAR_DOOR_STATES,
   CERTIFICATION_STATES,
   CONFIDENCE_TIERS,
+  DENY_LIST_CHECKS,
   FRUIT_SOURCE,
   LOGISTICS_KEYS,
   OWNERSHIP_EVIDENCE_METHODS,
@@ -128,6 +129,37 @@ const ownershipSourceSchema = z
   .strict()
   .nullable();
 
+/**
+ * SCHEMA.md §2, added 2026-08-10. A deny-list hit judged a false positive,
+ * recorded where it travels with the repository.
+ *
+ * This used to live only in the determination sidecar under `content-staging/`,
+ * which is gitignored volume state. The consequence was that a correctly judged
+ * surname collision failed `/validate` check 8 forever, and the only route to a
+ * green suite was unpublishing an independent producer — the precise wrong
+ * rejection `data/ownership.json`'s own header warns against.
+ *
+ * `register_updated` and `parent` are not decoration. Check 8 honours an
+ * exemption only while both still match the live register record, so buying the
+ * exempted producer invalidates the exemption rather than being hidden by it
+ * (§2a rule 17).
+ */
+const auditExemptionSchema = z
+  .object({
+    check: enumOf(DENY_LIST_CHECKS),
+    /** The register label, domain or ABN that matched. */
+    matched: z.string().min(1),
+    /** The record it matched under, as `parent` reads in the register. */
+    parent: z.string().min(1),
+    /** The matched record's own `updated` date, at the time of judging. */
+    register_updated: z.coerce.date(),
+    /** When the judgement was made. */
+    date: z.coerce.date(),
+    /** Why it is a false positive. Free prose, and it must say something. */
+    note: z.string().min(1),
+  })
+  .strict();
+
 const locationSchema = z
   .object({
     address: z.string().optional(),
@@ -201,6 +233,7 @@ const producerFrontmatter = z
 
     /** Required on `confirmed`, forbidden on `unconfirmed`. §2a rules 11, 13. */
     ownership_source: ownershipSourceSchema,
+    audit_exemptions: z.array(auditExemptionSchema).optional(),
 
     category: enumOf(CATEGORIES),
     founded_year: z.number().int().min(1000).max(9999).nullable().optional(),
@@ -315,6 +348,47 @@ const producerFrontmatter = z
           "ownership_status: unconfirmed requires ownership_source to be null " +
           "(SCHEMA.md §2a rule 13). An entry carrying a real source should be " +
           "confirmed; the two states are not a confidence ranking.",
+      });
+    }
+
+    // Rule 15 — only a CONTAINED NAME match is ever exemptable.
+    //
+    // A domain match means this producer's website is the register's listed
+    // domain; an ABN match means it is the same legal entity. Neither has an
+    // innocent reading, so neither can be waived by writing frontmatter. The
+    // surname and place-name collisions this field exists for are contained
+    // name matches and nothing else (SCHEMA.md §2a rule 15).
+    //
+    // Exactness is not visible from here — the register is not loaded at build
+    // time — so zod enforces the half it can see, the `check` value, and
+    // /validate check 8 enforces the other half against the live record.
+    (data.audit_exemptions ?? []).forEach((exemption, index) => {
+      if (exemption.check !== "name") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["audit_exemptions", index, "check"],
+          message:
+            `audit_exemptions[${index}].check is "${exemption.check}", and only ` +
+            `"name" is exemptable (SCHEMA.md §2a rule 15). A domain or ABN match ` +
+            `identifies the entity itself. If one of those fired, the producer is ` +
+            `not publishable and no frontmatter can make it so.`,
+        });
+      }
+    });
+
+    // Rule 16 — an exemption never opens the `unconfirmed` door.
+    //
+    // Rule 14 keeps a register hit out of `unconfirmed` entirely. Evidence
+    // strong enough to prove the register matched the wrong business has
+    // already named the right owner, so `confirmed` is available and required.
+    if ((data.audit_exemptions ?? []).length > 0 && data.ownership_status !== "confirmed") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ownership_status"],
+        message:
+          "a producer carrying an audit_exemptions entry must be ownership_status: " +
+          "confirmed (SCHEMA.md §2a rule 16). Suppressing a register hit while " +
+          "claiming no knowledge of the owner defeats both halves of §4 at once.",
       });
     }
 

@@ -101,6 +101,44 @@ That sentence carries more weight here than any other. "A genuine family
 business" names no family. "Independently owned and operated" names no owner.
 "Since 1974, our family has" says nothing about who owns it today.
 
+## When the deny-list matches the wrong business
+
+A deny-list matches on words, and words are shared. A winemaker's surname can
+sit inside the name of a company that bought their old label years after they
+left it. A vineyard can carry the name of the town it stands in, and a corporate
+brand can carry that same name.
+
+So a match on part of a longer trading name never rejects a producer by itself.
+It holds the entry, and a person then has to establish which business the
+register actually names. Often the register is right. Sometimes it has caught a
+surname or a place name, and the producer in front of us is a separate business
+that happens to share a word.
+
+Where that judgement clears a producer, it is recorded in the entry itself,
+against four things: which of the three checks matched, what it matched, the
+register record it matched under, and the date that record carried when the
+judgement was made. A written reason sits alongside them. Without that record
+the entry fails our own validation suite and cannot ship, so a false positive
+has to be judged and documented rather than left alone or argued about once and
+forgotten.
+
+The date is what stops an exemption becoming permanent. It is a judgement about
+the register as it stood on a given day, and not a standing decision about a
+name. If that record later changes, because the producer has since been bought
+or because we have learned something we did not know, the exemption stops
+applying on its own and the entry is held again for a fresh determination.
+
+Three things an exemption can never do:
+
+- It cannot clear a match on the producer's exact trading name, on its website
+  domain, or on its ABN. Each of those identifies the business itself rather
+  than a word it shares with another.
+- It cannot be used on an entry whose ownership we have not confirmed. Evidence
+  strong enough to show the register matched the wrong business has already
+  named the right owner.
+- It is never a route to listing a producer we know to be owned. A documented
+  parent company excludes an entry, and nothing overrides that.
+
 ## When nobody publishes who owns a winery
 
 Most small producers never publish an ownership statement. They are not hiding
@@ -235,7 +273,7 @@ kept current after that.)*
 
 ## Last updated
 
-**2026-08-09.**
+**2026-08-10.**
 
 Substantive changes to the definition of independence, with dates:
 
@@ -249,6 +287,14 @@ Substantive changes to the definition of independence, with dates:
   register of known portfolio owners still blocks publication. What changed is
   that silence is now recorded and shown to you, rather than being treated as
   grounds for leaving a producer out.
+- **2026-08-10.** Wrote down how a match against the wrong business is cleared,
+  under *When the deny-list matches the wrong business* above. **The rule itself
+  did not change**, and neither did what the register blocks. Until this date a
+  judgement that the register had caught a shared surname or a place name was
+  recorded in working notes that were never published and did not travel with
+  the site's source. It is now recorded in the entry, it names the register
+  record and the date it was judged against, and it expires by itself when that
+  record changes.
 
 A definition that changes silently is not a definition. Every future change to
 what "independent" means on this site is added to this list, with its date, and

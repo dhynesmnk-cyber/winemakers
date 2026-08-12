@@ -21,6 +21,35 @@ retained determination is itself reported: UX.md §1.4.6 requires the sidecar to
 survive the approve, and a missing one means a producer was published by some
 route that bypassed the hub.
 
+── Where a judged false positive is recorded, amended 2026-08-10 ─────────────
+
+**Frontmatter, never the sidecar.** `audit_exemptions` (SCHEMA.md §2) is the
+durable record that a deny-list hit was examined and found to be a collision
+rather than an ownership fact.
+
+The sidecar carries `hits_to_resolve`, and a reviewer must clear those before
+approval — that mechanism is untouched and still governs the *queue*. But
+`DETERMINATIONS_DIR` sits under `content-staging/`, which is gitignored volume
+state, so a resolution recorded there does not travel with the repository. The
+consequence was structural: `Riposte by Tim Knappstein and Son` contains the
+register label `Knappstein`, the hit is a contained name match that
+`ownership.check_name` already floors to `check`, the reviewer judged it
+correctly at publish time, and this check re-reported it as a failure on every
+run with no way to ever reach green except unpublishing an independent
+producer. That is the exact wrong rejection `data/ownership.json`'s own header
+warns about, arrived at by a check that was supposed to prevent it.
+
+**An exemption is a judgement about a register state, not a waiver on a name**
+(SCHEMA.md §2a rule 17). It is honoured only while the record it was written
+against still says what it said: `parent` and `register_updated` must both
+still match. Buy Riposte tomorrow, update the record, and the exemption goes
+stale on its own and the audit fails again. That is what keeps this a standing
+audit rather than a gate a producer passes once.
+
+Three things an exemption can never do, asserted in `_selftest`: clear an
+**exact** name match, clear a **domain** or **ABN** match (§2a rule 15), or
+accompany an `unconfirmed` entry (§2a rule 16).
+
 **The self-test pattern.** This project has no test framework. `_selftest()`
 runs as part of the check itself, so the regression fails the same command that
 runs the real check. It exercises the deny-list against a fixture register
@@ -56,8 +85,39 @@ def _published_files() -> list[Path]:
     return sorted(PUBLISHED_DIR.glob("*.mdx")) if PUBLISHED_DIR.is_dir() else []
 
 
+def _as_date(value: Any) -> date | None:
+    """A `date` from YAML's `date`, its `datetime`, or an ISO string. Else None.
+
+    Frontmatter yields all three for what SCHEMA.md calls a date: an unquoted
+    `2026-08-07` parses to `date`, a quoted one stays a string, and the register
+    is JSON so its `updated` is always a string. Rule 17 compares one against
+    the other, so both sides normalise here.
+    """
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError:
+        return None
+
+
 def _determination_abn(slug: str) -> tuple[str | None, bool]:
-    """`(abn, determination_present)` from the retained sidecar."""
+    """`(abn, determination_present)` from the retained sidecar.
+
+    THE ONE REMAINING SIDECAR READ, and it is deliberate. The 2026-08-10 change
+    moved *resolutions* out of the sidecar and into frontmatter, but the ABN
+    cannot follow: SCHEMA.md §2 has no ABN field on purpose, so there is nowhere
+    in published record to read one from. Dropping this read would silently
+    delete the third of the deny-list's three paths for every published
+    producer, and Gate 4's done-condition requires name, domain and ABN to work
+    independently. A check that quietly stops checking is worse than one that
+    fails.
+    """
     record = ownership.read_sidecar(slug, DETERMINATIONS_DIR)
     if record is None:
         return None, False
@@ -65,6 +125,64 @@ def _determination_abn(slug: str) -> tuple[str | None, bool]:
         if row.get("key") == "abn" and row.get("items"):
             return str(row["items"][0]), True
     return None, True
+
+
+def _exemption_for(
+    match: ownership.Match,
+    exemptions: Any,
+    register: dict[str, Any],
+) -> tuple[bool, str | None]:
+    """`(exempt, refusal)` for one live deny-list hit.
+
+    `refusal` explains why a recorded exemption did NOT apply, so a stale or
+    misdirected one reads as a specific finding rather than as silence.
+
+    Every condition here is a way the exemption could otherwise outlive the
+    judgement behind it. SCHEMA.md §2a rules 15 and 17.
+    """
+    # Rule 15's second half, the one zod cannot see: only a CONTAINED name
+    # match. An exact match means the producer trades under the register's own
+    # label, and no note makes that a collision.
+    if match.check != "name" or match.exact:
+        return False, None
+
+    for entry in exemptions if isinstance(exemptions, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("check") != "name":
+            continue
+        if ownership.normalise_name(entry.get("matched")) != ownership.normalise_name(
+            match.matched
+        ):
+            continue
+        if str(entry.get("parent") or "").strip() != str(match.parent or "").strip():
+            return False, (
+                f"an audit_exemptions entry names parent "
+                f"{entry.get('parent')!r}, but the live register matches "
+                f"{match.parent!r}. The label has moved between records; "
+                f"re-judge it (SCHEMA.md §2a rule 17)."
+            )
+        # Rule 17. The register record must still say what it said when the
+        # judgement was made.
+        recorded = _as_date(entry.get("register_updated"))
+        live = _as_date(match.updated)
+        if recorded is None:
+            return False, (
+                "an audit_exemptions entry carries no readable register_updated "
+                "date, so there is nothing to check the register against "
+                "(SCHEMA.md §2a rule 17)."
+            )
+        if live is not None and recorded != live:
+            return False, (
+                f"an audit_exemptions entry was judged against the register "
+                f"record as at {recorded.isoformat()}, and that record now reads "
+                f"{live.isoformat()}. The exemption is STALE. Re-run the "
+                f"determination against the current record and re-judge "
+                f"(SCHEMA.md §2a rule 17)."
+            )
+        return True, None
+
+    return False, None
 
 
 def check_8_ownership() -> tuple[list[str], list[str]]:
@@ -179,20 +297,62 @@ def check_8_ownership() -> tuple[list[str], list[str]]:
                 f"it does not travel with the repository."
             )
 
+        # SCHEMA.md §2a rule 16. An exemption is only ever available to a
+        # `confirmed` entry, so it can never become a second route into
+        # `unconfirmed` past rule 14.
+        exemptions = data.get("audit_exemptions") or []
+        if exemptions and status != "confirmed":
+            errors.append(
+                f"{path.name}: carries {len(exemptions)} audit_exemptions entr"
+                f"{'y' if len(exemptions) == 1 else 'ies'} but ownership_status is "
+                f"{status!r}. An exemption requires confirmed (SCHEMA.md §2a rule 16): "
+                f"evidence good enough to show the register matched the wrong business "
+                f"has already named the right owner."
+            )
+
         for row in ownership.deny_list_check(
             data.get("name"), data.get("website"), abn, register=register
         ):
             if not row.match:
                 continue
             match = row.match
-            errors.append(
-                f"{path.name}: published producer now matches the deny-list on "
+
+            exempt, refusal = _exemption_for(match, exemptions, register)
+            if exempt:
+                notes.append(
+                    f"{path.name}: deny-list {ownership.CHECK_LABELS[match.check]} "
+                    f"match on {match.matched!r} under {match.parent} is EXEMPT — "
+                    f"a contained match judged a false positive, against the record "
+                    f"as at {match.updated}. Reported so the exemption stays visible; "
+                    f"it fails again the moment that record changes."
+                )
+                continue
+
+            detail = (
+                f"published producer now matches the deny-list on "
                 f"{ownership.CHECK_LABELS[match.check]} — {match.matched!r} in "
                 f"{match.matched_in} under {match.parent} "
                 f"(record verdict {match.record_verdict}, applied as {match.verdict}, "
-                f"source {match.source or 'not recorded'}). "
-                f"Re-run the determination and unpublish if it holds."
+                f"source {match.source or 'not recorded'})."
             )
+            if refusal:
+                errors.append(f"{path.name}: {detail} {refusal}")
+            elif match.check == "name" and not match.exact:
+                errors.append(
+                    f"{path.name}: {detail} This is a CONTAINED match, so it may be a "
+                    f"surname or place-name collision. Re-run the determination: "
+                    f"unpublish if it holds, or record an audit_exemptions entry "
+                    f"naming the matched label, the parent, the record's "
+                    f"register_updated date and why it is a false positive "
+                    f"(SCHEMA.md §2a rules 15 to 17)."
+                )
+            else:
+                errors.append(
+                    f"{path.name}: {detail} An exact name match, a domain match and an "
+                    f"ABN match each identify the entity itself and are never "
+                    f"exemptable (SCHEMA.md §2a rule 15). Re-run the determination "
+                    f"and unpublish if it holds."
+                )
     return errors, notes
 
 
@@ -536,6 +696,104 @@ def _selftest() -> list[str]:
     missing = ownership.determine(name="Anything", register={"owners": [], "_missing": True})
     if missing.verdict == "clear":
         errors.append("selftest: a missing register produced a clear verdict")
+
+    # ── audit_exemptions (SCHEMA.md §2a rules 15 to 17, added 2026-08-10).
+    #
+    #    Every assertion below is a way an exemption could outlive the judgement
+    #    behind it. The mechanism suppresses a failure of the check that guards
+    #    the reason the site exists, so the cases that must NOT clear matter more
+    #    than the one that must.
+    def _match_for(**kwargs: Any) -> ownership.Match | None:
+        for row in ownership.deny_list_check(register=register, **kwargs):
+            if row.match:
+                return row.match
+        return None
+
+    def _exemption(**overrides: Any) -> list[dict[str, Any]]:
+        entry = {
+            "check": "name",
+            "matched": "Fixture Ridge",
+            "parent": "Fixture Portfolio Group",
+            "register_updated": date(2026, 8, 7),
+            "date": date(2026, 8, 10),
+            "note": "Contained match on a longer trading name; judged a collision.",
+        }
+        entry.update(overrides)
+        return [entry]
+
+    contained_match = _match_for(name="Fixture Ridge Cellars")
+    if contained_match is None or contained_match.exact:
+        errors.append("selftest: the contained-match fixture did not produce a contained match")
+    else:
+        # The one case that clears.
+        exempt, refusal = _exemption_for(contained_match, _exemption(), register)
+        if not exempt or refusal:
+            errors.append(
+                f"selftest: a valid exemption on a contained name match did not "
+                f"clear it (refusal={refusal!r})"
+            )
+
+        # Rule 17. A record that has moved since the judgement invalidates it.
+        exempt, refusal = _exemption_for(
+            contained_match, _exemption(register_updated=date(2026, 1, 1)), register
+        )
+        if exempt:
+            errors.append(
+                "selftest: a STALE exemption still cleared the hit (r17). The register "
+                "moving is exactly the case this check exists to catch."
+            )
+        if not refusal or "STALE" not in refusal:
+            errors.append("selftest: a stale exemption did not report itself as stale")
+
+        # A judgement with no register state behind it is not a judgement.
+        exempt, refusal = _exemption_for(
+            contained_match, _exemption(register_updated=""), register
+        )
+        if exempt or not refusal:
+            errors.append("selftest: an exemption with no register_updated cleared the hit")
+
+        # The label moving to a different parent invalidates it too.
+        exempt, refusal = _exemption_for(
+            contained_match, _exemption(parent="Some Other Group"), register
+        )
+        if exempt or not refusal:
+            errors.append("selftest: an exemption naming the wrong parent cleared the hit")
+
+        # An exemption for a different label does not cover this hit.
+        exempt, _ = _exemption_for(contained_match, _exemption(matched="Hollow Hill Wines"), register)
+        if exempt:
+            errors.append("selftest: an exemption for another label cleared this hit")
+
+        # No exemptions at all: still a failure, and silently so.
+        exempt, refusal = _exemption_for(contained_match, [], register)
+        if exempt or refusal:
+            errors.append("selftest: an absent exemption was treated as one")
+
+    # Rule 15. The three matches that identify the entity itself, none of which
+    # any frontmatter can ever wave through.
+    for label, kwargs, matched in (
+        ("an exact name match", {"name": "Fixture Ridge"}, "Fixture Ridge"),
+        (
+            "a domain match",
+            {"website": "https://fixtureridge.example/about"},
+            "fixtureridge.example",
+        ),
+        ("an ABN match", {"abn": "11 222 333 444"}, "11 222 333 444"),
+    ):
+        match = _match_for(**kwargs)
+        if match is None:
+            errors.append(f"selftest: {label} produced no match to test rule 15 against")
+            continue
+        exempt, _ = _exemption_for(
+            match,
+            _exemption(check=match.check, matched=matched),
+            register,
+        )
+        if exempt:
+            errors.append(
+                f"selftest: {label} was cleared by an exemption. Rule 15 has "
+                f"regressed and the deny-list can now be waived by frontmatter."
+            )
 
     return errors
 

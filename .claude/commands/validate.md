@@ -67,6 +67,12 @@ No producer published without an `ownership_source` carrying a non-empty source 
 
 The ABN is read from the retained determination sidecar in `DETERMINATIONS_DIR`, not from frontmatter — an ABN is pipeline evidence, not published record, and SCHEMA.md §2 has no ABN field deliberately. A published producer with **no** retained determination is itself reported: UX.md §1.4.6 requires the sidecar to survive the approve, so a missing one means a producer reached `_published` by some route that bypassed the hub.
 
+*Amended 2026-08-10.* A deny-list hit judged a false positive is cleared by an `audit_exemptions` entry in the producer's **frontmatter** (SCHEMA.md §2, §2a rules 15–17), never by the determination sidecar. The sidecar's `hits_to_resolve` still governs the *queue* and still blocks approval; it is gitignored volume state, so a resolution recorded only there does not travel with the repository, and a correctly judged surname collision failed this check forever with no route to green except unpublishing an independent producer.
+
+An exemption is honoured only while `parent` and `register_updated` still match the live register record. If the record moves, the exemption is **stale** and the hit fails again — that is what keeps this a standing audit rather than a permanent waiver on a name. Exemptions that do apply are printed as **notes** on every run, so a suppressed hit stays visible.
+
+Three things an exemption can never do, each asserted in the self-test: clear an **exact** name match, clear a **domain** or **ABN** match (rule 15), or accompany an `unconfirmed` entry (rule 16).
+
 The self-test runs against a fixture register rather than `data/ownership.json`, so its guarantees hold whatever the real register happens to contain on the day.
 
 ### 9. Certification integrity — *G4*
