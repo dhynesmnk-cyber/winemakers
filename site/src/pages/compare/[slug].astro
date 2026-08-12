@@ -1,0 +1,222 @@
+---
+/**
+ * `/compare/[slug]/` — one variety-within-region comparison. CLAUDE.md Gate 9.
+ *
+ * ── Why this does not use TaxonomyPage ────────────────────────────────────────
+ *
+ * `TaxonomyPage.astro` is the shared shell for the five PRODUCER LISTINGS, and
+ * its body is a `<ul>` of `ProducerEntry` rows plus a pager. A comparison is a
+ * `<table>`, not a listing, so it would have to slot past the one thing that
+ * component exists to standardise. The heading rhythm is mirrored here rather
+ * than the component being widened, so a change to the listing shell cannot
+ * silently reshape a table.
+ *
+ * ── No pagination, deliberately ───────────────────────────────────────────────
+ *
+ * UX.md §2.2 paginates "every listing". A comparison split across two pages is
+ * not a comparison — the reader cannot see the rows they are comparing — so the
+ * table renders whole. The largest in the current corpus is 17 rows, which is a
+ * short table, and the threshold below it means none is ever tiny. If a table
+ * ever reaches a length where this stops being true, the answer is a narrower
+ * comparison rather than a pager.
+ *
+ * ── ItemList, and only ItemList ───────────────────────────────────────────────
+ *
+ * CLAUDE.md Gate 9 names `ItemList` in its done-condition, so it ships here.
+ * `BreadcrumbList` and the rest of the JSON-LD set belong to Gate 10, exactly as
+ * `Breadcrumbs.astro` already records. This is the one page type carrying
+ * structured data before that gate, and it carries one type only.
+ */
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import ComparisonTable from "../../components/ComparisonTable.astro";
+import { SITE_URL } from "../../config.ts";
+import {
+  COMPARE_HUB,
+  comparisonsPresent,
+  siblingComparisons,
+  type Comparison,
+} from "../../data/comparisons.ts";
+import { producerHref, regionHref, varietyHref } from "../../data/taxonomy.ts";
+import { glossaryFor } from "../../data/glossary.ts";
+
+export async function getStaticPaths() {
+  const comparisons = await comparisonsPresent();
+  return comparisons.map((comparison) => ({
+    params: { slug: comparison.slug },
+    props: { comparison },
+  }));
+}
+
+interface Props {
+  comparison: Comparison;
+}
+
+const { comparison } = Astro.props;
+const siblings = await siblingComparisons(comparison);
+
+const description =
+  `The ${comparison.count} independent producers documented working ` +
+  `${comparison.varietyName.toLowerCase()} in ${comparison.regionInWords}, ` +
+  `compared on published facts.`;
+
+/**
+ * `ItemList` names the producers in the order the table renders them, which is
+ * the order the caption states. `itemListOrder` is spelled out rather than left
+ * to default, because an unordered ItemList over a table that IS ordered would
+ * be the structured-data equivalent of the unstated ranking UX.md §5 bans.
+ */
+const itemList = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: comparison.title,
+  description,
+  numberOfItems: comparison.count,
+  itemListOrder: "https://schema.org/ItemListOrderAscending",
+  itemListElement: comparison.producers.map((producer, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    name: producer.data.name,
+    url: new URL(producerHref(producer.id), SITE_URL).href,
+  })),
+};
+
+// The grape's definition sits at the FOOT and is linked rather than duplicated,
+// the same treatment the variety page gives it (DESIGN.md §7).
+const glossary = glossaryFor("variety", comparison.varietySlug);
+---
+
+<BaseLayout title={comparison.title} description={description}>
+  <Fragment slot="head">
+    <script
+      type="application/ld+json"
+      is:inline
+      set:html={JSON.stringify(itemList)}
+    />
+  </Fragment>
+
+  <div class="reading-spine">
+    <Breadcrumbs
+      crumbs={[
+        { label: "Home", href: "/" },
+        { label: "Compare", href: COMPARE_HUB },
+        { label: comparison.heading, href: null },
+      ]}
+    />
+
+    <header class="tax-head">
+      <h1 class="tax-head__title">{comparison.heading}</h1>
+      <p class="tax-head__count mono mono-caps">
+        {comparison.count} producers
+      </p>
+    </header>
+
+    <p class="tax-foreword">
+      Every independent producer this guide documents as working {
+        comparison.varietyName.toLowerCase()
+      } in {comparison.regionInWords}. The table states what each producer's own
+      published sources state, and nothing else: there is no rating, no score and
+      no ordering by quality. Nobody on this project has tasted these wines.
+    </p>
+
+    <ComparisonTable comparison={comparison} />
+
+    {/*
+      Sideways links: the same grape in other regions. UX.md §2.4 asks every
+      programmatic page to link up to its hub and sideways to its siblings, and
+      these are also inbound links that keep the sibling pages off check 17's
+      orphan list.
+    */}
+    {
+      siblings.length > 0 && (
+        <section class="section-gap">
+          <p class="section-opener draw-line">
+            {comparison.varietyName} elsewhere
+          </p>
+          <ul class="sideways">
+            {siblings.map((sibling) => (
+              <li>
+                <a href={sibling.href}>{sibling.regionName}</a>
+                <span class="sideways__count mono mono-caps">
+                  {sibling.count} producers
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    <nav class="up-links" aria-label="Related pages">
+      <a href={varietyHref(comparison.varietySlug)}>
+        All {comparison.varietyName.toLowerCase()} producers
+      </a>
+      <a href={regionHref(comparison.regionSlug)}>
+        All producers in {comparison.regionInWords}
+      </a>
+      <a href={COMPARE_HUB}>All comparisons</a>
+    </nav>
+
+    {
+      glossary && (
+        <p class="footnote">
+          <strong>{glossary.term}.</strong> {glossary.definition}
+        </p>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .tax-head {
+    margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
+  }
+
+  .tax-head__title {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    margin: 0 0 0.5rem;
+  }
+
+  .tax-head__count {
+    color: var(--ink-faded);
+    margin: 0;
+  }
+
+  .tax-foreword {
+    max-width: 60ch;
+    margin: 0 0 clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  .sideways {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .sideways li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+  }
+
+  .sideways__count {
+    font-size: 0.6875rem;
+    color: var(--ink-faded);
+  }
+
+  .up-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin: clamp(1.5rem, 3vw, 2.5rem) 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .footnote {
+    max-width: 60ch;
+    color: var(--ink-faded);
+    font-size: 0.9375rem;
+  }
+</style>

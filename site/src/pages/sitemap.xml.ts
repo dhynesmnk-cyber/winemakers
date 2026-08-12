@@ -40,6 +40,7 @@ import {
   practiceHref,
 } from "../data/taxonomy.ts";
 import type { State } from "../config.ts";
+import { COMPARE_HUB, comparisonsPresent } from "../data/comparisons.ts";
 
 /** Every page in a paginated series, page 1 first. */
 function series(base: string, total: number): string[] {
@@ -74,6 +75,11 @@ export const GET: APIRoute = async () => {
   for (const practice of await practicesPresent()) {
     paths.push(...series(practiceHref(practice.slug), practice.count));
   }
+
+  // Comparisons are present-only and never paginated (Gate 9), so each is one
+  // path. The hub is unconditional because it exists even at zero comparisons.
+  paths.push(COMPARE_HUB);
+  paths.push(...(await comparisonsPresent()).map((c) => c.href));
 
   // Unconditional, exactly as the pages are.
   paths.push(...GLOSSARY.map((entry) => glossaryHref(entry.slug)));

@@ -1,0 +1,217 @@
+---
+/**
+ * ComparisonTable.astro — the semantic table behind every `/compare/[slug]/`.
+ *
+ * DESIGN.md §5 and §164, and UX.md §5, all say the same thing three ways:
+ * comparisons are a real `<table>` with a `<caption>` and `<th scope>`. Not a
+ * grid of divs, not a stack of cards at any width. A comparison is tabular data
+ * and a screen reader should be able to say which column a cell is in.
+ *
+ * DESIGN.md §164's visual rules, each load-bearing:
+ *   - hairline rules BETWEEN ROWS ONLY. No vertical rules, no zebra striping,
+ *     no wrapping card, no fills.
+ *   - mono in the cells, display face for the caption.
+ *   - horizontal scroll INSIDE THE TABLE'S OWN CONTAINER on narrow screens.
+ *     "never a page that scrolls sideways" — which is why the scroller is a
+ *     wrapping div with `overflow-x: auto` and the table sets a min-width,
+ *     rather than the table simply overflowing the reading spine.
+ *
+ * ── The scroller is focusable on purpose ──────────────────────────────────────
+ *
+ * A `overflow: auto` region that a mouse can scroll and a keyboard cannot is a
+ * WCAG 2.1.1 failure. `tabindex="0"` with a `role="region"` and an accessible
+ * name makes the scroller a keyboard-reachable landmark, which is the standard
+ * remedy and costs nothing to a mouse user.
+ *
+ * ── The unconfirmed notice rides the row ──────────────────────────────────────
+ *
+ * Engagement 2026-08-09 (second), rule 3: the ownership notice "is not a
+ * footnote. It renders on the producer entry and travels to EVERY AGGREGATION
+ * CARD, because a region page that lists unconfirmed entries without saying so
+ * is the misrepresentation this change exists to avoid." A comparison row is an
+ * aggregation surface listing a producer, so it carries the notice on the same
+ * terms as `ProducerEntry` does: one short mono line, no badge, no pill, no
+ * colour — a fact about the evidence, not a warning (DESIGN.md §2 on `--claret`).
+ * Half the current corpus is `unconfirmed`, so this is the common case.
+ */
+import { CATEGORY_LABELS, FRUIT_SOURCE_LABELS, VARIETY_LABELS } from "../config.ts";
+import { producerHref } from "../data/taxonomy.ts";
+import { subregionName } from "../data/regions.ts";
+import type { Comparison } from "../data/comparisons.ts";
+
+interface Props {
+  comparison: Comparison;
+}
+
+const { comparison } = Astro.props;
+
+/**
+ * The locality column is a fallback chain rather than one field, because no
+ * single locality field is populated often enough to be a column on its own:
+ * across the corpus `suburb` is 54% and `subregions` 26%. A column that is
+ * empty in two rows out of three reads as broken data rather than as absent
+ * data, and DESIGN.md §6 requires every page to look complete and intentional.
+ * The region is the honest floor — every producer has one, and on this page it
+ * is the region the comparison is already scoped to.
+ */
+function locality(data: Comparison["producers"][number]["data"]): string {
+  if (data.location?.suburb) return data.location.suburb;
+  const subs = data.subregions ?? [];
+  if (subs.length > 0) return subregionName(subs[0]);
+  return comparison.regionName;
+}
+
+/**
+ * Every OTHER variety this producer works, the comparison's own grape removed —
+ * repeating it in every row of a table scoped to it is noise.
+ *
+ * Capped, because the column is unbounded: one published producer lists fifteen
+ * varieties, and an uncapped cell would set the table's width for every other
+ * row. The remainder is stated as a count rather than truncated silently, so
+ * the cell never implies the list is complete when it is not.
+ */
+const OTHER_VARIETIES_SHOWN = 4;
+
+function otherVarieties(varieties: readonly string[] | undefined): string {
+  const rest = (varieties ?? []).filter((v) => v !== comparison.varietySlug);
+  if (rest.length === 0) return "—";
+
+  const shown = rest.slice(0, OTHER_VARIETIES_SHOWN).map((v) => VARIETY_LABELS[v]);
+  const hidden = rest.length - shown.length;
+  return hidden > 0 ? `${shown.join(", ")} +${hidden} more` : shown.join(", ");
+}
+---
+
+{/*
+  The caption is the table's accessible name and its visible title in one. It
+  is not a duplicate <h1>: the page heading names the comparison, the caption
+  says what the rows are and how they are ordered (UX.md §5 — unstated ordering
+  reads as a ranking).
+*/}
+<div
+  class="ctable__scroll"
+  role="region"
+  tabindex="0"
+  aria-labelledby={`caption-${comparison.slug}`}
+>
+  <table class="ctable">
+    <caption id={`caption-${comparison.slug}`} class="ctable__caption">
+      {`${comparison.count} independent producers working ${comparison.varietyName} in ${comparison.regionInWords}`}
+      <span class="ctable__order mono mono-caps">Listed A to Z</span>
+    </caption>
+
+    <thead>
+      <tr>
+        <th scope="col">Producer</th>
+        <th scope="col">Locality</th>
+        <th scope="col">Category</th>
+        <th scope="col">Fruit</th>
+        <th scope="col">Other varieties</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {
+        comparison.producers.map((producer) => (
+          <tr>
+            {/*
+              The producer name is the row's header, which is what `scope="row"`
+              says: every other cell in the row is about this business.
+            */}
+            <th scope="row" class="ctable__name">
+              <a href={producerHref(producer.id)}>{producer.data.name}</a>
+              {producer.data.ownership_status === "unconfirmed" && (
+                <span class="ctable__ownership mono mono-caps">
+                  Ownership not confirmed
+                </span>
+              )}
+            </th>
+            <td>{locality(producer.data)}</td>
+            <td>{CATEGORY_LABELS[producer.data.category]}</td>
+            <td>{FRUIT_SOURCE_LABELS[producer.data.fruit_source]}</td>
+            <td>{otherVarieties(producer.data.varieties)}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>
+
+<style>
+  /* The scroller, not the page, is what scrolls sideways (DESIGN.md §164). */
+  .ctable__scroll {
+    overflow-x: auto;
+    margin: 0 0 clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  /* A focusable region needs a visible focus ring like any other. */
+  .ctable__scroll:focus-visible {
+    outline: 2px solid var(--vine);
+    outline-offset: 4px;
+  }
+
+  .ctable {
+    border-collapse: collapse;
+    width: 100%;
+    /* Below this the columns wrap into illegibility, so the scroller takes
+       over. It is deliberately modest: most tables never reach it. */
+    min-width: 44rem;
+    text-align: left;
+  }
+
+  .ctable__caption {
+    /* Display face on the caption, mono in the cells (DESIGN.md §164). */
+    font-family: var(--font-display);
+    font-size: 1rem;
+    text-align: left;
+    color: var(--ink-faded);
+    padding-bottom: 0.9rem;
+  }
+
+  .ctable__order {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--ink-faded);
+    margin-top: 0.25rem;
+  }
+
+  .ctable th,
+  .ctable td {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    vertical-align: top;
+    padding: 0.75rem 1.25rem 0.75rem 0;
+  }
+
+  .ctable thead th {
+    /* The header row's rule is the same hairline as the body's. No fill, no
+       heavier weight — the uppercase mono is doing the work. */
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.6875rem;
+    color: var(--ink-faded);
+    border-bottom: 1px solid var(--hairline);
+    padding-bottom: 0.6rem;
+  }
+
+  /* Hairlines BETWEEN rows only: no rule above the first body row, because the
+     header already draws one, and none below the last. */
+  .ctable tbody tr + tr th,
+  .ctable tbody tr + tr td {
+    border-top: 1px solid var(--hairline);
+  }
+
+  .ctable__name a {
+    /* The name is the one thing in the table set in the reading face. */
+    font-family: var(--font-body);
+    font-size: 1rem;
+  }
+
+  .ctable__ownership {
+    display: block;
+    font-size: 0.6875rem;
+    color: var(--ink-faded);
+    margin-top: 0.3rem;
+  }
+</style>

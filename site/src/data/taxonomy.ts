@@ -70,7 +70,7 @@ export type Producer = CollectionEntry<"producers">;
  * only where the source named it, and an empty array would assert "we checked
  * and there are none" where the truth is "nobody said".
  */
-const list = (value: readonly string[] | undefined): readonly string[] =>
+export const list = (value: readonly string[] | undefined): readonly string[] =>
   value ?? [];
 
 /* ═══════════════════════════════════════════════════════════════════════════

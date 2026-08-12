@@ -1,0 +1,129 @@
+---
+/**
+ * `/compare/` — the comparison hub. TRD.md §4.2, CLAUDE.md Gate 9.
+ *
+ * `/validate` check 17 requires that every comparison page be reachable from a
+ * hub. This is that hub, and it is the ONLY page that links to all of them, so
+ * a comparison missing from this list is an orphan by definition.
+ *
+ * Grouped by grape rather than by region because the comparison family is
+ * "variety within a region": the interesting sideways move from chardonnay in
+ * the Adelaide Hills is chardonnay somewhere else, and grouping by grape puts
+ * those siblings next to each other. Region-first grouping would scatter them.
+ *
+ * Present-only, like every programmatic route (TRD.md §4.2 rule 2). If no pair
+ * clears `MIN_COMPARISON_PRODUCERS` this page still exists — it is a hub, not a
+ * listing of one taxonomy value — and says so plainly rather than rendering an
+ * empty heading with nothing under it.
+ */
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import { MIN_COMPARISON_PRODUCERS } from "../../config.ts";
+import { comparisonsByVariety, comparisonsPresent } from "../../data/comparisons.ts";
+import { rootCrumbs } from "../../data/taxonomy.ts";
+
+const groups = await comparisonsByVariety();
+const all = await comparisonsPresent();
+
+const title = "Compare independent producers by grape and region";
+const description =
+  "Side-by-side tables of the independent producers working one grape in one Australian wine region, documented from published sources.";
+
+const countLine =
+  all.length === 1 ? "1 comparison" : `${all.length} comparisons`;
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="reading-spine">
+    <Breadcrumbs crumbs={rootCrumbs("Compare")} />
+
+    <header class="tax-head">
+      <h1 class="tax-head__title">Compare</h1>
+      <p class="tax-head__count mono mono-caps">{countLine}</p>
+    </header>
+
+    <p class="tax-foreword">
+      Each table lists the independent producers documented as working one grape
+      in one region, side by side on the facts their own published sources
+      state. A comparison appears here only where at least {
+        MIN_COMPARISON_PRODUCERS
+      } producers are documented working that grape in that region. Below that the
+      table is left unbuilt rather than published thin, because a comparison of two
+      invites a conclusion the sample cannot carry.
+    </p>
+
+    {
+      groups.length === 0 ? (
+        <p class="empty">
+          No grape yet has {MIN_COMPARISON_PRODUCERS} documented producers within a
+          single region. Comparisons appear here as the guide's coverage deepens.
+        </p>
+      ) : (
+        groups.map((group) => (
+          <section class="section-gap">
+            <p class="section-opener draw-line">
+              <a href={group.href}>{group.name}</a>
+            </p>
+
+            <ul class="compare-list">
+              {group.comparisons.map((comparison) => (
+                <li class="compare-list__item">
+                  <a href={comparison.href}>{comparison.regionName}</a>
+                  <span class="compare-list__count mono mono-caps">
+                    {comparison.count} producers
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .tax-head {
+    margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
+  }
+
+  .tax-head__title {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    margin: 0 0 0.5rem;
+  }
+
+  .tax-head__count {
+    color: var(--ink-faded);
+    margin: 0;
+  }
+
+  .tax-foreword {
+    max-width: 60ch;
+    margin: 0 0 clamp(1.5rem, 3vw, 2.5rem);
+  }
+
+  /* Plain typographic links in a list, like every other index on this site.
+     No chips, no boxes, no tiles (DESIGN.md §5). */
+  .compare-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .compare-list__item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+  }
+
+  .compare-list__count {
+    font-size: 0.6875rem;
+    color: var(--ink-faded);
+  }
+
+  .empty {
+    max-width: 60ch;
+    color: var(--ink-faded);
+  }
+</style>
