@@ -113,6 +113,19 @@ Three parties, ported from the reference as-is.
 
 **2026-08-06 — Schema.org, decided now, shipped at Gate 10.** Producer pages emit generic **`LocalBusiness`**, deliberately, not `Winery`. `Winery` reads as a cellar door with a tasting room, and a materially large share of this dataset is `garagiste`, `negociant` and label-only producers with no premises a reader can visit — the same mislabel trap the reference hit with `DaySpa`. Specificity is carried by the entry's own structured fields and by `DefinedTerm`s, not by a narrower type. CLAUDE.md Gate 10's done-condition requires any move beyond `LocalBusiness` to be recorded here as a dated exception with explicit sign-off, or explicitly declined; **this is that decision, declined for v1**.
 
+*Shipped 2026-08-13 (Gate 10), and the declination held: 97 producer pages emit `LocalBusiness` and nothing emits `Winery`. It is now **enforced rather than merely recorded** — `/validate` check 18 fails on any `@type` outside the site's allowed set, so widening the type means adding it there deliberately, which is the prompt to come back and write the exception first. No exception has been taken.*
+
+**2026-08-13 — the structured-data set, and four things deliberately absent (Gate 10).** The graph is `Organization` + `WebSite` on every page, `BreadcrumbList` wherever a path up exists, `ItemList` on every listing, `LocalBusiness` + `FAQPage` on producer pages, and `DefinedTermSet`/`DefinedTerm` across the glossary. Every node is built in `site/src/data/jsonld.ts`; no page hand-writes a schema.org object.
+
+Four omissions are decisions rather than gaps, recorded here because each is something a later reader will assume was forgotten:
+
+- **No `aggregateRating`, `review` or `priceRange`.** Nobody on this project has visited these cellar doors or tasted these wines (CLAUDE.md rule 6), so there are no ratings and no reviews to report, and the guide publishes no bottle prices. Check 18 fails the build on all three rather than leaving it to discipline — these are exactly the fields a well-meaning later edit adds because a rich-results guide recommends them.
+- **No `openingHours`.** `cellar_door_hours` is a freeform display string by schema design (SCHEMA.md §2, "never reformatted into a grid"). Parsing it into schema.org's opening-hours grammar would invent structure the source does not have, and would do it silently on the entries it got wrong.
+- **No `SearchAction` on `WebSite`.** Search is client-side over an index embedded at build time (§4.7). There is no `/search?q=` route to declare, and a `SearchAction` is a promise about a route.
+- **No `logo` on `Organization`.** The site's mark is set in type (`SiteLogo.astro`) and there is no image file to point at. An `Organization` claiming a logo URL that 404s is worse than one claiming none.
+
+*`Organization.email` is emitted conditionally and is currently **absent**, because `SITE_CONTACT_EMAIL` is still the Wave 2 placeholder at `example.invalid`. A machine-readable contact address that cannot receive mail is a worse claim than no contact address; the footer's `mailto:` shows the placeholder to a reader, who can see what it is, and a crawler cannot. The line publishes the address the moment `config.ts` carries a real one.*
+
 ---
 
 ## 3. Repository Structure
@@ -149,6 +162,8 @@ One repo, two clearly separated applications sharing a content directory. **No P
       glossary.ts                # one entry per enum value across every SCHEMA.md §1 vocabulary
       comparisons.ts             # comparison registry + minimum-producer threshold (Gate 9)
       forewords.json             # GENERATED region/taxonomy forewords (Gate 6) — committed
+      jsonld.ts                  # every schema.org node builder (Gate 10) — see §2's
+                                 #   2026-08-13 entry for what is deliberately absent
     /layouts/BaseLayout.astro    # dual-mode tokens, grain overlay, embedded search index (§4.7)
     /pages                       # see §4.2 for the route table
     /scripts/motion.ts           # the only gsap call site
@@ -169,6 +184,8 @@ One repo, two clearly separated applications sharing a content directory. **No P
     staging.py  verification.py  geocode.py  images.py  deploy.py  forewords.py
     schema_surfaces.py           # /validate 13 — the four-surface diff
     link_graph.py  jsonld_validator.py  validate_*.py
+                                 # jsonld_validator.py = /validate 18 (Gate 10);
+                                 #   validate_llms.py  = /validate 19 (Gate 10)
     blog.py  article_pipeline.py  article_factcheck.py     # Gate 11
   /templates                     # index.html, preview.html, partials/
   /static                        # admin.css, admin.js — hand-written, no build step, no CDN
@@ -217,6 +234,8 @@ That is an acceptable trade only because the durable public record lives elsewhe
 *If the sidecar is ever needed as the answer to a producer's dispute months later, on a machine that is not the one that approved the entry, this placement is wrong and `DETERMINATIONS_DIR` moves to `data/determinations/`, committed, alongside `ownership.json` and `data/factchecks/`. That is a live question, not a settled one, and it is recorded here so the decision gets made deliberately rather than discovered.*
 
 **`METHODOLOGY.md`, at the repository root.** The authored source for `/methodology/`, drafted at Gate 4 alongside the system it describes and rendered into a page at Gate 10 (§4.2's route table already carries the route). It sits with the other authored prose documents rather than in `site/` because building it now would ship it before Gate 10, and Gate 10's done-condition is that the page is live **and linked**.
+
+*Shipped 2026-08-13, and it stayed at the repository root. A `methodology` content collection whose `base` points outside `site/` is what renders it there, through Astro's own markdown pipeline — no second markdown dependency and no hand-rolled parser (CLAUDE.md rule 2). The file gained frontmatter in the same change, carrying `title`, `description` and `updated`; its Gate 4 drafting preamble became YAML comments, because everything below the frontmatter is reader-facing from that date and build notes do not ship. `/validate` check 6 lints the body alone for the same reason, with frontmatter lines blanked rather than dropped so a reported line number still points at the real line.*
 
 **Why `_staging` and `_rejected` sit outside `site/src/content`.** Astro content collections glob everything in a collection directory; keeping drafts out of the tree entirely is more robust than relying on an underscore-prefix exclusion. The collection loader points at `_published` only. The approve action moves the file across into `site/src/content/producers/_published/`; nothing else writes there (CLAUDE.md rule 5).
 
@@ -276,11 +295,15 @@ Every other public route on this site slugifies a human name, and DESIGN.md §5'
    | `/practice/[key]/` | `PRACTICE_KEYS` ∩ published | G6 |
    | `/glossary/`, `/glossary/[key]/` | one entry per enum value, every vocabulary | G6 |
    | `/compare/`, `/compare/[slug]/` | `comparisons.ts` above threshold | G9 |
-   | `/methodology/` | hand-authored; drafted at G4, ships at G10 | G10 |
+   | `/methodology/` | hand-authored; drafted at G4, ~~ships at G10~~ **shipped 2026-08-13** | G10 |
    | `/blog/`, `/blog/[slug]/` | blog collection | G11 |
    | `/sitemap.xml`, `/llms.txt` | endpoints, not static files | G6/G10 |
 
    `llms.txt` is **generated as an endpoint** rather than committed as a static file, so it cannot drift from the routes that exist.
+
+   *Shipped 2026-08-13 (Gate 10), built from the same present-only helpers as the sitemap, and asserted from outside the generator by `/validate` check 19: every link absolute, on this site, and resolving to a route the build emitted. Check 5 could never have covered it — it walks internal hrefs in built HTML, and `llms.txt` is plain text outside the page graph.*
+
+   **`/methodology/` came off `PENDING_ROUTES` on 2026-08-13 and `/rss.xml` and `/blog/` remain**, so the list is now two rather than three. That is the mechanism working as intended: a shipped route becomes a hard requirement, and the list shrinks at a gate exit rather than quietly permitting a live route.
 
    **Amendment, 2026-08-08 (Gate 6): `/rss.xml` belongs to Gate 11.** `Footer.astro` has linked it since Gate 1 and no route table in this document, UX.md or DESIGN.md ever mentioned it. It is the journal's feed, so it ships with the journal. Until then it sits in `PENDING_ROUTES` in `/validate` check 5, printed on every run alongside `/methodology/` (G10) and `/blog/` (G11), and the check fails if it starts resolving while still listed — so the list shrinks when a gate ships rather than quietly permitting a live route.
 3. **Components.** `<Pull>` for pull-quotes and `<TippedPhoto>` for the single optional image, both usable from MDX bodies; `<ProducerEntry>` for list rendering; `<Icon>` for the hand-authored inline SVG set. Visual treatment per DESIGN.md.
