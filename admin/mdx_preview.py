@@ -703,6 +703,13 @@ def render_post(data: dict[str, Any], body: str) -> str:
   .post-sources__list {{ margin: 0; padding: 0; list-style: none; max-width: 60ch; }}
   .post-sources__list li {{ padding: .5rem 0; border-bottom: 1px solid var(--hairline);
                             overflow-wrap: anywhere; }}
+  /* Section headings. `.prose` carries no heading rules sitewide — a producer
+     entry is flowing prose with no `##` in it — so these are scoped to the post
+     page and unreachable from here. Restated for the same reason the three
+     rules above are: a preview in different spacing from the shipped page is a
+     preview of a page nobody is reviewing (UX.md §1.4). */
+  .prose h2 {{ margin-top: clamp(2.75rem, 5vw, 4rem); margin-bottom: 1rem; }}
+  .prose h3 {{ margin-top: clamp(2rem, 3.5vw, 2.75rem); margin-bottom: .75rem; }}
   /* An unresolvable <Figure> shows as the tag it is, so the author sees the
      thing that is about to fail the build. */
   .figure--unresolved {{ color: var(--claret, #8a2a2a); font-family: var(--font-mono); }}

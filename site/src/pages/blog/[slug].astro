@@ -179,6 +179,31 @@ const { Content } = await render(post);
     overflow-wrap: anywhere;
   }
 
+  /*
+    Section headings in a post body.
+
+    `.prose` carries no heading rules anywhere else on the site, because a
+    producer entry is 350 to 700 words of flowing prose with no `##` in it —
+    this is the first surface that uses them, and the first build of this page
+    rendered every heading flush against the paragraph beneath it. Found by
+    looking at a screenshot rather than by any check, which is the Gate 9
+    carried-forward note about Astro copy in a different form.
+
+    `:global` because `<Content />` injects the rendered markdown and scoped
+    selectors cannot reach it. Bounded to `.prose` so no bare `h2` rule leaks
+    into the site. The rhythm is the methodology page's, which is the other
+    long-form reading page and the one a reader meets these next to.
+  */
+  .prose :global(h2) {
+    margin-top: clamp(2.75rem, 5vw, 4rem);
+    margin-bottom: 1rem;
+  }
+
+  .prose :global(h3) {
+    margin-top: clamp(2rem, 3.5vw, 2.75rem);
+    margin-bottom: 0.75rem;
+  }
+
   .post-sources__list {
     margin: 0 0 1.5rem;
     padding: 0;
