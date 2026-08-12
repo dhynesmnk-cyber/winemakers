@@ -74,7 +74,11 @@ const OTHER_VARIETIES_SHOWN = 4;
 
 function otherVarieties(varieties: readonly string[] | undefined): string {
   const rest = (varieties ?? []).filter((v) => v !== comparison.varietySlug);
-  if (rest.length === 0) return "—";
+  // "None stated", never an em dash: the dash is banned in anything a reader
+  // sees (PROMPTS/gatekeeper.md §2), and it would also assert the wrong thing.
+  // SCHEMA.md §5 — an absent varieties array is silence, not a denial, so the
+  // cell says nobody published more rather than that there are no more.
+  if (rest.length === 0) return "None stated";
 
   const shown = rest.slice(0, OTHER_VARIETIES_SHOWN).map((v) => VARIETY_LABELS[v]);
   const hidden = rest.length - shown.length;
