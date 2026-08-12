@@ -220,6 +220,47 @@ def render_body(body: str) -> str:
 
     body = re.sub(r"<TippedPhoto\b[^>]*/>", tipped, body)
 
+    # `<Figure>` is INLINE — it sits inside a sentence — so it cannot use the
+    # `_raw` block sentinels the way `<Pull>` and `<TippedPhoto>` do. Wrapping it
+    # would split the sentence around it into three blocks.
+    #
+    # It cannot be substituted straight to markup either: the paragraph branch
+    # below runs `html.escape` over the whole block, which would turn the emitted
+    # `<span>` into visible `&lt;span&gt;`. Observed on the first post rendered
+    # through this preview, and it is the same class of defect as the Gate 3
+    # sentinel bug — a substitution that is correct until something downstream
+    # treats its output as text.
+    #
+    # So the tags are lifted out to placeholders that survive escaping, and put
+    # back after every block has been rendered. NUL cannot appear in an MDX file
+    # the editor produced, and `render_body`'s inline patterns cannot match it.
+    inline_figures: list[str] = []
+
+    def figure(match: re.Match[str]) -> str:
+        """`<Figure>` resolved for the preview. Gate 11.
+
+        The build resolves this from the content collection; here it is resolved
+        from `producers.json`, which is the same data one step downstream. An
+        unresolvable query renders as the tag itself rather than as a number,
+        because the author needs to see the thing that is about to fail the
+        build, and a preview that silently rendered `0` would hide it until
+        deploy.
+        """
+        attributes = dict(re.findall(r'(\w+)="([^"]*)"', match.group(0)))
+        try:
+            value = _figure_value(attributes.get("of", ""), attributes.get("member"))
+        except (KeyError, ValueError):
+            markup = (
+                f'<span class="figure figure--unresolved">'
+                f"{html.escape(match.group(0))}</span>"
+            )
+        else:
+            markup = f'<span class="figure">{value:,}</span>'
+        inline_figures.append(markup)
+        return f"\x00F{len(inline_figures) - 1}\x00"
+
+    body = re.sub(r"<Figure\b[^>]*/>", figure, body)
+
     rendered: list[str] = []
     for block in re.split(r"\n\s*\n", body):
         block = block.strip()
@@ -233,7 +274,28 @@ def render_body(body: str) -> str:
             rendered.append(f"<h3>{_inline(block[4:])}</h3>")
         else:
             rendered.append(f"<p>{_inline(block)}</p>")
-    return "\n".join(rendered)
+
+    out = "\n".join(rendered)
+    # The inline figures go back after escaping, never before it.
+    return re.sub(
+        r"\x00F(\d+)\x00", lambda m: inline_figures[int(m.group(1))], out
+    )
+
+
+def _figure_value(of: str, member: str | None) -> int:
+    """One `<Figure>` query, from `producers.json`. Raises on anything unknown.
+
+    Reads `article_pipeline.available_figures`, which is the same list the
+    drafting stage is offered, rather than reimplementing the nine counts. There
+    are already two implementations of this set — that one and
+    `site/src/data/figures.ts` — and a third would be the one that disagrees.
+    """
+    from admin.pipeline.article_pipeline import available_figures
+
+    for figure in available_figures():
+        if figure["of"] == of and figure["member"] == (member or None):
+            return int(figure["value"])
+    raise KeyError(f"no figure for of={of!r} member={member!r}")
 
 
 def prose_word_count(body: str) -> int:
@@ -538,6 +600,130 @@ def render_document(data: dict[str, Any], body: str) -> str:
   {faq_html}
   {_appendix(data, page)}
   {_provenance(data, page)}
+</article>
+</main>
+</div>
+</body>
+</html>
+"""
+
+
+# =============================================================================
+# 5. The post document — Gate 11, UX.md §6
+#
+# The blog editor's preview pane. Same posture as `render_document`: the public
+# site's real shipped CSS, no site JavaScript, and this module's own two rules.
+#
+# It renders the shape of `/blog/[slug].astro` — dateline row, cover, body,
+# sources — rather than the producer page's. A preview that showed the wrong
+# page furniture would be reviewing a layout the post will never have.
+# =============================================================================
+
+
+def render_post(data: dict[str, Any], body: str) -> str:
+    """A complete HTML document previewing one post."""
+    built = _built_producer_page()
+    page = _cid_for_class(built, "reading-spine")
+
+    styles = "".join(
+        f'<link rel="stylesheet" href="{href}" />' for href in stylesheet_hrefs()
+    )
+    unbuilt = (
+        ""
+        if styles
+        else (
+            '<p class="preview-missing">The site has not been built, so the real '
+            "stylesheet is not available. Run npm run build in site/ to preview "
+            "this post in the styles it will ship with.</p>"
+        )
+    )
+
+    title = str(data.get("title") or "Untitled post")
+
+    published = schema.as_date(data.get("published"))
+    updated = schema.as_date(data.get("updated"))
+    dateline_parts = [str(data.get("dateline") or "").strip()]
+    if published:
+        dateline_parts.append(published.strftime("%-d %B %Y"))
+    dateline = " · ".join(part for part in dateline_parts if part)
+
+    amended = (
+        f'<p class="post-head__amended mono mono-caps"{page}>'
+        f'Amended {updated.strftime("%-d %B %Y")}</p>'
+        if updated
+        else ""
+    )
+
+    cover = ""
+    if data.get("cover"):
+        cover = (
+            f'<figure class="post-cover"{page}>'
+            f'<img src="{html.escape(str(data["cover"]), quote=True)}" '
+            f'alt="{html.escape(str(data.get("cover_caption") or ""), quote=True)}" />'
+            f'<figcaption class="post-cover__source mono"{page}>Image: '
+            f'<a href="{html.escape(str(data.get("cover_source") or ""), quote=True)}" '
+            f'rel="noopener">{html.escape(str(data.get("cover_source") or ""))}</a>'
+            f"</figcaption></figure>"
+        )
+
+    sources = data.get("sources") or []
+    if sources:
+        items = "".join(
+            f'<li><a href="{html.escape(str(source.get("url", "")), quote=True)}" '
+            f'rel="noopener">{html.escape(str(source.get("title", "")))}</a></li>'
+            for source in sources
+            if isinstance(source, dict)
+        )
+    else:
+        # Stated rather than left blank. `sources` is required (SCHEMA.md §9.2)
+        # and an empty block in the preview reads as a styling gap rather than
+        # as the publish blocker it is.
+        items = '<li class="preview-missing">No sources recorded. This post cannot publish.</li>'
+
+    return f"""<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{html.escape(title)}</title>
+{styles}
+<style>
+  body {{ padding: 1.5rem 0 4rem; }}
+  .preview-missing {{ color: var(--warn, #8a5a00); font-style: italic; }}
+  /* The three post rules the public stylesheet carries as scoped styles, which
+     a scoped-attribute lookup cannot reach from here. Kept to exactly what
+     DESIGN.md §505 specifies: a plain mount border, and no plate signature. */
+  .post-cover {{ margin: 0 0 2rem; padding: 4px; background: var(--paper-raised);
+                 border: 1px solid var(--hairline); }}
+  .post-cover img {{ display: block; width: 100%; height: auto; }}
+  .post-cover__source {{ color: var(--ink-faded); margin: .6rem 0 0; font-size: .75rem;
+                         overflow-wrap: anywhere; }}
+  .post-head__title {{ font-size: clamp(2rem, 5vw, 3.25rem); margin: 0 0 .6rem; }}
+  .post-head__dateline, .post-head__amended {{ color: var(--ink-faded); margin: 0; }}
+  .post-sources__list {{ margin: 0; padding: 0; list-style: none; max-width: 60ch; }}
+  .post-sources__list li {{ padding: .5rem 0; border-bottom: 1px solid var(--hairline);
+                            overflow-wrap: anywhere; }}
+  /* An unresolvable <Figure> shows as the tag it is, so the author sees the
+     thing that is about to fail the build. */
+  .figure--unresolved {{ color: var(--claret, #8a2a2a); font-family: var(--font-mono); }}
+</style>
+</head>
+<body>
+<div class="page-frame">
+<main id="main">
+{unbuilt}
+<article class="reading-spine"{page}>
+  <header class="post-head"{page}>
+    <h1 class="post-head__title"{page}>{html.escape(title)}</h1>
+    <p class="post-head__dateline mono mono-caps"{page}>{html.escape(dateline)}</p>
+    {amended}
+  </header>
+  {cover}
+  <div class="prose"{page}>{render_body(body)}</div>
+  <section class="post-sources section-gap"{page}>
+    <p class="section-opener"{page}>Written from</p>
+    <ul class="post-sources__list mono"{page}>{items}</ul>
+  </section>
 </article>
 </main>
 </div>

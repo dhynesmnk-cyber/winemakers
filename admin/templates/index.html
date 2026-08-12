@@ -27,6 +27,8 @@
   <h1>{{ site_name }}</h1>
   <nav>
     <a href="{{ site_url }}" rel="noopener">Public site</a>
+    {# UX.md §6: a second admin screen at /blog, linked from the hub header. #}
+    <a href="/blog">Journal</a>
     <button type="button" id="ownership-open" class="linkish">
       Deny-list{% if ownership_updated %}, updated {{ ownership_updated }}{% endif %}
     </button>

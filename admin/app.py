@@ -58,10 +58,13 @@ from admin.config import (  # noqa: E402
     CELLAR_DOOR_STATES,
     CERTIFICATION_STATES,
     CONTENT_STAGING_DIR,
+    FACTCHECK_IS_SELF_REVIEW,
     FAQ_MAX_ITEMS,
     FRUIT_SOURCE,
     LOGISTICS_KEYS,
     MAX_LOG_LINES,
+    MODEL_ARTICLE,
+    MODEL_FACTCHECK,
     OWNERSHIP_EVIDENCE_METHODS,
     OWNERSHIP_STATES,
     OWNERSHIP_JSON_PATH,
@@ -81,6 +84,9 @@ from admin.config import (  # noqa: E402
     WINE_STYLE_KEYS,
 )
 from admin.pipeline import (  # noqa: E402
+    article_factcheck,
+    article_pipeline,
+    blog as blog_module,
     deploy as deploy_module,
     fetcher,
     harvest as harvest_module,
@@ -1042,6 +1048,208 @@ async def api_deploy(request: Request, _: None = Depends(require_auth)) -> JSONR
 
     asyncio.create_task(asyncio.to_thread(run))
     return JSONResponse({"started": True}, status_code=202)
+
+
+# =============================================================================
+# 10. The blog screen — UX.md §6, Gate 11
+#
+# A SECOND SCREEN, deliberately. UX.md §1's one-screen rule is about the
+# producer review workflow, where a click-per-producer navigation is what makes
+# reviewing 300 entries a chore that gets abandoned at forty. Posts are
+# hand-authored one at a time; there is no queue to work down, no keyboard
+# session, and nothing the hub's three columns would carry.
+#
+# It streams into the SAME log pane as everything else (UX.md §6). There is one
+# log in this system, not two, so `log()` here is the hub's `log()`.
+# =============================================================================
+
+
+@app.get("/blog", response_class=HTMLResponse)
+async def blog_screen(request: Request, _: None = Depends(require_auth)) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "blog.html",
+        {
+            "site_name": SITE_NAME,
+            "site_url": SITE_URL,
+            "rows": blog_module.post_rows(),
+            "summary_max": blog_module.SUMMARY_MAX,
+            # Printed on the screen rather than only warned about in a log line.
+            # The adversarial split is the reason this chain has four stages, and
+            # a reviewer running it collapsed should be able to see that they are.
+            "models": {
+                "article": MODEL_ARTICLE,
+                "factcheck": MODEL_FACTCHECK,
+                "self_review": FACTCHECK_IS_SELF_REVIEW,
+            },
+        },
+    )
+
+
+@app.get("/api/posts")
+async def api_posts(_: None = Depends(require_auth)) -> JSONResponse:
+    return JSONResponse({"rows": blog_module.post_rows()})
+
+
+@app.get("/api/post/{slug}")
+async def api_post(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    try:
+        data, body = blog_module.load_post(slug)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except schema.FrontmatterError as exc:
+        raise HTTPException(status_code=422, detail=f"unreadable post: {exc}") from exc
+
+    return JSONResponse(
+        {
+            "slug": slug,
+            "frontmatter": _json_safe(data),
+            "body": body,
+            "published": blog_module.is_published(slug),
+            "blocks": blog_module.publish_blocks(slug),
+            "factcheck": blog_module.load_factcheck(str(data.get("factcheck") or slug)),
+        }
+    )
+
+
+@app.post("/api/post")
+async def api_post_create(request: Request, _: None = Depends(require_auth)) -> JSONResponse:
+    payload = await request.json()
+    title = str(payload.get("title") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="a draft needs a title to start from")
+    slug = blog_module.create_draft(title, log=log)
+    return JSONResponse({"slug": slug}, status_code=201)
+
+
+@app.put("/api/post/{slug}")
+async def api_post_save(slug: str, request: Request, _: None = Depends(require_auth)) -> JSONResponse:
+    """Autosave, on the same debounce as the producer frontmatter editor."""
+    payload = await request.json()
+    try:
+        blog_module.save_post(
+            slug,
+            dict(payload.get("frontmatter") or {}),
+            str(payload.get("body") or ""),
+        )
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return JSONResponse(
+        {
+            "saved": datetime.now().strftime("%H:%M"),
+            "blocks": blog_module.publish_blocks(slug),
+        }
+    )
+
+
+@app.delete("/api/post/{slug}")
+async def api_post_delete(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    """Delete an unpublished draft outright. A published post is never offered."""
+    try:
+        blog_module.delete_draft(slug, log=log)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return JSONResponse({"deleted": slug})
+
+
+@app.post("/api/post/{slug}/publish")
+async def api_post_publish(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    """UX.md §6. Blocked while any claim is unresolved or any field is missing.
+
+    The gate lives in `blog.publish`, not here, so no API route can publish
+    without passing it — the same rule UX.md §1.4.5 sets for the producer
+    approve, and for the same reason.
+    """
+    try:
+        result = blog_module.publish(slug, log=log)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (FileNotFoundError, schema.FrontmatterError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return JSONResponse(result)
+
+
+@app.post("/api/post/{slug}/claim/{claim_id}")
+async def api_post_resolve_claim(
+    slug: str, claim_id: str, request: Request, _: None = Depends(require_auth)
+) -> JSONResponse:
+    """A person resolving one `unsupported` claim. They cannot do it silently."""
+    payload = await request.json()
+    try:
+        data, _body = blog_module.load_post(slug)
+        claim = blog_module.resolve_claim(
+            str(data.get("factcheck") or slug),
+            claim_id,
+            str(payload.get("verdict") or ""),
+            str(payload.get("reason") or ""),
+            payload.get("source"),
+        )
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    log("info", f"blog: {slug} claim {claim_id} resolved as {claim['verdict']}")
+    return JSONResponse({"claim": claim, "blocks": blog_module.publish_blocks(slug)})
+
+
+@app.post("/api/article/draft")
+async def api_article_draft(request: Request, _: None = Depends(require_auth)) -> JSONResponse:
+    """Run `article_brief` -> `article_draft` -> `house_voice` into staging.
+
+    Returns as soon as the thread is dispatched. The chain is three model calls
+    and a request that waited for them would look like a hung browser, which is
+    the spinner UX.md §1.2 forbids. The log pane carries the run.
+    """
+    payload = await request.json()
+    topic = str(payload.get("topic") or "").strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="a draft needs a topic")
+
+    def run() -> None:
+        try:
+            article_pipeline.run(topic, log=log)
+        except Exception as exc:  # noqa: BLE001 - a crash here must still be visible
+            log("error", f"article draft failed: {exc}")
+            _logger.exception("article pipeline crashed")
+
+    asyncio.create_task(asyncio.to_thread(run))
+    return JSONResponse({"started": True}, status_code=202)
+
+
+@app.post("/api/post/{slug}/factcheck")
+async def api_post_factcheck(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
+    """Run the fact-check. A separate action, on a different model, by design."""
+    if blog_module.is_published(slug):
+        raise HTTPException(
+            status_code=409,
+            detail="a published post is fact-checked before it publishes, not after",
+        )
+
+    def run() -> None:
+        try:
+            article_factcheck.check(slug, log=log)
+        except Exception as exc:  # noqa: BLE001
+            log("error", f"fact-check failed: {exc}")
+            _logger.exception("fact-check crashed")
+
+    asyncio.create_task(asyncio.to_thread(run))
+    return JSONResponse({"started": True}, status_code=202)
+
+
+@app.get("/blog-preview/{slug}", response_class=HTMLResponse)
+async def blog_preview(slug: str, _: None = Depends(require_auth)) -> HTMLResponse:
+    """The post in the public site's real styles, for the editor's iframe."""
+    try:
+        data, body = blog_module.load_post(slug)
+    except (schema.FrontmatterError, FileNotFoundError, ValueError) as exc:
+        return HTMLResponse(
+            f"<!doctype html><meta charset='utf-8'><body style='font:14px system-ui;padding:2rem'>"
+            f"<p>This post cannot be rendered: {exc}</p></body>",
+            status_code=200,
+        )
+    return HTMLResponse(mdx_preview.render_post(data, body))
 
 
 @app.get("/healthz")

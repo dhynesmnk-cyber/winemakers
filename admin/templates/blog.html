@@ -1,0 +1,208 @@
+{#
+  blog.html — the blog authoring screen. UX.md §6, DESIGN.md §8.
+
+  Two panes: a post list (drafts and published together, each with a status
+  chip) and an editor. Separate from the producer hub because posts are
+  hand-authored and editorially drafted rather than harvested, so there is no
+  queue to work down and no keyboard review session.
+
+  The log pane is the SAME log pane as the hub's, reading the same SSE stream.
+  There is one log in this system (UX.md §1.2), not two.
+
+  Copy here is user-facing (CLAUDE.md rule 9): Australian English, no banned
+  words, no em dashes, no hedges.
+#}
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{ site_name }} — journal</title>
+<link rel="stylesheet" href="/static/admin.css" />
+</head>
+<body class="blog-screen">
+
+<header class="hub-header">
+  <h1>{{ site_name }}</h1>
+  <nav>
+    <a href="/">Producer hub</a>
+    <a href="{{ site_url }}/blog/" rel="noopener">Public journal</a>
+    <span class="header-count mono">Journal</span>
+  </nav>
+</header>
+
+<div class="blog-layout">
+
+  {# ── Pane 1: the post list ─────────────────────────────────────────── #}
+  <section class="col col-posts" aria-labelledby="posts-heading">
+    <h2 id="posts-heading" class="col-heading mono mono-caps">Posts</h2>
+
+    <form id="new-post" class="stack">
+      <label for="new-title">Start a draft</label>
+      <input type="text" id="new-title" name="title" placeholder="Working title" autocomplete="off" />
+      <button type="submit" class="btn">Start draft</button>
+    </form>
+
+    <form id="article-chain" class="stack">
+      <label for="article-topic">Or draft one with the editorial chain</label>
+      <textarea id="article-topic" name="topic" rows="3"
+        placeholder="What should the post be about?"></textarea>
+      <button type="submit" class="btn">Brief, draft, house voice</button>
+      <p class="hint mono">
+        Three model calls. The fact-check is a separate action on the post,
+        because it runs on a different model.
+      </p>
+    </form>
+
+    {#
+      The adversarial split, printed rather than assumed. CLAUDE.md Gate 11
+      makes the split the reason this chain exists, so a reviewer running it
+      collapsed should be able to see that they are.
+    #}
+    <p class="model-split mono {% if models.self_review %}warn{% endif %}">
+      {% if models.self_review %}
+        Fact-check and drafting are the same model ({{ models.factcheck }}).
+        A drafting model is a poor judge of its own confabulation. Set
+        MODEL_FACTCHECK in .env to a different model.
+      {% else %}
+        Drafted by {{ models.article }}, checked by {{ models.factcheck }}.
+      {% endif %}
+    </p>
+
+    <ul id="post-list" class="post-list">
+      {% for row in rows %}
+      <li>
+        <button type="button" class="post-row" data-slug="{{ row.slug }}">
+          <span class="post-row__title">{{ row.title }}</span>
+          <span class="post-row__chip mono mono-caps
+            {% if row.unresolved %}chip-blocked{% elif row.status == 'published' %}chip-published{% endif %}">
+            {{ row.chip }}
+          </span>
+          <span class="post-row__detail mono">
+            {{ row.detail }}{% if row.published %} · {{ row.published }}{% endif %} · {{ row.words }} words
+          </span>
+        </button>
+      </li>
+      {% else %}
+      <li class="empty-state">No posts yet. Start a draft to begin.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {# ── Pane 2: the editor ────────────────────────────────────────────── #}
+  <section class="col col-editor" aria-labelledby="editor-heading">
+    <h2 id="editor-heading" class="col-heading mono mono-caps">
+      Editor <span id="save-state" class="mono"></span>
+    </h2>
+
+    <div id="editor-empty" class="empty-state">
+      Select a post to edit it, or start a draft.
+    </div>
+
+    <div id="editor" hidden>
+
+      <div class="stack" data-field="title">
+        <label for="f-title">Title</label>
+        <input type="text" id="f-title" autocomplete="off" />
+      </div>
+
+      <div class="stack" data-field="summary">
+        <label for="f-summary">
+          Summary <span class="hint mono" id="summary-count"></span>
+        </label>
+        <textarea id="f-summary" rows="2" maxlength="{{ summary_max }}"></textarea>
+      </div>
+
+      <div class="two-up">
+        <div class="stack" data-field="dateline">
+          <label for="f-dateline">Dateline</label>
+          <input type="text" id="f-dateline" placeholder="Adelaide Hills, South Australia" autocomplete="off" />
+        </div>
+        <div class="stack" data-field="published">
+          <label for="f-published">Published</label>
+          <input type="date" id="f-published" />
+        </div>
+      </div>
+
+      <div class="stack" data-field="sources">
+        <label>Written from</label>
+        <ul id="source-list" class="source-list"></ul>
+        <div class="two-up">
+          <input type="text" id="source-title" placeholder="What the source calls itself" autocomplete="off" />
+          <input type="url" id="source-url" placeholder="https://" autocomplete="off" />
+        </div>
+        <button type="button" class="btn btn-quiet" id="source-add">Add source</button>
+      </div>
+
+      <details class="stack" id="cover-block">
+        <summary>Cover image</summary>
+        <div class="stack" data-field="cover">
+          <label for="f-cover">Path under /blog-images/</label>
+          <input type="text" id="f-cover" placeholder="/blog-images/name.jpg" autocomplete="off" />
+        </div>
+        <div class="stack" data-field="cover_source">
+          <label for="f-cover-source">Image source URL</label>
+          <input type="url" id="f-cover-source" autocomplete="off" />
+        </div>
+        <div class="stack" data-field="cover_caption">
+          <label for="f-cover-caption">Caption</label>
+          <input type="text" id="f-cover-caption" autocomplete="off" />
+        </div>
+      </details>
+
+      {#
+        The body editor. A source textarea with a toolbar that writes markdown
+        at the cursor, plus the live preview beside it (TRD.md §2.5, decided
+        2026-08-13). Not WYSIWYG: MDX round-tripped through HTML loses <Pull>
+        and <Figure>, and MDX is what ships.
+      #}
+      <div class="stack" data-field="body">
+        <label for="f-body">Body</label>
+        <div class="toolbar mono mono-caps" role="toolbar" aria-label="Formatting">
+          <button type="button" data-wrap="**" title="Bold">B</button>
+          <button type="button" data-wrap="*" title="Italic"><i>I</i></button>
+          <button type="button" data-prefix="## " title="Heading">H2</button>
+          <button type="button" data-link="1" title="Link">Link</button>
+          <button type="button" data-block="pull" title="Pull quote">Pull</button>
+          <button type="button" data-block="figure" title="A count from the data">Figure</button>
+          <span class="toolbar__count mono" id="word-count"></span>
+        </div>
+        <textarea id="f-body" rows="20" spellcheck="true"></textarea>
+      </div>
+
+      <div class="editor-actions">
+        <button type="button" class="btn" id="factcheck">Fact-check</button>
+        <button type="button" class="btn" id="publish">Publish</button>
+        <button type="button" class="btn btn-danger" id="delete">Delete draft</button>
+      </div>
+
+      <ul id="publish-blocks" class="publish-blocks mono"></ul>
+
+      {#
+        UX.md §6: the fact-check result renders inline as a list of claims with
+        verdicts, and a removed claim renders as a visible deletion with the
+        original text struck through and the reason beside it.
+      #}
+      <section id="claims" class="claims" hidden>
+        <h3 class="col-heading mono mono-caps">Claims <span id="claims-count" class="mono"></span></h3>
+        <ul id="claim-list" class="claim-list"></ul>
+      </section>
+    </div>
+  </section>
+
+  {# ── Pane 3: the preview ───────────────────────────────────────────── #}
+  <section class="col col-preview" aria-labelledby="preview-heading">
+    <h2 id="preview-heading" class="col-heading mono mono-caps">Preview</h2>
+    <iframe id="preview" title="Post preview" src="about:blank"></iframe>
+  </section>
+</div>
+
+{# The one log, shared with the hub. #}
+<section class="log-band" aria-labelledby="log-heading">
+  <h2 id="log-heading" class="col-heading mono mono-caps">Log</h2>
+  <ul id="log" class="log mono" aria-live="polite"></ul>
+</section>
+
+<script src="/static/blog.js" defer></script>
+</body>
+</html>
