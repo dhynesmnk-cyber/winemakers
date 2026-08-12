@@ -68,16 +68,44 @@ _FIGURE_TAG = re.compile(r"<Figure\b[^>]*/>")
 
 #: A bare numeral in prose that states a count this repository already holds.
 #:
-#: Deliberately narrow. It fires on a digit sequence FOLLOWED by one of the
+#: Deliberately narrow. It fires on a digit sequence followed by one of the
 #: nouns `<Figure>` can count, which is the shape of the defect UX.md §6 names —
 #: "a producer count, a region count". A year, a percentage from a source and a
 #: dollar figure are ordinary numerals and are not this.
-_TYPED_COUNT = re.compile(
-    r"\b\d[\d,]*\s+(?:published\s+)?"
+#:
+#: **The gap is why this is not simply `\d+\s+producers`.** The first version
+#: required the noun adjacent, and the live post said `97 independent Australian
+#: winemakers`, which it read straight past. The fixture had said `97
+#: producers` and passed, so the fixture was testing what it was written
+#: against rather than the shape of the sentence people write. Up to three
+#: modifiers are now allowed between.
+#:
+#: `_GAP_WORD` excludes determiners, prepositions and copulas on purpose. They
+#: are what separates a count from a year: `97 independent Australian
+#: winemakers` is a count, and `in 2019 the region had` is not, and the
+#: difference is visible in the words between rather than in the numeral.
+_GAP_WORD = (
+    r"(?!(?:the|a|an|of|in|on|at|to|and|or|per|for|with|from|by|is|are|was|"
+    r"were|had|have|has|that|which|its|their)\b)[a-z][a-z-]*\s+"
+)
+
+_COUNTABLE_NOUN = (
     r"(?:producers?|wineries|winemakers?|regions?|sub-?regions?|entries|"
-    r"glossary\s+terms?|terms?\s+in\s+the\s+glossary)\b",
+    r"glossary\s+terms?|terms?\s+in\s+the\s+glossary)"
+)
+
+_TYPED_COUNT = re.compile(
+    rf"\b\d[\d,]*\s+(?:published\s+)?(?:{_GAP_WORD}){{0,3}}{_COUNTABLE_NOUN}\b",
     re.IGNORECASE,
 )
+
+#: A four-digit year. Excluded only when modifiers sit between it and the noun:
+#: `2000 producers` reads as a count and is caught, while `2019 vintage
+#: producers` does not and is not. Without this, any sentence pairing a year
+#: with one of the nouns three words later would fail a check that must never
+#: fire on correct copy (check 21's lesson: a blocking gate on a false positive
+#: costs the gate its authority).
+_YEAR = re.compile(r"^(?:19|20)\d\d$")
 
 
 # =============================================================================
@@ -253,7 +281,15 @@ def typed_figures(body: str) -> list[str]:
     source and a dollar figure are ordinary numerals and are not counts of this
     guide's data.
     """
-    return [match.group(0) for match in _TYPED_COUNT.finditer(_FIGURE_TAG.sub(" ", body))]
+    hits: list[str] = []
+    for match in _TYPED_COUNT.finditer(_FIGURE_TAG.sub(" ", body)):
+        text = match.group(0)
+        leading = text.split()[0].replace(",", "")
+        # A year followed by modifiers is prose about a year, not a count.
+        if _YEAR.match(leading) and len(text.split()) > 2:
+            continue
+        hits.append(text)
+    return hits
 
 
 # =============================================================================
@@ -342,14 +378,28 @@ def _selftest() -> list[str]:
             errors.append("selftest: the deletion carries no reason")
 
     # The typed-figure scan.
+    #
+    # The first four `True` cases are the ones the live corpus exposed: the
+    # original pattern required the noun ADJACENT to the numeral, and every
+    # sentence a person actually writes puts adjectives in between. The `False`
+    # cases are the false positives that would make this a check people route
+    # around, and the year pair is the boundary between the two.
     for body, should_fire in (
         ("The guide documents 97 producers.", True),
-        ("There are 12 regions with entries.", True),
+        ("The guide documents 97 independent Australian winemakers.", True),
+        ("It lists 36 published producers in the Adelaide Hills.", True),
+        ("There are 12 registered regions with entries.", True),
         ("Of 123 glossary terms, most are grapes.", True),
+        ("A total of 2,400 producers would be a different guide.", True),
         ('The guide documents <Figure of="published" /> producers.', False),
         ("The vineyard was planted in 1989.", False),
         ("Tastings cost $15 at the cellar door.", False),
         ("Roughly 40 per cent of the register is unregistered.", False),
+        # A year followed by modifiers is prose about a year, not a count.
+        ("In 2019 the region had a difficult vintage.", False),
+        ("The 2021 vintage produced wines the guide does not describe.", False),
+        # The gap has a bound. Six words between is a different sentence.
+        ("There were 40 reasons nobody has ever counted these regions.", False),
     ):
         fired = bool(typed_figures(body))
         if fired != should_fire:

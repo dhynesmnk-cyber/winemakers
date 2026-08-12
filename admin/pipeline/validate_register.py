@@ -38,7 +38,12 @@ from typing import Iterable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from admin.config import PROMPTS_DIR, PUBLISHED_DIR, ROOT  # noqa: E402
+from admin.config import (  # noqa: E402
+    BLOG_PUBLISHED_DIR,
+    PROMPTS_DIR,
+    PUBLISHED_DIR,
+    ROOT,
+)
 
 GATEKEEPER_PROMPT = PROMPTS_DIR / "gatekeeper.md"
 
@@ -279,16 +284,23 @@ def _shipped_text(path: Path) -> str:
 
 def _frontmatter_prose(path: Path) -> str:
     """`summary` and the FAQ answers are read by the public too (SEED.md row 2)."""
+    return _frontmatter_fields(path, r"summary|question|answer|-\s+question|-\s+answer")
+
+
+def _frontmatter_fields(path: Path, pattern: str) -> str:
+    """The named frontmatter keys, with every other line blanked.
+
+    Blanked rather than dropped, so a reported line number still points at the
+    real line in the file. Generalised at Gate 11 from the producer-only version
+    above, because a post's reader-facing frontmatter is a different key set.
+    """
     text = path.read_text(encoding="utf-8")
     parts = text.split("---", 2)
     if len(parts) < 3:
         return ""
     lines = []
     for line in parts[1].splitlines():
-        if re.match(r"^\s*(summary|question|answer|-\s+question|-\s+answer):", line):
-            lines.append(line)
-        else:
-            lines.append("")
+        lines.append(line if re.match(rf"^\s*({pattern}):", line) else "")
     return "\n".join(lines)
 
 
@@ -297,6 +309,40 @@ def run(directory: Path = PUBLISHED_DIR) -> list[tuple[Path, list[dict]]]:
     results: list[tuple[Path, list[dict]]] = []
     for path in sorted(directory.glob("*.mdx")):
         hits = lint_text(_body_of(path), lists) + lint_text(_frontmatter_prose(path), lists)
+        if hits:
+            results.append((path, hits))
+    return results
+
+
+# =============================================================================
+# Published posts — added at Gate 11, 2026-08-13
+#
+# UX.md §6 said this check "reports first-person visit tells and unsourced
+# tasting descriptors in blog bodies exactly as they do in producer entries".
+# It did not: this module read `PUBLISHED_DIR` and METHODOLOGY.md and nothing
+# else, so the statement was intent rather than fact until the blog existed to
+# be linted. It is fact now, and UX.md's own amendment records the correction.
+#
+# `title`, `summary` and `dateline` join the body for the same reason `summary`
+# and the FAQ answers do on a producer: they are printed, on the index and in
+# the meta description. `sources[].title` is deliberately NOT linted — it is
+# what a source calls itself, and a register with `world-class` in its name is
+# a fact about the register rather than this guide's register drifting.
+# =============================================================================
+
+_POST_PROSE_FIELDS = r"title|summary|dateline"
+
+
+def run_posts(directory: Path = BLOG_PUBLISHED_DIR) -> list[tuple[Path, list[dict]]]:
+    """The same lint over published posts. Warnings, exactly as for producers."""
+    lists = load_lists()
+    results: list[tuple[Path, list[dict]]] = []
+    if not directory.is_dir():
+        return results
+    for path in sorted(directory.glob("*.mdx")):
+        hits = lint_text(_body_of(path), lists) + lint_text(
+            _frontmatter_fields(path, _POST_PROSE_FIELDS), lists
+        )
         if hits:
             results.append((path, hits))
     return results
@@ -473,6 +519,68 @@ def _selftest() -> list[str]:
     if lint_text("the winemaker notes\n\nof the four blocks, two are dry-grown.", lists):
         errors.append("selftest: a phrase was assembled across a paragraph break")
 
+    # ── Posts, added at Gate 11 ────────────────────────────────────────────
+    #
+    # `run_posts` reads a directory, so a fixture is the only way to assert that
+    # it reads the right FIELDS. Without this, `_POST_PROSE_FIELDS` could lose a
+    # key and the only symptom would be a lint quietly passing copy nobody
+    # checked — the exact drift CLAUDE.md's 2026-08-07 amendment warns about,
+    # and the reason `conditional-claims` went unloaded for two gates.
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        directory = Path(tmp)
+        (directory / "dirty.mdx").write_text(
+            "---\n"
+            "title: A renowned guide\n"
+            "summary: Nestled in the hills.\n"
+            "dateline: The iconic Adelaide Hills\n"
+            "sources:\n"
+            "  - title: The World-Class Register of Iconic Wineries\n"
+            "    url: https://example.com/\n"
+            "---\n\n"
+            "When we arrived we were greeted with notes of plush fruit.\n",
+            encoding="utf-8",
+        )
+        hits = dict(run_posts(directory)).get(directory / "dirty.mdx", [])
+        phrases = {hit["phrase"] for hit in hits}
+
+        for field, phrase in (
+            ("title", "renowned"),
+            ("summary", "nestled"),
+            ("dateline", "iconic"),
+        ):
+            if phrase not in phrases:
+                errors.append(
+                    f"selftest: run_posts did not lint a post's {field} "
+                    f"({phrase!r} went unreported)"
+                )
+        if not any(hit["kind"] == "first-person visit tell" for hit in hits):
+            errors.append("selftest: run_posts did not lint a post BODY")
+
+        # A source's title is what the source calls itself. Linting it would
+        # report a fact about the register as this guide's register drifting.
+        if "world-class" in phrases:
+            errors.append(
+                "selftest: run_posts linted a sources[].title. That is the "
+                "source's own name, never this guide's prose."
+            )
+
+        (directory / "clean.mdx").write_text(
+            "---\n"
+            "title: What an unconfirmed ownership notice means\n"
+            "summary: What the register shows, and what it does not.\n"
+            "dateline: Australia\n"
+            "---\n\n"
+            "The register identifies the entity operating a business.\n",
+            encoding="utf-8",
+        )
+        if any(path.name == "clean.mdx" for path, _ in run_posts(directory)):
+            errors.append("selftest: a clean post produced hits")
+
+        if not run_posts(directory / "nowhere") == []:
+            errors.append("selftest: run_posts raised on a missing directory")
+
     return errors
 
 
@@ -500,6 +608,12 @@ def main() -> int:
         if extra:
             results.append((methodology, extra))
 
+    # Published posts, reader-facing since Gate 11. They join `results` rather
+    # than printing beneath them, for the same reason METHODOLOGY.md does: a
+    # warnings-only check is read by its total, and a hit outside the total is
+    # a hit nobody judges.
+    results.extend(run_posts())
+
     # regions.ts and glossary.ts, reader-facing since Gate 6.
     results.extend(lint_data_files())
 
@@ -507,9 +621,10 @@ def main() -> int:
 
     if not results:
         published = len(list(PUBLISHED_DIR.glob("*.mdx")))
+        posts = len(list(BLOG_PUBLISHED_DIR.glob("*.mdx"))) if BLOG_PUBLISHED_DIR.is_dir() else 0
         print(
             f"VALIDATE 6 PASS — register lint clean across {published} published "
-            f"file(s), METHODOLOGY.md, regions.ts and glossary.ts"
+            f"file(s), {posts} post(s), METHODOLOGY.md, regions.ts and glossary.ts"
         )
         return 0
 
