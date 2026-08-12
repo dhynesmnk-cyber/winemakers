@@ -170,6 +170,17 @@ Offline, as the gate requires. No network call, no Rich Results request, no vend
 
 Sixteen self-test cases, one per rule, each requiring the error to *name* the thing it broke — an error is not evidence if it fires for an unrelated reason.
 
+### 19. `llms.txt` integrity — *G10*
+`python3 -m admin.pipeline.validate_llms`. **Requires check 4 to have run**, because it reads `site/dist`.
+
+Every link in `/llms.txt` is absolute, on this site, and resolves to a route the build actually emitted. The four standing links — methodology, glossary, region hub, producer index — are required by name, because a file that quietly stopped listing the methodology page would still pass a pure dead-link check, and that link is the one this file exists to hand over.
+
+**Why this is not check 5's job.** Check 5 walks the internal hrefs in built HTML; `llms.txt` is plain text served outside the page graph, so nothing in check 5 has ever read it. The consequence differs too: a reader who follows a broken link sees a 404 and knows, whereas the reader of this file is a model that will repeat what the file says without being able to check it. A hallucinated route in a directory whose whole claim is documentary accuracy is worse than a 404.
+
+**The one numeric claim is recomputed, not trusted.** The file states the ownership split in prose, because a model summarising this site without it reports every entry as independent, which is not what the site claims. That figure is recomputed from `producers.json` and required to match, and its disappearance is itself a failure.
+
+**The origin is read from the build**, out of `dist`'s own canonical, rather than from `admin/config.py` — `.env` overrides `SITE_URL` at runtime, so `config.py` answers "what does this machine think the site is" rather than "what did this build emit". The self-test uses a fixed fixture origin for the same reason: a self-test that depends on the environment it runs in proves something different on every machine.
+
 ### 20. Review-pane preview integrity — *engagement 2026-08-09*
 `python3 -m admin.pipeline.validate_preview`.
 
@@ -212,7 +223,7 @@ Listed here so the suite's shape is visible from the start. Each lands as its ow
 | 15 | ~~**Deploy-guard self-test**~~ — **SHIPPED 2026-08-08 at Gate 7.** Moved to the core section above; row kept so the numbering stays readable | G7 |
 | 17 | ~~**Internal-linking graph**~~ — **SHIPPED 2026-08-12 at Gate 9.** Moved to the core section above; row kept so the numbering stays readable | G9 |
 | 18 | ~~**JSON-LD structural validation**~~ — **SHIPPED 2026-08-13 at Gate 10.** Moved to the core section above; row kept so the numbering stays readable | G10 |
-| 19 | **`llms.txt` integrity** — references only live routes | G10 |
+| 19 | ~~**`llms.txt` integrity**~~ — **SHIPPED 2026-08-13 at Gate 10.** Moved to the core section above; row kept so the numbering stays readable | G10 |
 
 ---
 
