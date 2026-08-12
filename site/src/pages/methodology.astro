@@ -1,0 +1,124 @@
+---
+/**
+ * `/methodology/` — the published definition of independence. UX.md §2.5,
+ * DESIGN.md §497, CLAUDE.md Gate 10.
+ *
+ * The body is `METHODOLOGY.md` at the repository root, rendered through the
+ * `methodology` content collection. This page owns the shell and NOT the words:
+ * the words are authored in one file, drafted at Gate 4 alongside the system
+ * they describe, and amended in place with a date. A page that restated any of
+ * them would be a second copy of the site's central claim, and the two would
+ * drift.
+ *
+ * DESIGN.md §497 is a list of things this page must NOT have: no diagrams, no
+ * flowcharts, no infographic, no badge art, and no "verified" seal graphics of
+ * any kind. It is plain prose in the reading spine. The temptation on a trust
+ * page is to draw the trust; the design position is that a seal is exactly what
+ * an untrustworthy site also draws.
+ */
+import { getCollection, render } from "astro:content";
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Breadcrumbs from "../components/Breadcrumbs.astro";
+import { rootCrumbs } from "../data/taxonomy.ts";
+
+// Read by collection rather than by id: the glob loader derives an entry id
+// from the filename by a rule of its own, and a page that hardcodes the result
+// breaks silently the day that rule changes. The collection's pattern already
+// names exactly one file, so the count is the assertion worth making.
+const entries = await getCollection("methodology");
+
+if (entries.length !== 1) {
+  throw new Error(
+    `The \`methodology\` collection matched ${entries.length} file(s), expected ` +
+      "exactly 1. Its loader reads METHODOLOGY.md at the repository root " +
+      "(site/src/content/config.ts); check the file still exists there and " +
+      "still carries frontmatter.",
+  );
+}
+
+const entry = entries[0];
+
+const { Content } = await render(entry);
+
+const updated = entry.data.updated.toISOString().slice(0, 10);
+---
+
+<BaseLayout title={entry.data.title} description={entry.data.description}>
+  <div class="reading-spine">
+    <Breadcrumbs crumbs={rootCrumbs(entry.data.title)} />
+
+    <header class="meth-head">
+      <h1>{entry.data.title}</h1>
+      <p class="meth-head__dated mono mono-caps">
+        Last updated <time datetime={updated}>{updated}</time>
+      </p>
+    </header>
+
+    <div class="meth-body">
+      <Content />
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .meth-head {
+    margin-bottom: clamp(2rem, 4vw, 3rem);
+  }
+
+  .meth-head__dated {
+    color: var(--ink-faded);
+    margin: 0.75rem 0 0;
+  }
+
+  /* The rendered markdown is injected by `<Content />`, so scoped selectors
+     cannot reach it. `:global` inside `.meth-body` keeps the reach bounded to
+     this page rather than leaking a bare `blockquote` rule into the site. */
+  .meth-body :global(h2) {
+    margin-top: clamp(2.75rem, 5vw, 4rem);
+    margin-bottom: 1rem;
+  }
+
+  .meth-body :global(p),
+  .meth-body :global(li) {
+    max-width: 68ch;
+  }
+
+  /* Tailwind's preflight strips list markers site-wide, which is right for the
+     listing components and wrong here: this is prose, and the exclusions list
+     is the passage UX.md §2.5 says must not be softened. Without a marker its
+     items read as loose paragraphs. The marker is restored for this page only. */
+  .meth-body :global(ul) {
+    list-style: disc;
+    margin: 0 0 1.35em;
+    padding-left: 1.25rem;
+  }
+
+  .meth-body :global(li) {
+    margin-bottom: 0.5rem;
+  }
+
+  .meth-body :global(li)::marker {
+    color: var(--ink-faded);
+  }
+
+  /* The two sentences UX.md §2.5 sets as quotes are the load-bearing ones. They
+     take the site's single pull-quote treatment (DESIGN.md §7) rather than a
+     second quote style invented here. */
+  .meth-body :global(blockquote) {
+    margin: clamp(2rem, 4vw, 3rem) 0;
+    padding: 0 0 0 clamp(1rem, 2.5vw, 1.75rem);
+    border: 0;
+    border-left: 1px solid var(--hairline);
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+    line-height: 1.35;
+    color: var(--ink);
+  }
+
+  .meth-body :global(blockquote p:last-child) {
+    margin-bottom: 0;
+  }
+</style>

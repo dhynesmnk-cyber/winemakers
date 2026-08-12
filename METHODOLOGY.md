@@ -1,20 +1,31 @@
-# Methodology
-
-**Drafted at Gate 4, 2026-08-07. Ships at Gate 10 as `/methodology/`.**
-
-This file is the authored source for the methodology page. It is drafted here,
-alongside the system it describes, because it is the published definition of
-independence and the document producers will argue with, and writing it after
-the fact would let the definition drift to match whatever the code happened to
-do. Gate 10 renders it at `/methodology/` and links it from the footer, from the
-site navigation, and from every producer page's independence line.
-
-Section order below is fixed by UX.md §2.5 and is not an editorial choice. The
-copy is Australian English and obeys the editorial guardrails: no banned words,
-no em dashes, no not-X-but-Y, no hedges. (The banned-word list itself lands with
-`PROMPTS/gatekeeper.md` at Gate 5; this draft is written to the four stated
-rules and gets linted against the list when it exists.)
-
+---
+# Drafted at Gate 4, 2026-08-07. SHIPPED at Gate 10, 2026-08-13, as
+# `/methodology/`.
+#
+# This file is the authored source for the methodology page. It was drafted
+# here, alongside the system it describes, because it is the published
+# definition of independence and the document producers will argue with, and
+# writing it after the fact would let the definition drift to match whatever
+# the code happened to do. It is now rendered at `/methodology/` and linked
+# from the footer, the corner menu, the homepage foreword and every producer
+# page's independence line.
+#
+# The note above and this one are YAML comments rather than prose because
+# everything below the frontmatter is reader-facing from Gate 10 onward. Build
+# notes do not ship, and they are kept rather than deleted.
+#
+# Section order below is fixed by UX.md §2.5 and is not an editorial choice.
+# The copy is Australian English and obeys the editorial guardrails: no banned
+# words, no em dashes, no not-X-but-Y, no hedges. It is linted against
+# `PROMPTS/gatekeeper.md` by /validate check 6, which is what this draft asked
+# for when the list did not yet exist.
+#
+# The page supplies its own <h1> from `title`, so the body starts at <h2>.
+title: Methodology
+description: >-
+  How this guide decides that a producer is independent, what the rule
+  excludes, and how each determination is made and recorded.
+updated: 2026-08-13
 ---
 
 ## What this site is, and how it is paid for
@@ -157,7 +168,7 @@ document. Or we can list them and say plainly what we do not know.
 **Every entry on this site is therefore in one of two states, and the entry says
 which:**
 
-- **Ownership confirmed.** A dated source names who owns the business — a
+- **Ownership confirmed.** A dated source names who owns the business: a
   register lookup, the producer's own published statement, or a named trade
   source. The entry shows that source and its date. The independence claim on
   this site applies to it.
@@ -171,7 +182,7 @@ is common among exactly the small independent makers this directory was built
 for.
 
 Three things do not change when an entry is unconfirmed. A producer known to
-have a parent company is still excluded outright — unconfirmed means the owner
+have a parent company is still excluded outright. Unconfirmed means the owner
 is unknown to us, never that a parent is known and tolerated. A producer whose
 name, domain or business number matches a known portfolio owner is still
 excluded, because that is a case where somebody *does* publish the ownership and
@@ -263,17 +274,30 @@ deliberately and published in advance.
 Coverage is being built region by region, starting with Adelaide Hills, McLaren
 Vale, the Yarra Valley and the Mornington Peninsula.
 
+As at 2026-08-13 the guide lists **97 producers**. The four regions above carry
+them: 36 in the Adelaide Hills, 24 on the Mornington Peninsula, 21 in McLaren
+Vale and 19 in the Yarra Valley. A producer working fruit from more than one
+region is listed under each, so those figures add to more than 97. A further
+handful sit in the Clare Valley, the Eden Valley, the Barossa Valley, Langhorne
+Creek, the Southern Fleurieu and Wrattonbully, which are covered incidentally
+rather than deliberately, because a producer in one of the four regions also
+works fruit there.
+
+Of the 97, 48 have their ownership confirmed against a dated source and 49 do
+not. Every other Australian wine region is uncovered so far.
+
 A region covered thinly, or not at all, is where the work has reached. It is
 never a judgement about what is worth drinking, and the absence of a producer
 from this site is not a statement about that producer.
 
-*(At the time of drafting, Gate 4, no region is populated. This section is
-completed with the real state of coverage when the page ships at Gate 10, and is
-kept current after that.)*
+These figures are counted by hand and carry the date they were counted. A figure
+here that has gone stale is a figure that has gone stale, and it is never a claim
+that coverage stopped.
 
 ## Last updated
 
-**2026-08-10.**
+**2026-08-13.** The page was published on this date, and the coverage figures
+above were counted on it. The definition of independence did not change.
 
 Substantive changes to the definition of independence, with dates:
 

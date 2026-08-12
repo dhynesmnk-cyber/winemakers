@@ -50,7 +50,9 @@ function series(base: string, total: number): string[] {
 }
 
 export const GET: APIRoute = async () => {
-  const paths: string[] = ["/", "/region/", "/glossary/"];
+  // The standing pages. `/methodology/` joined them at Gate 10, 2026-08-13; it
+  // is the site's central claim and the page a crawler most needs to reach.
+  const paths: string[] = ["/", "/region/", "/glossary/", "/methodology/"];
 
   const producers = await allProducers();
   paths.push(...series("/producers/", producers.length));

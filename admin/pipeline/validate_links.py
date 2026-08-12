@@ -51,7 +51,9 @@ DIST = SITE_DIR / "dist"
 #: Route -> the gate that ships it. Printed on every run. See the module
 #: docstring: this is an explicit, visible, shrinking list, not a mute allow-list.
 PENDING_ROUTES: dict[str, str] = {
-    "/methodology/": "Gate 10",
+    # `/methodology/` came off this list on 2026-08-13 when Gate 10 shipped it.
+    # It is now a hard requirement like any other route, which is the point of
+    # the list shrinking rather than the route being permitted quietly.
     "/blog/": "Gate 11",
     "/rss.xml": "Gate 11",
 }

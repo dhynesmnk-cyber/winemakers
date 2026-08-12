@@ -480,4 +480,30 @@ const producers = defineCollection({
   schema: producerFrontmatter,
 });
 
-export const collections = { producers };
+/**
+ * The methodology page's authored source (Gate 10).
+ *
+ * `base` points OUTSIDE `site/`, at the repository root, because TRD.md §3
+ * places `METHODOLOGY.md` with the other authored prose documents rather than
+ * in `site/`. A collection is what lets it stay there and still be rendered by
+ * Astro's own markdown pipeline, with no second markdown dependency and no
+ * hand-rolled parser (CLAUDE.md rule 2).
+ *
+ * One file, so the pattern names it rather than globbing: a stray `.md` at the
+ * repository root is a build document, and every one of them would otherwise
+ * become a page.
+ */
+const methodology = defineCollection({
+  loader: glob({ pattern: "METHODOLOGY.md", base: "../" }),
+  schema: z.object({
+    title: z.string(),
+    // The meta description. Required, because a page this central having no
+    // description is the kind of omission nothing else would catch.
+    description: z.string(),
+    // UX.md §2.5 item 11: a dated `Last updated` line is part of the document's
+    // contract, so the date is a field rather than prose the page hopes to find.
+    updated: z.coerce.date(),
+  }),
+});
+
+export const collections = { producers, methodology };

@@ -251,6 +251,32 @@ def _body_of(path: Path) -> str:
     return parts[2] if len(parts) >= 3 else text
 
 
+def _shipped_text(path: Path) -> str:
+    """The reader-facing half of a frontmatter'd markdown document.
+
+    Frontmatter lines are BLANKED rather than dropped, so a reported line number
+    still points at the real line in the file. `_body_of` above returns the body
+    alone, which is right for MDX because its hits are reported against the body
+    it lints; here the hits are reported against the file a person will open.
+
+    Added at Gate 10, when METHODOLOGY.md gained frontmatter and started being
+    rendered as a page. From that point the file has two halves with different
+    audiences: the body is published prose and the frontmatter carries build
+    notes in YAML comments. Linting the notes reported the words a build note is
+    made of, which is a hit nobody can act on.
+    """
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return text
+    for index in range(1, len(lines)):
+        if lines[index].strip() == "---":
+            return "\n".join([""] * (index + 1) + lines[index + 1 :])
+    # An unterminated frontmatter fence is a malformed file, not a licence to
+    # skip the lint. Read the whole thing.
+    return text
+
+
 def _frontmatter_prose(path: Path) -> str:
     """`summary` and the FAQ answers are read by the public too (SEED.md row 2)."""
     text = path.read_text(encoding="utf-8")
@@ -465,9 +491,12 @@ def main() -> int:
     # covers it too. A warnings-only check is read by its total; a hit outside
     # the total is a hit nobody judges, and this one printed `0 hit(s) across
     # 0 file(s)` above a listed hit until 2026-08-07.
+    #
+    # Body only since Gate 10, 2026-08-13: the file now ships as `/methodology/`
+    # and its frontmatter carries build notes rather than published prose.
     methodology = ROOT / "METHODOLOGY.md"
     if methodology.is_file():
-        extra = lint_text(methodology.read_text(encoding="utf-8"))
+        extra = lint_text(_shipped_text(methodology))
         if extra:
             results.append((methodology, extra))
 
