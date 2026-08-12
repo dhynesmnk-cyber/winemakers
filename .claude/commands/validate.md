@@ -144,6 +144,17 @@ Covers: a clean tree passing; the tracked `temp_data/` file; a tracked `.env` re
 ### 16. No-JS and reduced-motion render — *G1*
 The built site renders correctly with JavaScript disabled: every producer, every programmatic route, and every navigation affordance is reachable. Under `prefers-reduced-motion: reduce`, every element renders fully visible in its final position. Any content that only appears after JS runs = fail.
 
+### 17. Internal-linking graph — *G9*
+`python3 -m admin.pipeline.validate_graph`. **Requires check 4 to have run**, because it reads `site/dist`: a link that exists in a component but lands on a route Astro never emitted is not a link.
+
+Every published producer is linked from ≥`MIN_AGGREGATION_LINKS` **distinct aggregation pages**; every comparison and region page is reachable from its hub; zero orphans.
+
+The count is of distinct pages rather than of links, because `ProducerEntry` links a producer twice (name and thumbnail) and that is still one route to it. **Producer pages are excluded from the count on purpose** — a producer linking to a sibling is lateral movement, not an aggregation route, and counting it would let a cluster of cross-linked producers satisfy the rule while sitting off every listing.
+
+Paginated state routes count. At the current corpus every state listing runs to several pages, and counting only page 1 reported 13 producers as under-linked on the first run. The other aggregation families carry their pager under a prefix already.
+
+**The threshold half is checked by recomputing it, not by reading the log.** The skip-and-log behaviour lives in `comparisons.ts`, which is TypeScript. Parsing the build log would assert that a message was printed, not that the right pages exist, so the expected comparison set is recomputed from `producers.json` and `MIN_COMPARISON_PRODUCERS` and `dist` is asserted to hold exactly it. A threshold that stopped being applied shows up as an unexpected page; one applied too hard shows up as a missing one. `MIN_COMPARISON_PRODUCERS` is read from `admin/config.py`, which check 13 already proves mirrors `config.ts` exactly — that is what makes this a second *reading* of one rule rather than a second copy of it.
+
 ### 20. Review-pane preview integrity — *engagement 2026-08-09*
 `python3 -m admin.pipeline.validate_preview`.
 
@@ -184,7 +195,7 @@ Listed here so the suite's shape is visible from the start. Each lands as its ow
 | 13 | ~~**Four-surface schema diff**~~ — **SHIPPED 2026-08-07 at Gate 2** (`2bc90ad`). Moved to the core section above | G2 |
 | 14 | ~~**Provenance integrity**~~ — **SHIPPED 2026-08-07 at Gate 4** (`c548dcb`). Moved to the core section above | G4 |
 | 15 | ~~**Deploy-guard self-test**~~ — **SHIPPED 2026-08-08 at Gate 7.** Moved to the core section above; row kept so the numbering stays readable | G7 |
-| 17 | **Internal-linking graph** — every published producer is linked from ≥3 aggregation pages; every comparison and region page is reachable from a hub; zero orphans. Pages below the minimum-producer threshold must skip-and-log, visible in the build output, never fail | G9 |
+| 17 | ~~**Internal-linking graph**~~ — **SHIPPED 2026-08-12 at Gate 9.** Moved to the core section above; row kept so the numbering stays readable | G9 |
 | 18 | **JSON-LD structural validation** — `Organization`, `WebSite`, `LocalBusiness`, `BreadcrumbList`, `FAQPage`, `ItemList`, `DefinedTermSet`, `DefinedTerm` across every page type | G10 |
 | 19 | **`llms.txt` integrity** — references only live routes | G10 |
 

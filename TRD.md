@@ -140,7 +140,8 @@ One repo, two clearly separated applications sharing a content directory. **No P
         /_published              # hand-authored posts (Gate 11)
     /components                  # ProducerEntry, Pull, TippedPhoto, Icon, GrainOverlay,
                                  #   SiteLogo, Footer, ThemeToggle, SearchBox, FAQ,
-                                 #   ComparisonTable, ExtractiveAnswer  (DESIGN.md / UX.md)
+                                 #   ComparisonTable  (DESIGN.md §164, §501)
+                                 #   ~~ExtractiveAnswer~~ — see note below
     /icons/paths.ts              # hand-authored inline SVG icon set (DESIGN.md)
     /data
       producers.json             # GENERATED on approve — committed (§5)
@@ -194,6 +195,14 @@ METHODOLOGY.md                   # AMENDED 2026-08-07 — see below
 Dockerfile  docker-entrypoint.sh  fly.toml  netlify.toml
 .env  .env.example  .gitignore
 ```
+
+### Amendment, 2026-08-12 (Gate 9): `ExtractiveAnswer` was never specified
+
+The tree above attributed two components to "DESIGN.md / UX.md". `ComparisonTable` is genuinely specified there — DESIGN.md §164 and §501, UX.md §5 — and shipped at Gate 9. **`ExtractiveAnswer` is not mentioned in DESIGN.md, UX.md, SCHEMA.md or this document anywhere else.** The attribution was untrue: nothing defined what the component is, what it renders or what data feeds it.
+
+Struck rather than guessed, per CONSTANTS-REQUIRED.md's rule that an undecided thing must never be invented to satisfy a checklist. **Deferred to Gate 10**, which owns `FAQPage` JSON-LD, the E-E-A-T work and the methodology page — the surface an extractable answer block would serve. If Gate 10 wants it, it gets a specification in UX.md or DESIGN.md first, and this line comes back with the attribution made true.
+
+Recorded because a dangling component name in a file tree is the kind of thing a later gate implements from imagination rather than from a spec.
 
 ### Amendment, 2026-08-07 (Gate 4): three paths this tree did not name
 
