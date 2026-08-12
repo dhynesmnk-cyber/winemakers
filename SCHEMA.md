@@ -712,14 +712,28 @@ never typed prose." This is that component, specified here before it was built r
 than after, because a component named in a checklist and defined nowhere gets
 implemented from imagination (TRD.md §3's 2026-08-12 amendment, on `ExtractiveAnswer`).
 
-`<Figure of="…" key="…" />` resolves at build time against `producers.json` and the
+`<Figure of="…" member="…" />` resolves at build time against `producers.json` and the
 hand-authored registers, and renders a plain numeral in the body's own type. No badge,
 no callout, no styling of its own — a figure is a word in a sentence.
 
-The query set is **closed**. An unknown `of`, or a `key` with no member, **fails the
-build** naming the file, exactly as a bad enum value on a producer does:
+The query set is **closed**. An unknown `of`, a `member` that is not in that query's
+vocabulary, a missing `member` where one is required, or a `member` supplied to a
+keyless query all **fail the build** naming the file, exactly as a bad enum value on a
+producer does.
 
-| `of` | `key` | Renders |
+**The attribute is `member`, not `key`, and that is not a style choice.** MDX compiles
+to JSX, and the automatic JSX runtime lifts `key` out of props before the component is
+called — a `<Figure of="region" key="adelaide-hills" />` would arrive with no member at
+all and fail as though the author had omitted it. Named `member` so the trap cannot be
+sprung.
+
+**A count of zero is not a failure.** A region in the register with no published
+producers answers `0`, which is a true answer to a question that was asked correctly;
+present-only generation is a rule about *listings*, not about arithmetic. The failure
+case is a `member` the vocabulary has never heard of, which is a typo, and the
+distinction is what keeps this component from failing a build over an honest zero.
+
+| `of` | `member` | Renders |
 |---|---|---|
 | `published` | — | Every published producer. |
 | `region` | a region slug | Producers whose `regions` include it. |

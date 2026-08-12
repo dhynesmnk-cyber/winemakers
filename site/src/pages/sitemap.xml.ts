@@ -41,6 +41,7 @@ import {
 } from "../data/taxonomy.ts";
 import type { State } from "../config.ts";
 import { COMPARE_HUB, comparisonsPresent } from "../data/comparisons.ts";
+import { POSTS_PER_PAGE, allPosts, postHref } from "../data/posts.ts";
 
 /** Every page in a paginated series, page 1 first. */
 function series(base: string, total: number): string[] {
@@ -85,6 +86,18 @@ export const GET: APIRoute = async () => {
 
   // Unconditional, exactly as the pages are.
   paths.push(...GLOSSARY.map((entry) => glossaryHref(entry.slug)));
+
+  // The journal (Gate 11). The index is unconditional — it exists at zero posts
+  // and the footer links it from every page — and it paginates by the same rule
+  // as every other listing.
+  const posts = await allPosts();
+  paths.push(
+    ...Array.from(
+      { length: Math.max(1, Math.ceil(posts.length / POSTS_PER_PAGE)) },
+      (_, i) => pageHref("/blog/", i + 1),
+    ),
+  );
+  paths.push(...posts.map((post) => postHref(post.id)));
 
   // Sorted and de-duplicated so the output is byte-stable between builds. A
   // sitemap that reorders on every build makes every deploy diff unreadable.

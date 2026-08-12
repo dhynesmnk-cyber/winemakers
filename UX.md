@@ -637,7 +637,7 @@ Both were put to the user with their alternatives and signed off the same day.
 
 *The toolbar writes markdown syntax into the textarea at the cursor: bold, italic, heading, link, `<Pull>`, image insert. It is an accelerator over the source, never a layer above it.*
 
-**2. "A data component" is `<Figure of="…" key="…" />`**, specified in SCHEMA.md §9.5 before it was built, with a **closed** set of nine queries and a build failure on anything outside it. It renders a plain numeral in the body's own type — no badge, no callout, no styling of its own, because a figure is a word in a sentence and DESIGN.md §160's no-cards rule does not stop at the blog.
+**2. "A data component" is `<Figure of="…" member="…" />`**, specified in SCHEMA.md §9.5 before it was built, with a **closed** set of nine queries and a build failure on anything outside it. It renders a plain numeral in the body's own type — no badge, no callout, no styling of its own, because a figure is a word in a sentence and DESIGN.md §160's no-cards rule does not stop at the blog.
 
 *Closed rather than an expression language for the reason this bullet exists at all: a post that can evaluate an arbitrary query is a post that can assert an arbitrary figure, which is the problem restated one level down.*
 

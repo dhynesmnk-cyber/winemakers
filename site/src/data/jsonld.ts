@@ -37,6 +37,8 @@ import {
   SITE_URL,
 } from "../config.ts";
 import type { GlossaryEntry } from "./glossary.ts";
+import type { Post } from "./posts.ts";
+import { postHref } from "./posts.ts";
 import type { Crumb, Producer } from "./taxonomy.ts";
 import { glossaryHref, producerHref } from "./taxonomy.ts";
 
@@ -344,6 +346,67 @@ export function definedTerm(entry: GlossaryEntry): JsonLdNode {
     url: absolute(glossaryHref(entry.slug)),
     inDefinedTermSet: { "@id": TERM_SET_ID },
   });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Blog — BlogPosting. Gate 11, TRD.md §2.5 exception 2026-08-13
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * One post.
+ *
+ * **This type is the first widening of the allowed set since Gate 10 closed
+ * it**, and it exists because §2.5 carries a dated exception with sign-off, not
+ * because a rich-results guide recommends it. Rule 4 in this file's header still
+ * stands for producers: widen the type in TRD.md first, here second.
+ *
+ * `Blog` on the index is deliberately NOT taken. The index is a listing and it
+ * carries `ItemList`, like every other listing on this site.
+ *
+ * `author` is the Organization, not a person. This guide carries no bylines,
+ * and inventing one to fill a recommended field is the same defect as claiming
+ * a logo URL that 404s.
+ *
+ * `citation` is the machine-readable half of SCHEMA.md §9.2's required
+ * `sources`. Check 18 asserts its length against the source count the page
+ * prints, so a post cannot cite one thing to a reader and three to a crawler.
+ *
+ * `dateModified` is emitted only where `updated` is set. Defaulting it to
+ * `datePublished` would assert that an unamended post was checked on the day it
+ * shipped and never since, which is a claim about editorial process that
+ * nothing here has made.
+ */
+export function blogPosting(post: Post): JsonLdNode {
+  const url = absolute(postHref(post.id));
+  const day = (date: Date) => date.toISOString().slice(0, 10);
+
+  return omitEmpty({
+    "@type": "BlogPosting",
+    "@id": `${url}#post`,
+    headline: post.data.title,
+    description: post.data.summary,
+    url,
+    datePublished: day(post.data.published),
+    dateModified: post.data.updated ? day(post.data.updated) : undefined,
+    inLanguage: "en-AU",
+    author: { "@id": ORG_ID },
+    publisher: { "@id": ORG_ID },
+    isPartOf: { "@id": WEBSITE_ID },
+    image: post.data.cover ? absolute(post.data.cover) : undefined,
+    citation: post.data.sources.map((source) => ({
+      "@type": "CreativeWork",
+      name: source.title,
+      url: source.url,
+    })),
+  });
+}
+
+/** The post slice of the journal index, in render order. */
+export function postItems(posts: Post[]): { name: string; href: string }[] {
+  return posts.map((post) => ({
+    name: post.data.title,
+    href: postHref(post.id),
+  }));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

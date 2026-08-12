@@ -1,0 +1,201 @@
+---
+/**
+ * `/blog/[slug]/` — one post. UX.md §2.4, DESIGN.md §505, SCHEMA.md §9.
+ *
+ * Order, top to bottom: breadcrumb, title, dateline row, cover (where one
+ * exists), the body, the sources list.
+ *
+ * ── The cover is NOT the tipped-in plate ──────────────────────────────────────
+ *
+ * DESIGN.md §505 is explicit: a post's cover is "a plain full-width image with a
+ * `--paper-raised` mount border and no caption", deliberately not the plate
+ * treatment. The plate is the producer page's specimen signature — inset,
+ * mounted, captioned in the `LOT I. —` register — and a post cover functions as
+ * a banner. Reusing `TippedPhoto` here would have been one import and would have
+ * borrowed a signature that means something specific somewhere else.
+ *
+ * The attribution still renders. §505 says no *caption*, and `cover_source` is
+ * not a caption: SCHEMA.md §9.2 requires attribution on a published photograph
+ * for the same reason a producer's does, which is that it is somebody else's
+ * photograph. It sits beneath the image as one mono line, the way the producer
+ * plate's source link does, and carries no descriptive prose.
+ *
+ * ── The sources list is not optional furniture ────────────────────────────────
+ *
+ * `sources` is required with at least one entry (SCHEMA.md §9.2) and it renders
+ * on every post. It is the blog's equivalent of the producer page's provenance
+ * block, and DESIGN.md §473's rule for that block applies here word for word: it
+ * reads as a citation, never as a certification. No tick, no seal, no "verified"
+ * anything.
+ */
+import { getCollection, render } from "astro:content";
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import Figure from "../../components/Figure.astro";
+import Pull from "../../components/Pull.astro";
+import { blogPosting } from "../../data/jsonld.ts";
+import {
+  allPosts,
+  isoDate,
+  longDate,
+  postCrumbs,
+  type Post,
+} from "../../data/posts.ts";
+
+export async function getStaticPaths() {
+  const posts = await allPosts();
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+interface Props {
+  post: Post;
+}
+
+const { post } = Astro.props;
+const { title, summary, dateline, published, updated, sources } = post.data;
+
+const { Content } = await render(post);
+---
+
+<BaseLayout title={title} description={summary} jsonld={[blogPosting(post)]}>
+  <article class="reading-spine">
+    <Breadcrumbs crumbs={postCrumbs(title)} />
+
+    <header class="post-head">
+      <h1 class="post-head__title">{title}</h1>
+
+      {/* DESIGN.md §15: the collector's date and locality beside it. */}
+      <p class="post-head__dateline mono mono-caps">
+        {dateline} · <time datetime={isoDate(published)}>{longDate(published)}</time>
+      </p>
+
+      {
+        updated && (
+          <p class="post-head__amended mono mono-caps">
+            Amended <time datetime={isoDate(updated)}>{longDate(updated)}</time>
+          </p>
+        )
+      }
+    </header>
+
+    {
+      post.data.cover && (
+        <figure class="post-cover">
+          <img
+            src={post.data.cover}
+            alt={post.data.cover_caption}
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption class="post-cover__source mono">
+            Image: <a href={post.data.cover_source} rel="noopener">
+              {post.data.cover_source}
+            </a>
+          </figcaption>
+        </figure>
+      )
+    }
+
+    <div class="prose">
+      {/*
+        `Figure` is in the map because SCHEMA.md §9.5 makes it the only way a
+        post states a count. `Pull` is here because a post quotes published
+        material exactly as an entry does. `TippedPhoto` is NOT: the plate is the
+        producer page's signature (see the header note), and in-body images on a
+        post render at their natural size with no framing (DESIGN.md §505).
+      */}
+      <Content components={{ Figure, Pull }} />
+    </div>
+
+    <section class="post-sources section-gap">
+      <p class="section-opener draw-line">Written from</p>
+
+      <ul class="post-sources__list mono">
+        {
+          sources.map((source) => (
+            <li>
+              <a href={source.url} rel="noopener">{source.title}</a>
+            </li>
+          ))
+        }
+      </ul>
+
+      <p class="post-sources__note mono">
+        Claims in this post were checked against these sources before it went up.
+        Nobody working on this guide has visited these cellar doors or tasted
+        these wines, and nothing here is a tasting note. How the guide decides
+        what counts as independent is set out on the{" "}
+        <a href="/methodology/">methodology page</a>.
+      </p>
+    </section>
+  </article>
+</BaseLayout>
+
+<style>
+  .post-head {
+    margin-bottom: clamp(1.75rem, 3.5vw, 2.75rem);
+  }
+
+  .post-head__title {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    margin: 0 0 0.6rem;
+    max-width: 20ch;
+  }
+
+  .post-head__dateline,
+  .post-head__amended {
+    color: var(--ink-faded);
+    margin: 0;
+  }
+
+  .post-head__amended {
+    margin-top: 0.35rem;
+  }
+
+  /* DESIGN.md §505: a plain full-width image with a `--paper-raised` mount
+     border. No rotation, no deep foot, no radius, no shadow — none of the
+     plate's signature, which is the point. */
+  .post-cover {
+    margin: 0 0 clamp(2rem, 4vw, 3rem);
+    padding: 4px;
+    background: var(--paper-raised);
+    border: 1px solid var(--hairline);
+  }
+
+  .post-cover img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .post-cover__source {
+    color: var(--ink-faded);
+    margin: 0.6rem 0 0;
+    padding: 0 4px 2px;
+    font-size: 0.75rem;
+    /* A source URL is a long unbroken string and this is inside the reading
+       spine at 360px. DESIGN.md §9: no horizontal page scroll at any width. */
+    overflow-wrap: anywhere;
+  }
+
+  .post-sources__list {
+    margin: 0 0 1.5rem;
+    padding: 0;
+    list-style: none;
+    max-width: 60ch;
+  }
+
+  .post-sources__list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--hairline);
+    overflow-wrap: anywhere;
+  }
+
+  .post-sources__note {
+    max-width: 60ch;
+    margin: 0;
+    color: var(--ink-faded);
+    line-height: 1.7;
+  }
+</style>

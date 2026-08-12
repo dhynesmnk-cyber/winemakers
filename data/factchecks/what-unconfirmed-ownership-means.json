@@ -1,0 +1,50 @@
+{
+  "post": "what-unconfirmed-ownership-means",
+  "checked": "2026-08-13",
+  "model": "claude-haiku-4-5-20251001",
+  "drafted_by": "claude-opus-5",
+  "claims": [
+    {
+      "id": "c1",
+      "text": "An entry marked confirmed carries a dated source that states who owns the business.",
+      "verdict": "supported",
+      "reason": "SCHEMA.md §1.15 defines confirmed as exactly this, and the zod schema refuses a confirmed entry with no ownership_source.",
+      "source": "https://abr.business.gov.au/"
+    },
+    {
+      "id": "c2",
+      "text": "The Australian Business Register identifies the entity operating a business; it does not carry shareholder data.",
+      "verdict": "supported",
+      "reason": "ABN Lookup publishes entity name, type, status and GST registration, and no shareholding. This is the finding recorded in CLAUDE.md on 2026-08-09 that reserved method: registry for an ASIC extract.",
+      "source": "https://abr.business.gov.au/"
+    },
+    {
+      "id": "c3",
+      "text": "Regional association registers list who is a member, which is a fact about membership rather than about ownership.",
+      "verdict": "supported",
+      "reason": "Stated as the trade_source defect in the same 2026-08-09 evidence note.",
+      "source": "https://www.wineaustralia.com/labelling/register-of-protected-gis-and-other-terms"
+    },
+    {
+      "id": "c4",
+      "text": "The register that would carry that is ASIC's, and extracting it costs money this project does not have.",
+      "verdict": "supported",
+      "reason": "ASIC's company registers are searchable and its extracts are paid products; the funding position is recorded in CLAUDE.md on 2026-08-09.",
+      "source": "https://asic.gov.au/online-services/search-asic-s-registers/"
+    },
+    {
+      "id": "c5",
+      "text": "An evidence pass over the entries lacking a source turned up three candidates and none of them held up.",
+      "verdict": "supported",
+      "reason": "The 2026-08-09 evidence pass over 46 drafts lacking a source, recorded in CLAUDE.md, produced three candidates and none cleared.",
+      "source": "https://abr.business.gov.au/"
+    },
+    {
+      "id": "c6",
+      "text": "Most producers in the guide are family-owned businesses that have been in the same hands for generations.",
+      "verdict": "removed",
+      "reason": "Nothing in the corpus supports it, and it is the opposite of what the post argues: the guide does not know who owns half these businesses, so it cannot report how long they have been held. It also uses family-owned, which the editorial rules permit only where the entry names the owning family.",
+      "source": null
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+---
+/**
+ * Figure.astro — a count read from the data, usable from an MDX post body.
+ *
+ * SCHEMA.md §9.5, UX.md §6, Gate 11.
+ *
+ * `The guide documents <Figure of="region" member="adelaide-hills" /> producers
+ * in the Adelaide Hills.`
+ *
+ * The attribute is `member` and NOT `key`: MDX compiles to JSX, and the
+ * automatic JSX runtime lifts `key` out of props before a component is called,
+ * so a `key` here would arrive `undefined` and fail as an omission. Named to
+ * avoid the trap rather than documented as one (SCHEMA.md §9.5).
+ *
+ * ── It renders a numeral and nothing else ─────────────────────────────────────
+ *
+ * No badge, no callout, no box, no accent colour, no tabular-figures switch, no
+ * class of its own beyond the one hook below. DESIGN.md §160's no-cards rule
+ * does not stop at the blog, and a figure is a word in a sentence: it inherits
+ * the body's face, size, colour and leading, so a reader cannot tell which
+ * numerals were typed and which were counted. That is correct. The distinction
+ * matters to the build, not to the reader.
+ *
+ * The `<data>` element is used rather than a `<span>` because it is exactly
+ * this: a machine-readable value with a human-readable rendering. `value`
+ * carries the unformatted integer, so a figure stays parseable after
+ * `formatFigure` puts a separator in it.
+ *
+ * ── It fails the build rather than rendering something wrong ──────────────────
+ *
+ * An unknown query, an unknown member, a missing member, or a member given to a
+ * keyless query all throw, naming the post. A component that silently rendered `0` or an empty
+ * string on a typo would put a wrong number in published prose, which is the
+ * defect this whole component exists to prevent.
+ */
+import { figure, formatFigure } from "../data/figures.ts";
+
+interface Props {
+  /** One of the nine queries in SCHEMA.md §9.5. */
+  of: string;
+  /** The vocabulary member, on the six queries that take one. */
+  member?: string;
+}
+
+const { of, member } = Astro.props;
+
+/**
+ * The file the tag sits in, so the build error names the post rather than this
+ * component. `Astro.self` is not a path; `url.pathname` of the rendering page is
+ * the closest honest answer at component scope, and it is what a person needs to
+ * find the tag.
+ */
+const where = `post at ${Astro.url.pathname}`;
+
+const value = await figure(of, member, where);
+---
+
+<data class="figure" value={value}>{formatFigure(value)}</data>
+
+<style>
+  /**
+   * Deliberately almost empty. `<data>` is inline by default and inherits
+   * everything, which is the whole intent. The rule exists only to undo the
+   * user-agent default of nothing and to give the element a name in the
+   * stylesheet, so a later change has somewhere to land.
+   */
+  .figure {
+    font: inherit;
+    color: inherit;
+  }
+</style>

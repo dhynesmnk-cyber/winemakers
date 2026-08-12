@@ -1,0 +1,80 @@
+---
+/**
+ * PostEntry.astro — one row in the journal index. DESIGN.md §505.
+ *
+ * "Same typographic-entry list as the producer index — no cards, no thumbnails
+ * in the list." So this is `ProducerEntry`'s sibling and not a variant of it:
+ * title in the display face, a mono dateline, the summary in italic, separated
+ * by a hairline and nothing else.
+ *
+ * **No thumbnail, deliberately.** `ProducerEntry` carries one, under DESIGN.md
+ * §166's first narrow exception, and that exception is written about the
+ * producer's own tipped-in plate: it exists to give the list→detail photo
+ * transition a shared element. A post cover is a banner rather than a specimen
+ * plate (§505), there is no cross-page transition to serve, and inheriting the
+ * exception here would be the general reintroduction of thumbnails §166 says
+ * this is not.
+ *
+ * The dateline is the post's own `dateline` and its `published` date, joined
+ * with the same interpunct the producer rows use. That pairing is the whole
+ * reason `dateline` is a field: DESIGN.md §15 asks for "the collector's date and
+ * locality beside it", and on a post the locality is what the post is about.
+ */
+import { isoDate, longDate, postHref, type Post } from "../data/posts.ts";
+
+interface Props {
+  post: Post;
+}
+
+const { post } = Astro.props;
+const { title, summary, dateline, published, updated } = post.data;
+const href = postHref(post.id);
+---
+
+<li class="entry">
+  <article>
+    <h2 class="entry__title">
+      <a href={href}>{title}</a>
+    </h2>
+
+    <p class="entry__dateline mono mono-caps">
+      {dateline} · <time datetime={isoDate(published)}>{longDate(published)}</time>
+      {updated && <> · Amended {longDate(updated)}</>}
+    </p>
+
+    <p class="entry__summary">{summary}</p>
+  </article>
+</li>
+
+<style>
+  /* The hairline rhythm is the producer index's, unchanged. Two listings that
+     sit one click apart must not have two spacings. */
+  .entry {
+    padding: clamp(1.5rem, 3vw, 2.25rem) 0;
+  }
+
+  .entry__title {
+    font-size: clamp(1.5rem, 2.6vw, 2.125rem);
+    margin-bottom: 0.4rem;
+  }
+
+  .entry__title a {
+    text-decoration-color: transparent;
+  }
+
+  .entry__title a:hover,
+  .entry__title a:focus-visible {
+    text-decoration-color: var(--vine);
+  }
+
+  .entry__dateline {
+    color: var(--ink-faded);
+    margin: 0 0 0.6rem;
+  }
+
+  .entry__summary {
+    font-style: italic;
+    margin: 0;
+    max-width: 60ch;
+  }
+</style>

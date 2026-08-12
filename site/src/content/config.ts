@@ -480,6 +480,114 @@ const producers = defineCollection({
   schema: producerFrontmatter,
 });
 
+/* ── The blog — SCHEMA.md §9, Gate 11 ────────────────────────────────────── */
+
+/**
+ * A cited source. `sources` is required with at least one entry (SCHEMA.md §9.2).
+ *
+ * A post with no sources is an opinion, and this guide publishes documented
+ * claims. `title` is what the source calls itself; a paraphrase there would put
+ * the site's words in the source's mouth on the one line that exists to say
+ * whose words they are.
+ */
+const postSourceSchema = z
+  .object({
+    title: z.string().min(1),
+    url: z.string().url(),
+  })
+  .strict();
+
+const postFrontmatter = z
+  .object({
+    title: z.string().min(1),
+
+    /** ≤160 chars. Same bound and same job as a producer's `summary`. */
+    summary: z.string().min(1).max(160),
+
+    /**
+     * The JOURNALISTIC dateline: what the post is written about, in words.
+     * Freeform because a post's subject is not always a GI region — it may be a
+     * state, the whole country, or the register itself. Rendered beside
+     * `published`, which is what makes DESIGN.md §15's "the collector's date and
+     * locality beside it" true of a post as well as of an entry.
+     */
+    dateline: z.string().min(1),
+
+    published: z.coerce.date(),
+    /** Set when a published post is edited in place. Renders as `Amended …`. */
+    updated: z.coerce.date().optional(),
+
+    sources: z
+      .array(postSourceSchema)
+      .min(1, { message: "a post must cite at least one source (SCHEMA.md §9.2)" }),
+
+    /**
+     * The slug of the committed claim audit at `data/factchecks/<slug>.json`.
+     *
+     * A field rather than a filename convention, deliberately: it makes the
+     * audit a STATED dependency that `/validate` check 22 resolves, rather than
+     * one a validator infers and therefore cannot tell apart from a missing file.
+     */
+    factcheck: z.string().min(1),
+
+    cover: z.string().optional(),
+    cover_source: z.string().url().optional(),
+    cover_caption: z.string().optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    // Rule 1 — cover co-requirements. Mirrors §2a rule 1, and for the same
+    // reason: a photograph of somebody's vineyard carries visible attribution
+    // or it does not publish.
+    if (data.cover) {
+      for (const key of ["cover_source", "cover_caption"] as const) {
+        if (!data[key]) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [key],
+            message: `${key} is required when cover is present (SCHEMA.md §9.3 rule 1).`,
+          });
+        }
+      }
+    }
+
+    // Rule 2 — a post amended before it existed is a date typo.
+    if (data.updated && data.updated < data.published) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["updated"],
+        message:
+          `updated (${data.updated.toISOString().slice(0, 10)}) is before published ` +
+          `(${data.published.toISOString().slice(0, 10)}) (SCHEMA.md §9.3 rule 2).`,
+      });
+    }
+
+    // Rule 3 — the same source cited twice is a drafting artefact, not two
+    // pieces of evidence. Compared on the URL, because two entries can title
+    // one page differently and still be one page.
+    const urls = data.sources.map((source) => source.url);
+    urls.forEach((url, index) => {
+      if (urls.indexOf(url) !== index) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sources", index, "url"],
+          message: `sources[${index}] repeats ${url} (SCHEMA.md §9.3 rule 3).`,
+        });
+      }
+    });
+  });
+
+const blog = defineCollection({
+  // `_published` ONLY, exactly as for producers. Drafts live in
+  // `content-staging/_blog_staging/`, outside the collection tree, so Astro can
+  // never build one (TRD.md §3).
+  loader: glob({
+    pattern: "**/*.mdx",
+    base: "./src/content/blog/_published",
+  }),
+  schema: postFrontmatter,
+});
+
 /**
  * The methodology page's authored source (Gate 10).
  *
@@ -506,4 +614,4 @@ const methodology = defineCollection({
   }),
 });
 
-export const collections = { producers, methodology };
+export const collections = { producers, blog, methodology };

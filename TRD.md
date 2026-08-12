@@ -126,6 +126,16 @@ Four omissions are decisions rather than gaps, recorded here because each is som
 
 *`Organization.email` is emitted conditionally and is currently **absent**, because `SITE_CONTACT_EMAIL` is still the Wave 2 placeholder at `example.invalid`. A machine-readable contact address that cannot receive mail is a worse claim than no contact address; the footer's `mailto:` shows the placeholder to a reader, who can see what it is, and a crawler cannot. The line publishes the address the moment `config.ts` carries a real one.*
 
+**2026-08-13 exception (Gate 11), with sign-off — `BlogPosting` joins the allowed `@type` set.** This is the first widening of the set since Gate 10 closed it, and it is written here first because that is exactly the mechanism §2's 2026-08-13 entry built: `/validate` check 18 fails on any `@type` outside its allow-list, so a new type cannot ship without somebody coming here to say why.
+
+**Scope: `BlogPosting` on `/blog/[slug]/` and nothing else.** `Blog` as a type on the index is **not** taken — the index is a listing and it carries `ItemList`, exactly like every other listing on the site. `Article` and `NewsArticle` are not taken either; a post here is a post on a blog, and the narrower claim is the true one.
+
+*Why this is a different question from `Winery`.* The `Winery` declination is about **mislabelling an entity**: a large share of the producer corpus has no cellar door, so the narrower type would assert a premises that does not exist. A post is a post. There is no share of the corpus for which `BlogPosting` is the wrong noun, and the type asserts nothing beyond what the page prints.
+
+**What it emits**, every field taken from what the page renders: `headline`, `description`, `datePublished`, `dateModified` (only where `updated` is set), `author` and `publisher` both pointing at the `Organization` `@id`, and `citation` built from the post's `sources`. **`author` is the site, not a person**, because this guide carries no bylines and inventing one to fill a recommended field is the same defect as inventing a logo URL.
+
+`citation` is the entry worth having. It is the machine-readable half of SCHEMA.md §9.2's required `sources`, and check 18 asserts its length equals the source count the page prints — so a post cannot cite one thing to a reader and three to a crawler.
+
 **2026-08-13 decision (Gate 11) — the blog body editor is hand-rolled, and no editor package is added.** UX.md §6 asks for "a rich-text body editor". §2.5's table above listed the reference's vendored Quill as deferred, pointing at a §8 that never mentioned it, so the question had never actually been answered. It is answered here, put to the user with the alternatives and signed off the same day.
 
 **What ships:** a textarea over the post's own MDX source, a hand-rolled formatting toolbar writing markdown syntax (bold, italic, heading, link, `<Pull>`, image insert), and a live preview rendered through `admin/mdx_preview.py` — the same renderer the producer review pane uses, and the one `/validate` check 20 already guards.
