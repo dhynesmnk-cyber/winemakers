@@ -109,7 +109,7 @@ Three parties, ported from the reference as-is.
 | `au-places.ts` gazetteer, 50 km near-me | Not carried | Belongs to a homepage this project replaces (§4.6). Distance is not how anyone chooses a winery to visit — region is. |
 | OSRM drive-time | Not carried | Depends on the coordinates-and-distance framing above. |
 | Google Places discovery | Deferred — §8 | |
-| Quill.js vendored editor, Stripe, claim flow, GoatCounter | Deferred or out of scope — §8 | |
+| Quill.js vendored editor, Stripe, claim flow, GoatCounter | Deferred or out of scope — §8 | **Amended 2026-08-13 (Gate 11): the Quill half is now decided, not deferred.** §8 never mentioned Quill, so this row pointed at a section that did not carry it — the same dangling-attribution defect §3's 2026-08-12 amendment recorded for `ExtractiveAnswer`. See the 2026-08-13 entry below. The other three are unchanged. |
 
 **2026-08-06 — Schema.org, decided now, shipped at Gate 10.** Producer pages emit generic **`LocalBusiness`**, deliberately, not `Winery`. `Winery` reads as a cellar door with a tasting room, and a materially large share of this dataset is `garagiste`, `negociant` and label-only producers with no premises a reader can visit — the same mislabel trap the reference hit with `DaySpa`. Specificity is carried by the entry's own structured fields and by `DefinedTerm`s, not by a narrower type. CLAUDE.md Gate 10's done-condition requires any move beyond `LocalBusiness` to be recorded here as a dated exception with explicit sign-off, or explicitly declined; **this is that decision, declined for v1**.
 
@@ -125,6 +125,14 @@ Four omissions are decisions rather than gaps, recorded here because each is som
 - **No `logo` on `Organization`.** The site's mark is set in type (`SiteLogo.astro`) and there is no image file to point at. An `Organization` claiming a logo URL that 404s is worse than one claiming none.
 
 *`Organization.email` is emitted conditionally and is currently **absent**, because `SITE_CONTACT_EMAIL` is still the Wave 2 placeholder at `example.invalid`. A machine-readable contact address that cannot receive mail is a worse claim than no contact address; the footer's `mailto:` shows the placeholder to a reader, who can see what it is, and a crawler cannot. The line publishes the address the moment `config.ts` carries a real one.*
+
+**2026-08-13 decision (Gate 11) — the blog body editor is hand-rolled, and no editor package is added.** UX.md §6 asks for "a rich-text body editor". §2.5's table above listed the reference's vendored Quill as deferred, pointing at a §8 that never mentioned it, so the question had never actually been answered. It is answered here, put to the user with the alternatives and signed off the same day.
+
+**What ships:** a textarea over the post's own MDX source, a hand-rolled formatting toolbar writing markdown syntax (bold, italic, heading, link, `<Pull>`, image insert), and a live preview rendered through `admin/mdx_preview.py` — the same renderer the producer review pane uses, and the one `/validate` check 20 already guards.
+
+*No-dependency alternative considered — and it is the one taken*, so the shape of this entry is the inverse of §2.5's gsap exception. **Vendoring Quill was rejected on three counts, none of them the package's size.** It emits HTML, so a post would need an HTML→MDX converter on every save, which is either a second dependency or a hand-rolled parser doing the hardest job in the build. `<Pull>` and `<TippedPhoto>` do not survive that round trip — a WYSIWYG surface renders them as inert text and saves them back as prose, which silently destroys the one thing a post body carries that plain markdown cannot. And MDX would stop being canonical: the file on disk would become a serialisation of the editor's state rather than the thing the author wrote, which is exactly the relationship TRD.md §5 refuses between frontmatter and the derived DB.
+
+*The cost is stated plainly: this is not WYSIWYG, and an author who wants one will not get one from the toolbar. The preview pane is what carries that weight, and it renders with the public site's real CSS.*
 
 ---
 
@@ -154,6 +162,8 @@ One repo, two clearly separated applications sharing a content directory. **No P
     /components                  # ProducerEntry, Pull, TippedPhoto, Icon, GrainOverlay,
                                  #   SiteLogo, Footer, ThemeToggle, SearchBox, FAQ,
                                  #   ComparisonTable  (DESIGN.md §164, §501)
+                                 #   PostEntry, Figure (Gate 11) — SCHEMA.md §9.5 defines
+                                 #     Figure's closed query set BEFORE it was built
                                  #   ~~ExtractiveAnswer~~ — see note below
     /icons/paths.ts              # hand-authored inline SVG icon set (DESIGN.md)
     /data
@@ -212,6 +222,16 @@ METHODOLOGY.md                   # AMENDED 2026-08-07 — see below
 Dockerfile  docker-entrypoint.sh  fly.toml  netlify.toml
 .env  .env.example  .gitignore
 ```
+
+### Amendment, 2026-08-13 (Gate 11): where the blog contract lives, and `/rss.xml`'s shape
+
+Two things this tree named without defining.
+
+**The blog frontmatter contract is SCHEMA.md §9**, authored at Gate 11 into the data document rather than into the zod file, because a contract only readable by opening TypeScript is a contract nobody checks against. It carries the same weight §2 carries for producers, and it is deliberately **two** surfaces rather than four: there is no SQLite table for posts and no Harvester validator, and §9.1 records why each omission is a decision. `schema_surfaces` grew a second, smaller comparison for the pair; posts are **not** folded into the producer diff, because a shared diff would make every blog field look like a rule-7 field and the first consequence would be somebody adding a producer field to `blog.py`.
+
+**`/rss.xml` has no specification anywhere**, in this document, UX.md or DESIGN.md. `Footer.astro` has linked it since Gate 1 and §4.2's 2026-08-08 amendment assigned it to Gate 11 without saying what it should contain. Decided here rather than improvised in a route file: **RSS 2.0**, one `<item>` per published post in `published` order descending, carrying `title`, `link`, `guid` (the absolute post URL, `isPermaLink="true"`), `pubDate` in RFC 822, and `description` set to the post's `summary` and nothing else.
+
+*The last one is the only real decision in that list. A feed carrying full post bodies would be a second rendering of the same prose with no `<Figure>` resolution a reader could trust and no way to correct it once fetched — every amendment recorded by `updated` would be invisible to anyone reading the copy in their reader. The summary plus a link sends the reader to the version that stays right. This is the same reasoning §4.4 uses to refuse runtime fetching, applied to the copy rather than to the data.*
 
 ### Amendment, 2026-08-12 (Gate 9): `ExtractiveAnswer` was never specified
 
@@ -297,7 +317,7 @@ Every other public route on this site slugifies a human name, and DESIGN.md §5'
    | `/compare/`, `/compare/[slug]/` | `comparisons.ts` above threshold | G9 |
    | `/methodology/` | hand-authored; drafted at G4, ~~ships at G10~~ **shipped 2026-08-13** | G10 |
    | `/blog/`, `/blog/[slug]/` | blog collection | G11 |
-   | `/sitemap.xml`, `/llms.txt` | endpoints, not static files | G6/G10 |
+   | `/sitemap.xml`, `/llms.txt`, `/rss.xml` | endpoints, not static files | G6/G10/G11 |
 
    `llms.txt` is **generated as an endpoint** rather than committed as a static file, so it cannot drift from the routes that exist.
 

@@ -587,3 +587,154 @@ const verificationEntrySchema = z.object({
 ```
 
 Use `z.coerce.date()` for every date field for the same reason. The collection loader points at `_published` only, so staging and rejected content sit outside the collection tree entirely.
+
+---
+
+## 9. The blog contract — Gate 11, authored 2026-08-13
+
+This document was frozen at Wave 1 and said nothing about the blog. UX.md §6 names
+four editor fields — title, summary, dateline, an optional cover — and TRD.md §3
+places the collection at `site/src/content/blog/_published/` and the claim audits at
+`data/factchecks/`. Nothing anywhere defined the frontmatter. It is defined here,
+in the data document, rather than in a zod file where it would be a contract nobody
+could read without opening TypeScript.
+
+**This is not a §2 change and it does not touch the producer contract.** No field
+below appears on a producer, no vocabulary below is shared with one, and
+`/validate` check 13 does not diff these surfaces. Said plainly because CLAUDE.md
+rule 7 fires on any vocabulary change, and the honest answer for this one is that
+the blog has **two** consumers, not four.
+
+### 9.1 Why two consumers and not four
+
+Rule 7 exists because a producer field has to survive four independent readers: zod,
+the SQLite DDL, the Harvester's JSON validator, and the admin frontmatter editor. A
+post has neither of the middle two, and the omissions are decisions:
+
+- **No SQLite table.** TRD.md §5 makes `directory.db` a derived artefact rebuilt from
+  `_published` producers, feeding aggregation pages and the search index. A post is
+  not an entity anything aggregates over: `/blog/` reads the collection directly, the
+  search index covers producers, and there is no post taxonomy. A table would be a
+  second copy of the frontmatter that nothing reads.
+- **No Harvester validator.** Posts are hand-authored and editorially drafted, never
+  harvested. There is no page to extract from and no JSON to validate.
+
+So the blog contract lands in **two** surfaces, name-matched in the same commit:
+
+1. the zod schema, `site/src/content/config.ts`
+2. the admin post editor's field contract, `admin/pipeline/blog.py::POST_FIELDS`
+
+Plus this section, which is where they are written down. `schema_surfaces` grew a
+second, smaller comparison for the pair rather than folding posts into the producer
+diff, so a blog field added to one surface and not the other fails check 13 exactly
+as a producer field does.
+
+### 9.2 Frontmatter
+
+Collection directory: `site/src/content/blog/_published/`. Entity: `post`.
+Route: `/blog/[slug]/`.
+
+Slug = filename (`who-owns-the-adelaide-hills.mdx`), kebab-case, unique. Slug is
+**not** a frontmatter field, exactly as for producers.
+
+| Field | Type | Req | Rules |
+|---|---|---|---|
+| `title` | string | ✓ | The post's own title. Sentence case, in register. Never a question the post does not answer. |
+| `summary` | string | ✓ | ≤160 chars. The `/blog/` list one-liner and the meta description. Same bound and same job as a producer's `summary`. |
+| `dateline` | string | ✓ | The **journalistic** dateline: where the post is written *about*, in words. `Adelaide Hills, South Australia`. Freeform because the subject of a post is not always a GI region — it may be a state, the whole country, or the register itself. Rendered beside `published` in the mono dateline row, which is what makes DESIGN.md §15's "the collector's date and locality beside it" true of a post as well as an entry. |
+| `published` | date (YYYY-MM-DD) | ✓ | The publication date. Stays fixed once the post is live; a correction sets `updated`, never this. Sorts `/blog/` and `/rss.xml`, descending. |
+| `updated` | date (YYYY-MM-DD) | – | Set when a published post is edited in place (UX.md §6). Absent on a post never amended. Renders as `Amended 14 August 2026` beneath the dateline, because a silently rewritten post is the thing the site's own documentation habit exists to prevent. |
+| `sources` | array of `{title, url}` | ✓ | **Min 1.** Every source the post's claims rest on, in citation order. Rendered as a list at the foot of the post. A post with no sources is an opinion, and this site publishes documented claims (CLAUDE.md rule 6). `title` is what the source calls itself, never a paraphrase; `url` must be absolute. |
+| `factcheck` | string | ✓ | The slug of the committed claim audit at `data/factchecks/<factcheck>.json` (§9.4). Equal to the post's own slug in every ordinary case; a field rather than a convention so the audit is a *stated* dependency the validator resolves, not one it infers from a filename. |
+| `cover` | string | – | Path to the published cover image under `/blog-images/`. Present only after the image reaches `site/public/blog-images/`. |
+| `cover_source` | string (url) | –* | *Required if `cover` present. |
+| `cover_caption` | string | –* | *Required if `cover` present. Same attribution rule as a producer's `image_caption`, and for the same reason: a photograph of somebody's vineyard carries visible attribution or it does not publish. **Not** the `LOT I. —` plate register, which is the producer page's specimen signature (DESIGN.md §505). |
+
+`.strict()`, as the producer schema is, and for the same reason: an unknown key is a
+typo, a hand-edit against the contract, or a field added to one surface and not the
+other.
+
+### 9.3 Cross-field rules
+
+Numbered to stand alone; they are not a continuation of §2a and share nothing with it.
+
+1. **Cover co-requirements.** `cover` present requires `cover_source` and
+   `cover_caption`. Enforced in zod, mirroring §2a rule 1.
+2. **`updated` is never before `published`.** A post amended before it existed is a
+   date typo, and it renders as one.
+3. **`sources` URLs are absolute and unique.** The same source cited twice is a
+   drafting artefact, not two pieces of evidence.
+4. **The audit must resolve.** `data/factchecks/<factcheck>.json` must exist, must
+   parse, and must carry no claim in an unresolved state. Enforced by `/validate`
+   check 22, not by zod, because zod cannot read a file outside the collection.
+5. **No hardcoded figures.** A numeral in the body that states a count this repository
+   already knows — producers published, producers in a region, terms in the glossary,
+   the ownership split — is written as a `<Figure>` (§9.5), never typed. Check 22.
+
+### 9.4 The claim audit — `data/factchecks/<slug>.json`
+
+Committed, per TRD.md §3, and reachable from the deploy allow-list. One file per post,
+written by the fact-check stage and amended by the reviewer resolving claims.
+
+```json
+{
+  "post": "who-owns-the-adelaide-hills",
+  "checked": "2026-08-13",
+  "model": "the MODEL_FACTCHECK id, as read from .env",
+  "drafted_by": "the MODEL_ARTICLE id, as read from .env",
+  "claims": [
+    {
+      "id": "c1",
+      "text": "The verbatim sentence from the draft that makes the claim.",
+      "verdict": "supported | unsupported | removed",
+      "reason": "Why, in one sentence.",
+      "source": "The source that stands it up, or null."
+    }
+  ]
+}
+```
+
+`verdict` is a closed vocabulary of three and it is the whole point of the file:
+
+- **`supported`** — a source in the post's `sources` stands the claim up. `source` names it.
+- **`unsupported`** — the fact-check could not stand it up and left it in place for a human. **This is the unresolved state**, and it blocks publish (UX.md §6). It is resolved by the reviewer either finding the source, editing the claim, or accepting the deletion — never by the reviewer overriding the verdict.
+- **`removed`** — the fact-check deleted the claim from the draft. The `text` is retained verbatim so the deletion renders struck through with its reason beside it (UX.md §6). **A deletion that leaves no trace is indistinguishable from a claim that was never made**, which is why the record is committed rather than kept in staging.
+
+`model` and `drafted_by` are recorded because the adversarial split is the mechanism
+this stage exists for (TRD.md §7.6), and an audit that does not say who checked whom
+cannot show the split held. Two identical ids in that pair is a self-review and the
+pipeline warns about it in the log and in the file.
+
+### 9.5 `<Figure>` — the data component
+
+UX.md §6: "A number in a post that ought to come from the data is a data component,
+never typed prose." This is that component, specified here before it was built rather
+than after, because a component named in a checklist and defined nowhere gets
+implemented from imagination (TRD.md §3's 2026-08-12 amendment, on `ExtractiveAnswer`).
+
+`<Figure of="…" key="…" />` resolves at build time against `producers.json` and the
+hand-authored registers, and renders a plain numeral in the body's own type. No badge,
+no callout, no styling of its own — a figure is a word in a sentence.
+
+The query set is **closed**. An unknown `of`, or a `key` with no member, **fails the
+build** naming the file, exactly as a bad enum value on a producer does:
+
+| `of` | `key` | Renders |
+|---|---|---|
+| `published` | — | Every published producer. |
+| `region` | a region slug | Producers whose `regions` include it. |
+| `subregion` | a subregion slug | Producers whose `subregions` include it. |
+| `state` | a `STATES` value | Producers in that state. |
+| `variety` | a variety slug | Producers listing that variety. |
+| `practice` | a `PRACTICE_KEYS` value | Producers whose flag is true. |
+| `ownership` | an `OWNERSHIP_STATES` value | Producers in that ownership state. |
+| `regions` | — | Regions with ≥1 published producer. |
+| `glossary` | — | Glossary terms. |
+
+Every one of these is a count the build already computes for a page. The component
+reads the same helpers the pages read; it does not add a second way to count anything.
+
+**Why the set is closed rather than an expression language.** A post that can evaluate
+arbitrary queries is a post that can assert an arbitrary figure, which is the problem
+restated. Nine named counts cover what a post about this guide has any business
+stating, and the tenth is a prompt to come back and add it deliberately.

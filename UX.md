@@ -628,3 +628,17 @@ A second admin screen at `/blog`, linked from the hub header. Separate from the 
 - **No hardcoded figures.** A number in a post that ought to come from the data (a producer count, a region count, a price) is a data component, never typed prose. The register lint and `/validate` check 6 report first-person visit tells and unsourced tasting descriptors in blog bodies exactly as they do in producer entries: nobody here has tasted anything, and that applies to the blog word for word.
 
 **Empty states:** post list, `No posts yet. Start a draft to begin.` Editor, `Select a post to edit it, or start a draft.`
+
+### Amendment, 2026-08-13 (Gate 11): two things this section named and did not define
+
+Both were put to the user with their alternatives and signed off the same day.
+
+**1. "A rich-text body editor" is a source editor with a toolbar and a live preview.** Not WYSIWYG, and no editor package is vendored. The full reasoning is a dated decision in TRD.md §2.5; the short form is that WYSIWYG round-trips MDX through HTML, and `<Pull>`, `<TippedPhoto>` and `<Figure>` do not survive that trip — a WYSIWYG surface renders them as inert text and saves them back as prose. The preview pane carries the weight instead, rendering with the public site's real CSS through the same `mdx_preview` renderer the producer review pane uses.
+
+*The toolbar writes markdown syntax into the textarea at the cursor: bold, italic, heading, link, `<Pull>`, image insert. It is an accelerator over the source, never a layer above it.*
+
+**2. "A data component" is `<Figure of="…" key="…" />`**, specified in SCHEMA.md §9.5 before it was built, with a **closed** set of nine queries and a build failure on anything outside it. It renders a plain numeral in the body's own type — no badge, no callout, no styling of its own, because a figure is a word in a sentence and DESIGN.md §160's no-cards rule does not stop at the blog.
+
+*Closed rather than an expression language for the reason this bullet exists at all: a post that can evaluate an arbitrary query is a post that can assert an arbitrary figure, which is the problem restated one level down.*
+
+**Also recorded, because this section's last bullet is now only half true.** It says check 6 "reports first-person visit tells and unsourced tasting descriptors in blog bodies exactly as they do in producer entries". Until Gate 11 it did not, because check 6 read `PUBLISHED_DIR` and METHODOLOGY.md and nothing else. It does now — published post bodies, `summary`, `dateline` and `title` all join the lint, and the count line says how many post files it read. The bullet was a statement of intent written at Wave 2 and is now a statement of fact.
