@@ -20,24 +20,25 @@
  * ever reaches a length where this stops being true, the answer is a narrower
  * comparison rather than a pager.
  *
- * ── ItemList, and only ItemList ───────────────────────────────────────────────
+ * ── ItemList ──────────────────────────────────────────────────────────────────
  *
- * CLAUDE.md Gate 9 names `ItemList` in its done-condition, so it ships here.
- * `BreadcrumbList` and the rest of the JSON-LD set belong to Gate 10, exactly as
- * `Breadcrumbs.astro` already records. This is the one page type carrying
- * structured data before that gate, and it carries one type only.
+ * CLAUDE.md Gate 9 names `ItemList` in its done-condition, so it shipped here
+ * first, hand-built, as the one page type carrying structured data before Gate
+ * 10. Gate 10 moved it onto the shared builder in `data/jsonld.ts` and gave the
+ * page the rest of the set. The hand-built node was byte-identical to what the
+ * builder emits, which is why the migration is a deletion rather than a change.
  */
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import ComparisonTable from "../../components/ComparisonTable.astro";
-import { SITE_URL } from "../../config.ts";
+import { itemList, producerItems } from "../../data/jsonld.ts";
 import {
   COMPARE_HUB,
   comparisonsPresent,
   siblingComparisons,
   type Comparison,
 } from "../../data/comparisons.ts";
-import { producerHref, regionHref, varietyHref } from "../../data/taxonomy.ts";
+import { regionHref, varietyHref } from "../../data/taxonomy.ts";
 import { glossaryFor } from "../../data/glossary.ts";
 
 export async function getStaticPaths() {
@@ -60,41 +61,28 @@ const description =
   `${comparison.varietyName.toLowerCase()} in ${comparison.regionInWords}, ` +
   `compared on published facts.`;
 
-/**
- * `ItemList` names the producers in the order the table renders them, which is
- * the order the caption states. `itemListOrder` is spelled out rather than left
- * to default, because an unordered ItemList over a table that IS ordered would
- * be the structured-data equivalent of the unstated ranking UX.md §5 bans.
- */
-const itemList = {
-  "@context": "https://schema.org",
-  "@type": "ItemList",
+// `ItemList` names the producers in the order the table renders them, which is
+// the order the caption states. The builder spells `itemListOrder` out rather
+// than leaving it to default, because an unordered ItemList over a table that
+// IS ordered would be the structured-data equivalent of the unstated ranking
+// UX.md §5 bans.
+const structuredList = itemList({
   name: comparison.title,
   description,
-  numberOfItems: comparison.count,
-  itemListOrder: "https://schema.org/ItemListOrderAscending",
-  itemListElement: comparison.producers.map((producer, index) => ({
-    "@type": "ListItem",
-    position: index + 1,
-    name: producer.data.name,
-    url: new URL(producerHref(producer.id), SITE_URL).href,
-  })),
-};
+  items: producerItems(comparison.producers),
+  totalItems: comparison.count,
+});
 
 // The grape's definition sits at the FOOT and is linked rather than duplicated,
 // the same treatment the variety page gives it (DESIGN.md §7).
 const glossary = glossaryFor("variety", comparison.varietySlug);
 ---
 
-<BaseLayout title={comparison.title} description={description}>
-  <Fragment slot="head">
-    <script
-      type="application/ld+json"
-      is:inline
-      set:html={JSON.stringify(itemList)}
-    />
-  </Fragment>
-
+<BaseLayout
+  title={comparison.title}
+  description={description}
+  jsonld={[structuredList]}
+>
   <div class="reading-spine">
     <Breadcrumbs
       crumbs={[

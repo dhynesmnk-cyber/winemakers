@@ -16,7 +16,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import TaxonomyLinks from "../../components/TaxonomyLinks.astro";
 import { STATE_NAMES } from "../../config.ts";
+import { itemList } from "../../data/jsonld.ts";
 import {
+  regionHref,
   regionsForStatePresent,
   regionsPresent,
   stateHref,
@@ -41,12 +43,26 @@ const grouped = await Promise.all(
 
 const total = regions.length;
 const countLine = total === 1 ? "1 region" : `${total} regions`;
+
+const description =
+  "Every Australian wine region with an independent producer documented in " +
+  "this guide, grouped by state.";
+
+// The hub lists REGIONS, so its `ItemList` does too. A region that spans two
+// states appears once here, not once per state group: the page groups the same
+// region under both headings for the reader's benefit, and a list that repeated
+// it would report more regions than the count line beside it states.
+const structuredList = itemList({
+  name: "Australian wine regions",
+  description,
+  items: regions.map((region) => ({
+    name: region.name,
+    href: regionHref(region.slug),
+  })),
+});
 ---
 
-<BaseLayout
-  title="Regions"
-  description="Every Australian wine region with an independent producer documented in this guide, grouped by state."
->
+<BaseLayout title="Regions" description={description} jsonld={[structuredList]}>
   <div class="reading-spine">
     <Breadcrumbs crumbs={[{ label: "Home", href: "/" }, { label: "Regions", href: null }]} />
 

@@ -29,6 +29,7 @@ import {
   VARIETY_LABELS,
 } from "../../config.ts";
 import { regionName, subregionName, SUBREGION_BY_SLUG } from "../../data/regions.ts";
+import { breadcrumbList, faqPage, localBusiness } from "../../data/jsonld.ts";
 
 export async function getStaticPaths() {
   const producers = await getCollection("producers");
@@ -67,10 +68,15 @@ const suburbRepeatsPlace =
     (place) => place.trim().toLowerCase() === data.location.suburb!.trim().toLowerCase(),
   );
 
+// One const, two consumers: the dateline's region link and the structured
+// breadcrumb below both read it, so the visible path up and the machine-
+// readable one cannot point at different regions.
+const primaryRegionHref = `/region/${data.primary_region}/`;
+
 const datelineItems: { text: string; href?: string }[] = [
   ...(data.location.suburb && !suburbRepeatsPlace ? [{ text: data.location.suburb }] : []),
   { text: stateName },
-  { text: primaryRegionName, href: `/region/${data.primary_region}/` },
+  { text: primaryRegionName, href: primaryRegionHref },
   // The subregion route is nested under the subregion's OWN parent region, not
   // under the producer's primary. A producer may list subregions of a secondary
   // region — Grosset is in Clare Valley and the Adelaide Hills, and its Lenswood
@@ -103,9 +109,38 @@ const methodLabel = ownership
 const verificationRows = Object.entries(data.verification ?? {}).filter(
   ([, record]) => record !== undefined,
 ) as [string, { source: string; tier: string; date: Date }][];
+
+/*
+  Structured data (Gate 10). `LocalBusiness`, never `Winery` — the reasoning is
+  in `data/jsonld.ts` and the decision is TRD.md's, dated 2026-08-06.
+
+  `FAQPage` is emitted ONLY where the page renders the questions, on the same
+  condition the section itself uses. Structured data describing a section that
+  is not on the page is the single thing this markup is penalised for.
+
+  The `BreadcrumbList` is built here rather than by `Breadcrumbs.astro`, because
+  this page has no crumb trail: DESIGN.md §7 fixes its order as name, dateline,
+  fact row, prose, and the path up is carried by the dateline's own links. The
+  path is real and the reader can walk it, so it is stated; it reuses
+  `primaryRegionHref` above rather than rebuilding the route.
+*/
+const structuredData = [
+  localBusiness(producer),
+  breadcrumbList(
+    [
+      { label: "Home", href: "/" },
+      { label: primaryRegionName, href: primaryRegionHref },
+      { label: data.name, href: null },
+    ],
+    Astro.url.pathname,
+  ),
+  ...(data.faq && data.faq.length > 0
+    ? [faqPage(data.faq, Astro.url.pathname)]
+    : []),
+];
 ---
 
-<BaseLayout title={data.name} description={data.summary}>
+<BaseLayout title={data.name} description={data.summary} jsonld={structuredData}>
   <article class="reading-spine">
     <header>
       <h1>{data.name}</h1>

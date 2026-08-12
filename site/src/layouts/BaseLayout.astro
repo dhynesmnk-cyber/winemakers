@@ -12,6 +12,12 @@ import Footer from "../components/Footer.astro";
 import GrainOverlay from "../components/GrainOverlay.astro";
 import SiteLogo from "../components/SiteLogo.astro";
 import { SITE_NAME, SITE_URL, THEME_STORAGE_KEY } from "../config.ts";
+import {
+  graph,
+  organization,
+  website,
+  type JsonLdNode,
+} from "../data/jsonld.ts";
 
 interface Props {
   title: string;
@@ -19,9 +25,22 @@ interface Props {
   description: string;
   /** `large` on the index only — the one centred block on the site. */
   logoSize?: "large" | "default";
+  /**
+   * This page's structured-data nodes (Gate 10). `Organization` and `WebSite`
+   * are added here for every page and are never passed in — a publisher stated
+   * once per site rather than once per page is the whole point of the `@id`
+   * references in `data/jsonld.ts`.
+   *
+   * `BreadcrumbList` is NOT passed here either. It is emitted by
+   * `Breadcrumbs.astro` from the same crumb array it renders, so the visible
+   * trail and the structured one cannot describe different paths.
+   */
+  jsonld?: JsonLdNode[];
 }
 
-const { title, description, logoSize = "default" } = Astro.props;
+const { title, description, logoSize = "default", jsonld = [] } = Astro.props;
+
+const structuredData = graph([organization(), website(), ...jsonld]);
 
 // Interpunct, not an em dash: the editorial guardrails apply to anything a
 // reader sees, and a browser tab and a share card both count.
@@ -85,6 +104,8 @@ const canonical = new URL(Astro.url.pathname, SITE_URL).href;
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
+
+    <script type="application/ld+json" is:inline set:html={structuredData} />
 
     <slot name="head" />
   </head>

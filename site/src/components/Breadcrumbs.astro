@@ -7,18 +7,29 @@
  * NOT a link — a self-link in a trail gives a reader a control that does
  * nothing and gives a screen reader an extra stop for no gain.
  *
- * `BreadcrumbList` JSON-LD is Gate 10's (`/validate` check 18). This component
- * is the visible trail only; the structured-data version reads the same crumb
- * array, so the two cannot describe different paths.
+ * `BreadcrumbList` JSON-LD shipped at Gate 10 (`/validate` check 18), and it is
+ * emitted HERE rather than from each page, from the same `crumbs` prop the
+ * visible trail renders. That was the promise this docstring carried from Gate
+ * 1 onward, and building it from one array is what keeps it: two paths cannot
+ * disagree when there is only one array, and no page can forget to pass it.
+ *
+ * The block sits beside the trail rather than in `<head>`. JSON-LD is valid
+ * anywhere in the document, and the alternative — routing crumbs up through
+ * BaseLayout — would put the array in two places again.
  */
 import type { Crumb } from "../data/taxonomy.ts";
+import { breadcrumbList, graph } from "../data/jsonld.ts";
 
 interface Props {
   crumbs: Crumb[];
 }
 
 const { crumbs } = Astro.props;
+
+const structuredData = graph([breadcrumbList(crumbs, Astro.url.pathname)]);
 ---
+
+<script type="application/ld+json" is:inline set:html={structuredData} />
 
 <nav class="crumbs" aria-label="Breadcrumb">
   <ol class="crumbs__list mono">

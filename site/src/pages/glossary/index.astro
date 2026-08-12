@@ -28,6 +28,7 @@ import {
   glossaryVocabulary,
 } from "../../data/glossary.ts";
 import { glossaryIcon } from "../../data/glossary-icons.ts";
+import { definedTermSet } from "../../data/jsonld.ts";
 import { glossaryHref, rootCrumbs } from "../../data/taxonomy.ts";
 
 const sections = VOCABULARY_ORDER.map((vocabulary) => ({
@@ -42,6 +43,7 @@ const total = GLOSSARY.length;
 <BaseLayout
   title="Glossary"
   description="Every term this guide uses about how wine is grown, made and sold, defined plainly, including what each one does not mean."
+  jsonld={[definedTermSet(GLOSSARY)]}
 >
   <div class="reading-spine">
     <Breadcrumbs crumbs={rootCrumbs("Glossary")} />

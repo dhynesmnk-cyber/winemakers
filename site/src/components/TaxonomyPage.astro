@@ -25,6 +25,8 @@ import Pager from "./Pager.astro";
 import ProducerEntry from "./ProducerEntry.astro";
 import type { Crumb, Paged } from "../data/taxonomy.ts";
 import type { IconKey } from "../icons/paths.ts";
+import { itemList, producerItems } from "../data/jsonld.ts";
+import { PRODUCERS_PER_PAGE } from "../config.ts";
 
 interface Props {
   /** The `<h1>`, in words. */
@@ -58,9 +60,29 @@ const pageTitle = paged.current > 1 ? `${title}, page ${paged.current}` : title;
 // reads in words rather than as a bare figure floating beside the heading.
 const countLine =
   paged.totalItems === 1 ? "1 producer" : `${paged.totalItems} producers`;
+
+/*
+  UX.md §488: every programmatic page carries a `BreadcrumbList` and an
+  `ItemList`. Built here, once, for the same reason the shell is one component
+  — the six listing families would otherwise each need their own copy, and the
+  one that got missed would be invisible.
+
+  The list describes THIS page's slice, with positions continuing across the
+  series and `numberOfItems` reporting the whole listing, so page 3 of a region
+  says which three-dozen producers it holds and how many there are in total. A
+  page reporting only its own slice as the total would tell a crawler that a
+  36-producer region has 12.
+*/
+const structuredList = itemList({
+  name: title,
+  description,
+  items: producerItems(paged.items),
+  totalItems: paged.totalItems,
+  startPosition: (paged.current - 1) * PRODUCERS_PER_PAGE + 1,
+});
 ---
 
-<BaseLayout title={pageTitle} description={description}>
+<BaseLayout title={pageTitle} description={description} jsonld={[structuredList]}>
   {/*
     rel=prev/next in the head as well as on the pager's own anchors (UX.md
     §2.2). The head links are for crawlers, the anchors are for readers, and

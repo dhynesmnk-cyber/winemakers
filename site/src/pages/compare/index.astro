@@ -20,6 +20,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import { MIN_COMPARISON_PRODUCERS } from "../../config.ts";
 import { comparisonsByVariety, comparisonsPresent } from "../../data/comparisons.ts";
+import { itemList } from "../../data/jsonld.ts";
 import { rootCrumbs } from "../../data/taxonomy.ts";
 
 const groups = await comparisonsByVariety();
@@ -31,9 +32,22 @@ const description =
 
 const countLine =
   all.length === 1 ? "1 comparison" : `${all.length} comparisons`;
+
+// The hub's list is the comparisons it links, which is also what check 17 reads
+// it for. At zero comparisons this is an empty `ItemList` with
+// `numberOfItems: 0`, which is the true statement — the hub still exists and
+// still says so, exactly as the visible page does.
+const structuredList = itemList({
+  name: title,
+  description,
+  items: all.map((comparison) => ({
+    name: comparison.title,
+    href: comparison.href,
+  })),
+});
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} jsonld={[structuredList]}>
   <div class="reading-spine">
     <Breadcrumbs crumbs={rootCrumbs("Compare")} />
 

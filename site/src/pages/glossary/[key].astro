@@ -26,6 +26,7 @@ import {
   type GlossaryEntry,
 } from "../../data/glossary.ts";
 import { glossaryIcon } from "../../data/glossary-icons.ts";
+import { definedTerm } from "../../data/jsonld.ts";
 import {
   glossaryHref,
   practiceHref,
@@ -65,7 +66,11 @@ const seeAlso = (entry.see_also ?? [])
   .filter((e): e is GlossaryEntry => e !== undefined);
 ---
 
-<BaseLayout title={entry.term} description={entry.short}>
+<BaseLayout
+  title={entry.term}
+  description={entry.short}
+  jsonld={[definedTerm(entry)]}
+>
   <div class="reading-spine">
     <Breadcrumbs
       crumbs={simpleCrumbs(
