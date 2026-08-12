@@ -28,7 +28,7 @@ import {
   STATE_NAMES,
   VARIETY_LABELS,
 } from "../../config.ts";
-import { regionName, subregionName } from "../../data/regions.ts";
+import { regionName, subregionName, SUBREGION_BY_SLUG } from "../../data/regions.ts";
 
 export async function getStaticPaths() {
   const producers = await getCollection("producers");
@@ -54,9 +54,15 @@ const datelineItems: { text: string; href?: string }[] = [
   ...(data.location.suburb ? [{ text: data.location.suburb }] : []),
   { text: stateName },
   { text: regionName(data.primary_region), href: `/region/${data.primary_region}/` },
+  // The subregion route is nested under the subregion's OWN parent region, not
+  // under the producer's primary. A producer may list subregions of a secondary
+  // region — Grosset is in Clare Valley and the Adelaide Hills, and its Lenswood
+  // and Piccadilly Valley pages live under the latter. `Subregion.region` is the
+  // single source of that parenting; assuming `primary_region` builds a route
+  // that was never generated.
   ...(data.subregions ?? []).map((slug) => ({
     text: subregionName(slug),
-    href: `/region/${data.primary_region}/${slug}/`,
+    href: `/region/${SUBREGION_BY_SLUG.get(slug)?.region ?? data.primary_region}/${slug}/`,
   })),
   { text: category },
   ...(data.founded_year ? [{ text: `Founded ${data.founded_year}` }] : []),
