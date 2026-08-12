@@ -254,45 +254,86 @@ def _write(root: Path, route: str, links: list[str]) -> None:
     page.write_text(f"<html><body>{body}</body></html>", encoding="utf-8")
 
 
-def _fixture(root: Path, *, orphan=False, thin_built=False, under_linked=False) -> Path:
-    """A miniature site that passes, plus whichever defect is asked for."""
-    producers = ["/producer/a/", "/producer/b/", "/producer/c/", "/producer/d/"]
+#: The comparison the clean fixture builds, and the aggregation routes that link
+#: its producers — in the order `under_linked` strips a producer from them. The
+#: region page is stripped last, and at no supported threshold is it stripped at
+#: all, so an under-linked producer always keeps one inbound link and the
+#: under-linked and orphan defects stay separable.
+_FIXTURE_COMPARISON = "/compare/shiraz-in-testville/"
+_FIXTURE_AGGREGATIONS = (
+    _FIXTURE_COMPARISON,
+    "/south-australia/",
+    "/producers/",
+    "/region/testville/",
+)
 
-    # Three aggregation routes link every producer: region, state, A to Z. The
-    # homepage links the hubs and the two listings that have none of their own,
-    # so the clean fixture carries no orphan.
+
+def _fixture(root: Path, *, orphan=False, thin_built=False, under_linked=False) -> Path:
+    """A miniature site that passes, plus whichever defect is asked for.
+
+    Sized from `MIN_COMPARISON_PRODUCERS` and `MIN_AGGREGATION_LINKS` rather than
+    from literals. This fixture hardcoded four producers while
+    `_expected_comparisons` read the threshold from config, so raising the
+    threshold to 5 failed the CLEAN fixture, reporting "the skip is not being
+    applied" against `comparisons.ts` when the only thing wrong was the fixture's
+    own arithmetic. The threshold is an editorial dial that is meant to be tuned;
+    a self-test that breaks when the constant it guards moves, and that blames
+    the code under test when it does, gets read as a real failure exactly once
+    and disabled thereafter.
+    """
+    n = MIN_COMPARISON_PRODUCERS
+    producers = [f"/producer/p{i}/" for i in range(n)]
+
+    # A producer is stripped from just enough aggregation routes to land one
+    # under MIN_AGGREGATION_LINKS. Stripping it from fewer would leave it passing
+    # — which is the assertion this fixture would otherwise silently stop making.
+    strip = len(_FIXTURE_AGGREGATIONS) - (MIN_AGGREGATION_LINKS - 1)
+    stripped = set(_FIXTURE_AGGREGATIONS[:strip]) if under_linked else set()
+
+    def members(route: str) -> list[str]:
+        return producers[:-1] if route in stripped else producers
+
+    # The homepage links the hubs and the two listings that have none of their
+    # own, so the clean fixture carries no orphan.
     _write(root, "/", ["/region/", "/compare/", "/producers/", "/south-australia/"])
     _write(root, "/region/", ["/region/testville/"])
-    _write(root, "/region/testville/", producers)
+    _write(root, "/region/testville/", members("/region/testville/"))
+    _write(root, "/south-australia/", members("/south-australia/"))
+    _write(root, "/producers/", members("/producers/"))
 
-    # `under_linked` drops one producer from the state page AND the comparison,
-    # leaving it on region and A to Z only — two, below MIN_AGGREGATION_LINKS.
-    # Dropping it from one alone would leave three, which still passes.
-    linked = producers[:-1] if under_linked else producers
-    _write(root, "/south-australia/", linked)
-    _write(root, "/producers/", producers)
+    _write(root, "/compare/", [_FIXTURE_COMPARISON])
+    _write(root, _FIXTURE_COMPARISON, members(_FIXTURE_COMPARISON))
 
-    _write(root, "/compare/", ["/compare/shiraz-in-testville/"])
-    _write(root, "/compare/shiraz-in-testville/", linked)
-
+    # Every producer page links its region. Under `under_linked` they also all
+    # link the stripped producer, which is the precise scenario the aggregation
+    # rule excludes producer pages FOR: a cluster of cross-linked producers
+    # propping up an entry that sits off every listing. With the exclusion
+    # correct the stripped producer is still under-linked; drop the exclusion and
+    # it looks fine — so this is what gives that rule any coverage at all.
+    # Without it, deleting the `/producer/` branch of `_is_aggregation` failed
+    # nothing.
     for route in producers:
-        _write(root, route, ["/region/testville/"])
+        siblings = [producers[-1]] if under_linked and route != producers[-1] else []
+        _write(root, route, ["/region/testville/", *siblings])
 
     if orphan:
         _write(root, "/glossary/lonely/", [])
 
+    # The thin pair carries exactly one fewer than the threshold — the tightest
+    # violation there is, so what gets asserted is the boundary itself rather
+    # than some comfortably-below-it number that would pass a broken comparison.
+    thin = producers[: n - 1]
+
     if thin_built:
-        # A pair with 4 producers is legitimate; this one has 2 and must not exist.
-        _write(root, "/compare/gamay-in-testville/", producers[:2])
-        _write(root, "/compare/", ["/compare/shiraz-in-testville/", "/compare/gamay-in-testville/"])
+        _write(root, "/compare/gamay-in-testville/", thin)
+        _write(root, "/compare/", [_FIXTURE_COMPARISON, "/compare/gamay-in-testville/"])
 
     data = [
         {"slug": s.strip("/").split("/")[-1], "regions": ["testville"], "varieties": ["shiraz"]}
         for s in producers
     ]
-    # Two of them also work gamay — under the threshold of 4, so no page.
-    data[0]["varieties"] = ["shiraz", "gamay"]
-    data[1]["varieties"] = ["shiraz", "gamay"]
+    for producer in data[: n - 1]:
+        producer["varieties"] = ["shiraz", "gamay"]
 
     json_path = root.parent / "producers.json"
     json_path.write_text(json.dumps(data), encoding="utf-8")
@@ -302,6 +343,22 @@ def _fixture(root: Path, *, orphan=False, thin_built=False, under_linked=False) 
 def _selftest() -> list[str]:
     """Must pass a clean fixture and catch each defect."""
     errors: list[str] = []
+
+    # The fixture builds one thin pair and a fixed set of aggregation routes, so
+    # there are thresholds it cannot express. Said out loud rather than assumed:
+    # a fixture that cannot express the live constants must report that, not
+    # quietly assert something narrower and call it a pass.
+    if MIN_COMPARISON_PRODUCERS < 2:
+        return [
+            "selftest: the fixture needs MIN_COMPARISON_PRODUCERS ≥ 2 to build a "
+            f"below-threshold pair, config says {MIN_COMPARISON_PRODUCERS}"
+        ]
+    if not 2 <= MIN_AGGREGATION_LINKS <= len(_FIXTURE_AGGREGATIONS):
+        return [
+            f"selftest: the fixture builds {len(_FIXTURE_AGGREGATIONS)} aggregation "
+            f"routes, so it cannot express MIN_AGGREGATION_LINKS "
+            f"{MIN_AGGREGATION_LINKS}"
+        ]
 
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp) / "dist"
