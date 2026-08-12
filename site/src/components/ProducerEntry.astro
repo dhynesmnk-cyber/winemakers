@@ -30,10 +30,22 @@ interface Props {
 const { slug, data } = Astro.props;
 
 // Dateline: suburb, state, primary region, category. Words, not codes.
+//
+// A suburb that repeats the region name is dropped rather than printed twice.
+// The town of McLaren Vale sits inside the McLaren Vale region, so the naive
+// join reads "McLaren Vale · South Australia · McLaren Vale", which a reader
+// takes for a rendering fault rather than for a locality. Compared on the
+// rendered names, because that is what is actually shown; slugs would miss a
+// register entry whose name and slug differ. Engagement 2026-08-12.
+const primaryRegionName = regionName(data.primary_region);
+const suburb = data.location?.suburb;
+const suburbIsRegion =
+  !!suburb && suburb.trim().toLowerCase() === primaryRegionName.trim().toLowerCase();
+
 const datelineParts = [
-  data.location?.suburb,
+  suburbIsRegion ? undefined : suburb,
   STATE_NAMES[data.location?.state as keyof typeof STATE_NAMES],
-  regionName(data.primary_region),
+  primaryRegionName,
 ].filter(Boolean);
 
 const category = CATEGORY_LABELS[data.category as keyof typeof CATEGORY_LABELS];
