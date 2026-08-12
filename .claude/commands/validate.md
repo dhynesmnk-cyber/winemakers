@@ -114,7 +114,7 @@ Also lints `METHODOLOGY.md`, which asked in its own text to be linted against th
 
 Every internal href resolves to a built page; a producer page exists for every slug in the derived JSON and vice versa; every region/subregion/variety/practice page has ≥1 producer and every member with ≥1 producer has a page; no page links to a slug still in `_staging`; every `sitemap.xml` entry was built.
 
-`PENDING_ROUTES` carries routes owned by a later gate — currently `/methodology/` (G10), `/blog/` and `/rss.xml` (G11) — with the gate that owns each. They are **printed on every run**, and the check **fails if one starts resolving while still listed**, so the list shrinks when a gate ships rather than permanently permitting a live route.
+`PENDING_ROUTES` carries routes owned by a later gate — currently `/blog/` and `/rss.xml` (G11) — with the gate that owns each. They are **printed on every run**, and the check **fails if one starts resolving while still listed**, so the list shrinks when a gate ships rather than permanently permitting a live route. `/methodology/` came off the list on 2026-08-13 when Gate 10 shipped it, which is the mechanism working: it is now a hard requirement like any other route.
 
 ### 11. Glossary coverage — *G6*
 `python3 -m admin.pipeline.validate_glossary`.
