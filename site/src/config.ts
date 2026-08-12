@@ -28,14 +28,17 @@ import type { StateCode } from "./data/regions.ts";
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /**
- * PLACEHOLDER. The brand name is undecided and MUST NOT BE GUESSED
- * (HANDOVER, confirmed decisions). The repo name is a working name and is not
- * the brand. Every surface that shows a name reads this constant, so the real
- * name lands in one place when it is chosen.
+ * The brand name, chosen and signed off 2026-08-12. It was a placeholder
+ * (`SITE_NAME_PENDING`) from Wave 2 until then, on the rule that the name must
+ * never be guessed; that rule is discharged, not relaxed.
+ *
+ * Recorded verbatim as given, lowercase included. Every surface that shows a
+ * name reads this constant, so the casing is decided here and nowhere else —
+ * do not re-case it at a call site.
  *
  * Explicitly ruled out: "Where We Pour".
  */
-export const SITE_NAME = "SITE_NAME_PENDING";
+export const SITE_NAME = "winelister";
 
 /** PLACEHOLDER, same rule as SITE_NAME. DESIGN.md §5c. */
 export const SITE_TAGLINE = "A field guide to independent Australian winemakers";
