@@ -66,6 +66,19 @@ def _log(level: str, message: str) -> None:
 
 _FIGURE_TAG = re.compile(r"<Figure\b[^>]*/>")
 
+#: This stage's output budget, and it is deliberately the largest in the build.
+#:
+#: Measured on the first live run rather than guessed. The stage returns the
+#: WHOLE corrected body plus one record per claim carrying the verbatim
+#: sentence, so its output is roughly the size of the post again — and the
+#: checking model reasons at length before writing any of it, because reading
+#: adversarially is what it was asked to do.
+#:
+#: At 8000 the first real run spent the entire budget on reasoning and emitted
+#: no text at all. See `agents._truncated` for what that looked like from the
+#: outside and why it was worse than a plain failure.
+FACTCHECK_MAX_TOKENS = 32000
+
 #: A bare numeral in prose that states a count this repository already holds.
 #:
 #: Deliberately narrow. It fires on a digit sequence followed by one of the
@@ -217,7 +230,7 @@ def check(
         log=log,
         ledger=ledger,
         slug=slug,
-        max_tokens=8000,
+        max_tokens=FACTCHECK_MAX_TOKENS,
         client=client,
     )
 

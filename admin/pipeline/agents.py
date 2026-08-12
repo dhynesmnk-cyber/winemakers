@@ -299,12 +299,111 @@ def _text_of(message: Any) -> str:
     return "".join(parts)
 
 
+def _truncated(message: Any, text: str, stage: str) -> str | None:
+    """The real reason a response is unusable when it stopped at `max_tokens`.
+
+    ── Why this exists ───────────────────────────────────────────────────────
+
+    Added at Gate 11, after the first live fact-check run. The checking model
+    spent its entire 8000-token output budget on reasoning and emitted **no
+    text at all** — `stop_reason: max_tokens`, `thinking_tokens: 8000`, one
+    content block carrying no `.text`. `_text_of` returned `""`, `json.loads("")`
+    raised, and the stage reported:
+
+        the response is not valid JSON: Expecting value: line 1 column 1
+
+    That message is true and useless. It sent the operator looking at the
+    prompt and the model's JSON discipline, when the model had never reached
+    the point of writing anything. **A misdiagnosis is worse than no diagnosis**,
+    because it is actionable in the wrong direction.
+
+    It also burned the one content-tier re-ask on an attempt guaranteed to fail
+    identically: the re-ask appends "your previous response could not be used,
+    the error was …" and asks for corrected output, which cannot help a model
+    that ran out of room. Two full-price calls, one wrong conclusion.
+
+    So truncation is detected here, before `validate()` is ever called, and
+    raised as an `AgentError` naming the budget. It is not a content failure —
+    the fix is a bigger `max_tokens`, which is a code change, not something the
+    model can do differently when asked twice.
+    """
+    if getattr(message, "stop_reason", None) != "max_tokens":
+        return None
+
+    usage = getattr(message, "usage", None)
+    details = getattr(usage, "output_tokens_details", None)
+    thinking = 0
+    if isinstance(details, dict):
+        thinking = int(details.get("thinking_tokens") or 0)
+    elif details is not None:
+        thinking = int(getattr(details, "thinking_tokens", 0) or 0)
+
+    spent = f" ({thinking} of them on reasoning)" if thinking else ""
+
+    if not text.strip():
+        return (
+            f"{stage}: the model reached its max_tokens budget{spent} and returned "
+            f"no text at all. Raise max_tokens for this stage."
+        )
+    return (
+        f"{stage}: the response was cut off at the max_tokens budget{spent}. "
+        f"Raise max_tokens for this stage; re-asking cannot recover a truncated "
+        f"answer."
+    )
+
+
 def _usage_of(message: Any) -> Usage:
     usage = getattr(message, "usage", None)
     return Usage(
         int(getattr(usage, "input_tokens", 0) or 0),
         int(getattr(usage, "output_tokens", 0) or 0),
     )
+
+
+def _selftest_truncation() -> list[str]:
+    """`_truncated` must diagnose the real cause, and stay quiet otherwise.
+
+    Added with `_truncated` itself. The defect it exists for produced a
+    confidently wrong error message, and a wrong message is the one failure
+    mode a person cannot debug their way out of — they act on it.
+    """
+    errors: list[str] = []
+
+    class _Message:
+        def __init__(self, stop: str, thinking: int = 0):
+            self.stop_reason = stop
+            self.usage = type(
+                "U", (), {"output_tokens_details": {"thinking_tokens": thinking}}
+            )()
+
+    # No text and a max_tokens stop is the live failure. It must name the budget.
+    message = _truncated(_Message("max_tokens", 8000), "", "factcheck")
+    if message is None:
+        errors.append("selftest: an empty max_tokens response was not diagnosed")
+    else:
+        if "max_tokens" not in message:
+            errors.append("selftest: the truncation message does not name max_tokens")
+        if "8000" not in message:
+            errors.append("selftest: the message does not report the reasoning spend")
+        for misdiagnosis in ("not valid JSON", "could not be parsed", "malformed"):
+            if misdiagnosis in message:
+                errors.append(
+                    f"selftest: the truncation message says {misdiagnosis!r}, which "
+                    f"is the exact misdiagnosis this function exists to prevent — "
+                    f"the model never reached the point of writing anything"
+                )
+
+    # Partial text cut off mid-answer is still truncation, not bad formatting.
+    if _truncated(_Message("max_tokens"), '{"claims": [', "factcheck") is None:
+        errors.append("selftest: a truncated partial response was not diagnosed")
+
+    # An ordinary completion must pass straight through, empty or not — an
+    # empty `end_turn` response is a content failure and belongs to the re-ask.
+    for stop, text in (("end_turn", '{"ok": true}'), ("end_turn", ""), ("stop_sequence", "x")):
+        if _truncated(_Message(stop), text, "factcheck") is not None:
+            errors.append(f"selftest: {stop!r} with {text!r} was wrongly called truncation")
+
+    return errors
 
 
 def save_failed(stage: str, slug: str, raw: str) -> Path:
@@ -353,11 +452,21 @@ def call(
     rate_limit_error, status_error, connection_error = _error_classes()
 
     def attempt(text_prompt: str) -> tuple[str, Usage]:
-        """One transport-tier-protected send. Returns (text, usage)."""
+        """One transport-tier-protected send. Returns (text, usage).
+
+        A response truncated at `max_tokens` raises here rather than falling
+        through to `validate()`. See `_truncated`: the content tier would
+        report it as a formatting failure and spend the one re-ask proving it
+        again, which is two full-price calls and a wrong conclusion.
+        """
         for is_retry in (False, True):
             try:
                 message = _send(client, model, text_prompt, max_tokens)
-                return _text_of(message), _usage_of(message)
+                text = _text_of(message)
+                cut = _truncated(message, text, stage)
+                if cut is not None:
+                    raise AgentError(cut)
+                return text, _usage_of(message)
             except rate_limit_error as exc:
                 if is_retry:
                     raise AgentError(f"{stage}: rate limited twice, giving up") from exc

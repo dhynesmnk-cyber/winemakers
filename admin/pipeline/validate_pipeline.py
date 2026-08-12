@@ -855,7 +855,17 @@ def _abn_selftest() -> list[str]:
 
 def main() -> int:
     try:
-        errors = _selftest() + _batch_selftest() + _abn_selftest()
+        errors = (
+            _selftest()
+            + _batch_selftest()
+            + _abn_selftest()
+            # Gate 11. A response truncated at max_tokens must be diagnosed
+            # as truncation rather than as bad formatting. The live
+            # fact-check run proved what the wrong message costs: an
+            # operator sent after the prompt, and the one re-ask spent on
+            # an attempt that could not succeed.
+            + agents._selftest_truncation()
+        )
     except Exception as exc:  # noqa: BLE001
         import traceback
 
