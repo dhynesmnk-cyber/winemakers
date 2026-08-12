@@ -58,6 +58,8 @@ The zod↔DDL comparison is not a set diff, because the surfaces are deliberatel
 
 A surface whose gate has not shipped is reported as **pending, not passed**; every run prints which surfaces it compared and which it is still waiting on.
 
+*Amended 2026-08-13 (Gate 11): a **second, smaller comparison** for the post contract — SCHEMA.md §9.2, the zod `postFrontmatter` and `blog.py`'s `POST_FIELDS`. Deliberately not folded into the producer diff: a post has **two** consumers rather than four (§9.1 records why there is no SQLite table and no Harvester validator), and a shared diff would make every blog field look like a rule-7 field. It also diffs the claim-audit vocabulary against SCHEMA.md §9.4, so a third spelling of the three verdicts fails before it exists. The count is printed on every run, because a silent second comparison is one nobody knows ran.*
+
 ### 8. Ownership determination — *G4*
 `python3 -m admin.pipeline.validate_ownership`.
 
@@ -109,12 +111,16 @@ Every list is parsed from `PROMPTS/gatekeeper.md`, where they are authored. Ther
 
 Also lints `METHODOLOGY.md`, which asked in its own text to be linted against this list once it existed.
 
+*Amended 2026-08-13 (Gate 11): published post bodies join it, plus their `title`, `summary` and `dateline`. UX.md §6 had said this check already did that; it read `PUBLISHED_DIR` and `METHODOLOGY.md` and nothing else, so the statement was intent rather than fact until the blog existed. `sources[].title` is deliberately exempt — it is what a source calls itself, and a register with `world-class` in its name is a fact about the register rather than this guide's register drifting. The self-test carries a fixture post asserting all four, so a field dropped from the lint fails here rather than silently ceasing to be checked.*
+
 ### 5. Link check — *G6*
 `python3 -m admin.pipeline.validate_links`. **Requires check 4 to have run**, because it reads `site/dist` rather than `src`: a route Astro decided not to emit looks fine in source and 404s in production.
 
 Every internal href resolves to a built page; a producer page exists for every slug in the derived JSON and vice versa; every region/subregion/variety/practice page has ≥1 producer and every member with ≥1 producer has a page; no page links to a slug still in `_staging`; every `sitemap.xml` entry was built.
 
-`PENDING_ROUTES` carries routes owned by a later gate — currently `/blog/` and `/rss.xml` (G11) — with the gate that owns each. They are **printed on every run**, and the check **fails if one starts resolving while still listed**, so the list shrinks when a gate ships rather than permanently permitting a live route. `/methodology/` came off the list on 2026-08-13 when Gate 10 shipped it, which is the mechanism working: it is now a hard requirement like any other route.
+`PENDING_ROUTES` carries routes owned by a later gate, with the gate that owns each. They are **printed on every run**, and the check **fails if one starts resolving while still listed**, so the list shrinks when a gate ships rather than permanently permitting a live route.
+
+*It is now **empty**, which is the intended end state. `/methodology/` came off on 2026-08-13 (Gate 10); `/blog/` and `/rss.xml` came off the same day (Gate 11). All three are hard requirements like any other route. The mechanism stays — a future gate that links a route before building it adds an entry, and the check keeps biting.*
 
 ### 11. Glossary coverage — *G6*
 `python3 -m admin.pipeline.validate_glossary`.
@@ -166,6 +172,8 @@ Offline, as the gate requires. No network call, no Rich Results request, no vend
 
 **An unknown `@type` fails.** TRD.md §2 declined `Winery` for v1 with sign-off, and CLAUDE.md Gate 10 requires any move beyond `LocalBusiness` to be a dated TRD.md exception. A new type fails here until it is added deliberately, which is the prompt to go and write the exception first.
 
+*Amended 2026-08-13 (Gate 11): **`BlogPosting` is the first widening of that set**, and the mechanism worked as designed — the build failed here until the exception was written into TRD.md §2.5. `Blog` as a type is still refused: the journal index is a listing and carries `ItemList`, like every other listing on the site. Its agreement rules are the same shape as the others: `headline` must equal the rendered `<h1>`, `datePublished` and `dateModified` must be dates the page prints, `citation` must count the sources printed at the post's foot, and `url` must be the canonical. Nine new self-test cases on their own post fixture.*
+
 `@id` resolution is **site-wide, not per page**, because a cross-page reference is the point of an `@id`: a glossary term page belongs to a `DefinedTermSet` declared once on `/glossary/` rather than copied onto all 123 term pages.
 
 Sixteen self-test cases, one per rule, each requiring the error to *name* the thing it broke — an error is not evidence if it fires for an unrelated reason.
@@ -203,6 +211,49 @@ Seven fixture cases, one per blocking list, so a category dropped from `BLOCKING
 
 The staged drafts the gate currently refuses are printed on every run, as notes rather than failures — a draft in the queue has not published, and the gate is what stops it.
 
+### 22. Blog integrity — *G11*
+`python3 -m admin.pipeline.validate_blog`.
+
+The three SCHEMA.md §9.3 rules zod structurally cannot see. The cover
+co-requirements, the `updated` ordering, duplicate source URLs, the 160-character
+summary bound and `.strict()` all fail `npm run build` with a field-level error
+already, and are deliberately not restated here — a second implementation of a
+rule is the one that drifts.
+
+**The claim audit must resolve.** `data/factchecks/<factcheck>.json` exists,
+parses, names the post it belongs to, and carries no claim in the `unsupported`
+state. Publishing is blocked on an unresolved claim in the admin (UX.md §6); this
+is the standing audit over what is *already* published, because a post can reach
+`_published` by a route that is not the screen.
+
+**A `removed` claim keeps its text verbatim.** UX.md §6: a deletion that leaves
+no trace is indistinguishable from a claim that was never made. The record IS the
+deletion, so an empty `text` on a removed claim fails.
+
+**No hardcoded figures.** A numeral stating a count this repository holds is a
+`<Figure>`, never typed prose. Nothing else catches this: a typed `97 producers`
+renders perfectly, reads correctly, and is wrong after the next harvest with
+nobody told.
+
+*The typed-figure scan was wrong when it landed and the live corpus is what
+showed it.* It required the countable noun adjacent to the numeral, so it read
+straight past `97 independent Australian winemakers` while its fixture said
+`97 producers` and passed — Gate 9's carried-forward note in a different
+disguise, a fixture testing what it was written against rather than the shape of
+the sentence people write. It now allows up to three modifiers between, excludes
+determiners and copulas in the gap, and drops four-digit years when modifiers
+intervene, so `in 2019 the region had` stays clean while `2000 producers` does
+not. Both fixtures assert the boundary.
+
+**It fails rather than warns**, unlike check 6. Register drift is a judgement a
+human makes in context; a missing audit, an unresolved claim and a stale typed
+count are each either true or not.
+
+A self-review audit — one whose `model` equalled its `drafted_by` — is reported
+as a **note**. The post is published and the audit says plainly that the drafting
+model checked itself; failing would demand a re-check nobody can do
+retroactively.
+
 ---
 
 ## Checks pending their gate
@@ -224,6 +275,7 @@ Listed here so the suite's shape is visible from the start. Each lands as its ow
 | 17 | ~~**Internal-linking graph**~~ — **SHIPPED 2026-08-12 at Gate 9.** Moved to the core section above; row kept so the numbering stays readable | G9 |
 | 18 | ~~**JSON-LD structural validation**~~ — **SHIPPED 2026-08-13 at Gate 10.** Moved to the core section above; row kept so the numbering stays readable | G10 |
 | 19 | ~~**`llms.txt` integrity**~~ — **SHIPPED 2026-08-13 at Gate 10.** Moved to the core section above; row kept so the numbering stays readable | G10 |
+| 22 | ~~**Blog integrity**~~ — **SHIPPED 2026-08-13 at Gate 11.** Moved to the core section above; row kept so the numbering stays readable | G11 |
 
 ---
 
