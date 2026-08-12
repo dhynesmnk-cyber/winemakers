@@ -155,6 +155,21 @@ Paginated state routes count. At the current corpus every state listing runs to 
 
 **The threshold half is checked by recomputing it, not by reading the log.** The skip-and-log behaviour lives in `comparisons.ts`, which is TypeScript. Parsing the build log would assert that a message was printed, not that the right pages exist, so the expected comparison set is recomputed from `producers.json` and `MIN_COMPARISON_PRODUCERS` and `dist` is asserted to hold exactly it. A threshold that stopped being applied shows up as an unexpected page; one applied too hard shows up as a missing one. `MIN_COMPARISON_PRODUCERS` is read from `admin/config.py`, which check 13 already proves mirrors `config.ts` exactly — that is what makes this a second *reading* of one rule rather than a second copy of it.
 
+### 18. JSON-LD structural validation — *G10*
+`python3 -m admin.pipeline.jsonld_validator`. **Requires check 4 to have run**, because it reads `site/dist`: a builder that is correct in TypeScript but never reaches a page has not shipped.
+
+Offline, as the gate requires. No network call, no Rich Results request, no vendored schema.org vocabulary. `Organization`, `WebSite`, `LocalBusiness`, `BreadcrumbList`, `FAQPage`, `ItemList`, `DefinedTermSet` and `DefinedTerm` across every page type: required keys, absolute URLs, consecutive `position` values, and `@id` references that resolve.
+
+**The half worth having is the agreement check.** A generic schema linter answers "is this well-formed?", which is the cheap half. `data/jsonld.ts` is written to the rule that nothing is asserted in structured data that the page does not show, because a field a reader cannot see is a claim nobody proofreads. So this check reads both: a `FAQPage` must carry exactly the question count the page renders and a page with no FAQ section must carry none; a `BreadcrumbList`'s names must be the visible trail's labels, in order; an `ItemList` must count the rows the page lists; a `LocalBusiness`'s `url` must be the page it is on. Structured data that drifts from its page does not announce itself, which is why the rule needs a mechanism rather than a convention.
+
+**The honesty rule, mechanised.** `aggregateRating`, `review`, `priceRange` and `openingHours` fail anywhere in the graph. Nobody here has visited these cellar doors or tasted these wines (CLAUDE.md rule 6), so there are no ratings and no reviews to report; `priceRange` would be a guess; `openingHours` would be invented structure over `cellar_door_hours`, which is a freeform display string by schema design. These are exactly the four fields a well-meaning later edit adds because a rich-results guide recommends them.
+
+**An unknown `@type` fails.** TRD.md §2 declined `Winery` for v1 with sign-off, and CLAUDE.md Gate 10 requires any move beyond `LocalBusiness` to be a dated TRD.md exception. A new type fails here until it is added deliberately, which is the prompt to go and write the exception first.
+
+`@id` resolution is **site-wide, not per page**, because a cross-page reference is the point of an `@id`: a glossary term page belongs to a `DefinedTermSet` declared once on `/glossary/` rather than copied onto all 123 term pages.
+
+Sixteen self-test cases, one per rule, each requiring the error to *name* the thing it broke — an error is not evidence if it fires for an unrelated reason.
+
 ### 20. Review-pane preview integrity — *engagement 2026-08-09*
 `python3 -m admin.pipeline.validate_preview`.
 
@@ -196,7 +211,7 @@ Listed here so the suite's shape is visible from the start. Each lands as its ow
 | 14 | ~~**Provenance integrity**~~ — **SHIPPED 2026-08-07 at Gate 4** (`c548dcb`). Moved to the core section above | G4 |
 | 15 | ~~**Deploy-guard self-test**~~ — **SHIPPED 2026-08-08 at Gate 7.** Moved to the core section above; row kept so the numbering stays readable | G7 |
 | 17 | ~~**Internal-linking graph**~~ — **SHIPPED 2026-08-12 at Gate 9.** Moved to the core section above; row kept so the numbering stays readable | G9 |
-| 18 | **JSON-LD structural validation** — `Organization`, `WebSite`, `LocalBusiness`, `BreadcrumbList`, `FAQPage`, `ItemList`, `DefinedTermSet`, `DefinedTerm` across every page type | G10 |
+| 18 | ~~**JSON-LD structural validation**~~ — **SHIPPED 2026-08-13 at Gate 10.** Moved to the core section above; row kept so the numbering stays readable | G10 |
 | 19 | **`llms.txt` integrity** — references only live routes | G10 |
 
 ---
