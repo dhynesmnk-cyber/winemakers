@@ -554,6 +554,90 @@ def _compare_prompts(failures: list[str]) -> None:
         )
 
 
+# =============================================================================
+# The blog's TWO surfaces — SCHEMA.md §9.1, Gate 11
+#
+# A SECOND, SMALLER COMPARISON, deliberately not folded into the producer diff
+# above. A post has two consumers rather than four: there is no SQLite table
+# (nothing aggregates over posts) and no Harvester validator (posts are authored,
+# never harvested), and §9.1 records why each omission is a decision.
+#
+# Folding them together would make every blog field look like a rule-7 field,
+# and the first consequence would be somebody adding a producer field to
+# `blog.py`. Kept apart, with its own two readers and its own failure messages.
+# =============================================================================
+
+
+def _schema_md_post_fields() -> set[str]:
+    """The field names in SCHEMA.md §9.2's frontmatter table."""
+    text = (ROOT / "SCHEMA.md").read_text(encoding="utf-8")
+    section = text.split("### 9.2 Frontmatter", 1)[-1].split("### 9.3", 1)[0]
+    return set(re.findall(r"^\| `(\w+)`", section, re.MULTILINE))
+
+
+def _zod_post_fields() -> set[str]:
+    """Top-level keys of `postFrontmatter`'s object literal."""
+    text = ZOD_SCHEMA_PATH.read_text(encoding="utf-8")
+    block = text.split("const postFrontmatter = z", 1)[-1].split("\n  .strict()", 1)[0]
+    return set(
+        re.findall(
+            r"^    (\w+):\s*(?:z\b|enumOf\(|uniqueArray\(|\w+Schema\b)",
+            block,
+            re.MULTILINE,
+        )
+    )
+
+
+def _blog_py_fields() -> set[str]:
+    """`POST_FIELDS` out of `blog.py`. Consumer 2 of 2."""
+    from . import blog
+
+    return set(blog.POST_FIELDS)
+
+
+def _compare_blog_surfaces(failures: list[str]) -> None:
+    surfaces = {
+        "SCHEMA.md §9.2": _schema_md_post_fields(),
+        "site/src/content/config.ts (postFrontmatter)": _zod_post_fields(),
+        "admin/pipeline/blog.py (POST_FIELDS)": _blog_py_fields(),
+    }
+
+    # An empty surface agrees with everything, which is the failure mode this
+    # check would be worst at noticing on its own.
+    for name, fields in surfaces.items():
+        if not fields:
+            failures.append(
+                f"blog: {name} parsed EMPTY. An empty surface agrees with every "
+                f"other one, which makes this comparison a no-op."
+            )
+            return
+
+    union = set().union(*surfaces.values())
+    for name, fields in surfaces.items():
+        missing = sorted(union - fields)
+        if missing:
+            failures.append(
+                f"blog: {name} is missing {', '.join(missing)}. "
+                f"SCHEMA.md §9.1 makes the post contract two surfaces, and a "
+                f"change lands in both in the same commit."
+            )
+
+    # The claim-audit vocabulary has one home too. `blog.CLAIM_VERDICTS` is what
+    # the pipeline, the admin and check 22 all read; SCHEMA.md §9.4 is where it
+    # is written down. A third spelling of the three verdicts is the thing this
+    # catches before it exists.
+    from . import blog
+
+    text = (ROOT / "SCHEMA.md").read_text(encoding="utf-8")
+    section = text.split("### 9.4 The claim audit", 1)[-1].split("### 9.5", 1)[0]
+    documented = set(re.findall(r"^- \*\*`(\w+)`\*\*", section, re.MULTILINE))
+    if documented != set(blog.CLAIM_VERDICTS):
+        failures.append(
+            f"blog: SCHEMA.md §9.4 documents verdicts {sorted(documented)} and "
+            f"blog.CLAIM_VERDICTS is {sorted(blog.CLAIM_VERDICTS)}."
+        )
+
+
 def run() -> tuple[list[str], list[str]]:
     """Returns (failures, pending surfaces)."""
     failures: list[str] = []
@@ -565,6 +649,7 @@ def run() -> tuple[list[str], list[str]]:
     _compare_numeric_bounds(failures)
     _compare_orchestrator(failures)
     _compare_prompts(failures)
+    _compare_blog_surfaces(failures)
 
     for relative, (what, gate) in sorted(PENDING_SURFACES.items()):
         if not (ROOT / relative).is_file():
@@ -774,6 +859,13 @@ def main() -> int:
         f"VALIDATE 13 PASS — selftest ok; {compared} frontmatter fields agree across "
         f"SCHEMA.md §2, the zod schema and the SQLite DDL; config.ts and "
         f"admin/config.py mirror exactly"
+    )
+    # Printed rather than implied. A silent second comparison is one nobody
+    # knows ran, and the count is what shows it read something.
+    print(
+        f"  blog: {len(_zod_post_fields())} post field(s) agree across "
+        f"SCHEMA.md §9.2, the zod schema and blog.py (two surfaces, not four "
+        f"— §9.1)"
     )
     for surface in pending:
         print(f"  pending: {surface}")

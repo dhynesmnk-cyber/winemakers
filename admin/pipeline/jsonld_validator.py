@@ -77,6 +77,9 @@ _CRUMB_ITEM = re.compile(r"<li[^>]*>(.*?)</li>", re.S | re.I)
 _TAG = re.compile(r"<[^>]+>")
 _FAQ_PAIR = re.compile(r'class="faq__pair"')
 _ENTRY_ROW = re.compile(r'<li class="entry"')
+_POST_H1 = re.compile(r'<h1 class="post-head__title"[^>]*>(.*?)</h1>', re.S)
+_POST_TIME = re.compile(r'<time datetime="(\d{4}-\d{2}-\d{2})"')
+_POST_SOURCE = re.compile(r'<li[^>]*>\s*<a href="[^"]+" rel="noopener"[^>]*>')
 _CANONICAL = re.compile(r'<link rel="canonical" href="([^"]+)"', re.I)
 
 #: Every `@type` this site is allowed to emit. See the docstring on `Winery`.
@@ -89,11 +92,22 @@ REQUIRED_KEYS: dict[str, tuple[str, ...]] = {
     "FAQPage": ("@id", "mainEntity"),
     "DefinedTermSet": ("@id", "name", "url", "hasDefinedTerm"),
     "DefinedTerm": ("@id", "name", "description", "url", "inDefinedTermSet"),
+    # Gate 11, under the dated TRD.md §2.5 exception of 2026-08-13 with
+    # sign-off. The FIRST widening of this set since Gate 10 closed it, and the
+    # mechanism worked exactly as designed: the build failed here until the
+    # exception was written. `Blog` on the index is deliberately NOT taken — the
+    # index is a listing and carries `ItemList`, like every other listing here.
+    "BlogPosting": (
+        "@id", "headline", "description", "url", "datePublished", "author", "publisher",
+    ),
 }
 
 #: Nested types, allowed inside a parent but never as a top-level graph node.
 NESTED_TYPES = {
     "ListItem",
+    # `citation` entries on a BlogPosting. A source is a CreativeWork the post
+    # points at, never a top-level node of its own.
+    "CreativeWork",
     "PostalAddress",
     "GeoCoordinates",
     "Question",
@@ -282,6 +296,89 @@ def _declared_ids(root: Path, pages: list[Path]) -> set[str]:
     return ids
 
 
+def _strip_tags(markup: str) -> str:
+    return " ".join(re.sub(r"<[^>]+>", " ", markup).split())
+
+
+def _check_blog_posting(
+    nodes: list[dict],
+    html: str,
+    route: str,
+    page_url: str | None,
+    errors: list[str],
+) -> None:
+    """The agreement half for `/blog/[slug]/`. Gate 11.
+
+    A generic linter would answer "is this well-formed BlogPosting?", which is
+    the cheap half. `data/jsonld.ts` is written to the rule that nothing is
+    asserted in structured data that the page does not show, so this reads both.
+
+    The `citation` rule is the one worth having: `sources` is required on every
+    post (SCHEMA.md §9.2) and printed at its foot, so a post cannot cite one
+    thing to a reader and three to a crawler.
+    """
+    is_post = (
+        route.startswith("/blog/") and route != "/blog/" and "/page/" not in route
+    )
+
+    if is_post and not nodes:
+        errors.append(
+            f"{route}: a post page with no BlogPosting. Every post carries one "
+            "(TRD.md §2.5, 2026-08-13)."
+        )
+    if nodes and not is_post:
+        errors.append(
+            f"{route}: a BlogPosting on a page that is not a post. The journal "
+            "index is a listing and carries ItemList, not Blog."
+        )
+
+    heading = _POST_H1.search(html)
+    rendered_title = _strip_tags(heading.group(1)) if heading else None
+    rendered_dates = _POST_TIME.findall(html)
+    rendered_sources = len(_POST_SOURCE.findall(html))
+
+    for node in nodes:
+        if rendered_title and node.get("headline") != rendered_title:
+            errors.append(
+                f"{route}: BlogPosting headline {node.get('headline')!r} is not the "
+                f"rendered <h1> {rendered_title!r}"
+            )
+
+        published = node.get("datePublished")
+        if rendered_dates and published not in rendered_dates:
+            errors.append(
+                f"{route}: BlogPosting datePublished {published!r} is not among the "
+                f"dates the page renders {rendered_dates}"
+            )
+
+        modified = node.get("dateModified")
+        if modified is not None and modified not in rendered_dates:
+            errors.append(
+                f"{route}: BlogPosting dateModified {modified!r} is not rendered on "
+                f"the page. An amendment date nobody can see is a claim about "
+                f"editorial process that the page does not make."
+            )
+
+        citations = node.get("citation") or []
+        if rendered_sources and len(citations) != rendered_sources:
+            errors.append(
+                f"{route}: BlogPosting cites {len(citations)} source(s) against "
+                f"{rendered_sources} printed on the page. A post cannot cite one "
+                f"thing to a reader and another to a crawler (SCHEMA.md §9.2)."
+            )
+        if not citations:
+            errors.append(
+                f"{route}: BlogPosting carries no citation. `sources` is required "
+                f"on every post and this is its machine-readable half."
+            )
+
+        if page_url and node.get("url") != page_url:
+            errors.append(
+                f"{route}: BlogPosting url {node.get('url')!r} is not the page's "
+                f"canonical {page_url!r}"
+            )
+
+
 def check(root: Path = DIST) -> tuple[list[str], dict]:
     errors: list[str] = []
     stats: dict[str, int] = {"pages": 0, "nodes": 0}
@@ -440,6 +537,11 @@ def check(root: Path = DIST) -> tuple[list[str], dict]:
                         f"{route}: Question {question.get('name')!r} has no answer text"
                     )
 
+        # ── BlogPosting must agree with the post it sits on (Gate 11) ──────
+        _check_blog_posting(
+            by_type.get("BlogPosting", []), html, route, page_url, errors
+        )
+
         # ── Producer pages ─────────────────────────────────────────────────
         if route.startswith(PRODUCER_PREFIX):
             business = by_type.get("LocalBusiness", [])
@@ -580,6 +682,58 @@ def _write(root: Path, route: str, head: str, body: str = "") -> None:
     target = root / route.strip("/") / "index.html" if route != "/" else root / "index.html"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(f"<html><head>{head}</head><body>{body}</body></html>", "utf-8")
+
+
+def _post(url: str, *, sources: int = 2) -> dict:
+    """A BlogPosting node. Gate 11."""
+    return {
+        "@type": "BlogPosting",
+        "@id": f"{url}#post",
+        "headline": "A fixture post",
+        "description": "A summary.",
+        "url": url,
+        "datePublished": "2026-08-13",
+        "author": {"@id": f"{SITE_URL}/#organization"},
+        "publisher": {"@id": f"{SITE_URL}/#organization"},
+        "citation": [
+            {"@type": "CreativeWork", "name": f"Source {n}", "url": f"https://example.com/{n}"}
+            for n in range(sources)
+        ],
+    }
+
+
+def _post_html(labels: list[str], *, sources: int = 2) -> str:
+    """The rendered half every BlogPosting agreement rule is checked against."""
+    printed = "".join(
+        f'<li><a href="https://example.com/{n}" rel="noopener">Source {n}</a></li>'
+        for n in range(sources)
+    )
+    return (
+        _crumb_html(labels)
+        + '<h1 class="post-head__title">A fixture post</h1>'
+        + '<p class="post-head__dateline mono mono-caps">Australia · '
+        + '<time datetime="2026-08-13">13 August 2026</time></p>'
+        + f'<ul class="post-sources__list mono">{printed}</ul>'
+    )
+
+
+def _post_fixture(root: Path, *, mutate=None) -> None:
+    """A minimal but VALID post page. Gate 11.
+
+    A separate fixture from `_fixture`, because a post is a different page
+    type: it carries a BlogPosting and no LocalBusiness, and every rule it is
+    checked against is about agreement with what the page prints.
+    """
+    url = f"{SITE_URL}/blog/fixture/"
+    labels = ["Home", "Journal", "A fixture post"]
+
+    nodes = [_org(), _site(), _post(url), _crumbs(url, labels)]
+    body = _post_html(labels)
+
+    if mutate:
+        nodes, body = mutate(nodes, body)
+
+    _write(root, "/blog/fixture/", _HEAD.format(url=url, ld=_graph(*nodes)), body)
 
 
 def _fixture(root: Path, *, mutate=None) -> None:
@@ -745,6 +899,75 @@ def _selftest() -> list[str]:
             "no Organization node",
         ),
     ]
+
+    # ── The blog cases — Gate 11 ───────────────────────────────────────────
+    def run_post(mutate=None) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "dist"
+            _post_fixture(root, mutate=mutate)
+            found, _ = check(root)
+            return found
+
+    clean_post = run_post()
+    if clean_post:
+        errors.append(f"selftest: the CLEAN post fixture failed — {clean_post[:3]}")
+
+    post_cases: list[tuple[str, object, str]] = [
+        (
+            "a headline that is not the rendered <h1>",
+            lambda n, b: ([*n[:2], {**n[2], "headline": "Something else"}, *n[3:]], b),
+            "is not the rendered <h1>",
+        ),
+        (
+            "a datePublished the page does not print",
+            lambda n, b: ([*n[:2], {**n[2], "datePublished": "2020-01-01"}, *n[3:]], b),
+            "is not among the dates the page renders",
+        ),
+        (
+            "a dateModified nobody can see",
+            lambda n, b: ([*n[:2], {**n[2], "dateModified": "2027-01-01"}, *n[3:]], b),
+            "is not rendered on",
+        ),
+        (
+            "fewer citations than the page prints",
+            lambda n, b: ([*n[:2], _post(f"{SITE_URL}/blog/fixture/", sources=1), *n[3:]], b),
+            "against 2 printed on the page",
+        ),
+        (
+            "no citation at all",
+            lambda n, b: (
+                [*n[:2], {k: v for k, v in n[2].items() if k != "citation"}, *n[3:]], b),
+            "carries no citation",
+        ),
+        (
+            "a url that is not the page",
+            lambda n, b: ([*n[:2], {**n[2], "url": f"{SITE_URL}/blog/other/"}, *n[3:]], b),
+            "is not the page's canonical",
+        ),
+        (
+            "a post page with no BlogPosting",
+            lambda n, b: ([n[0], n[1], n[3]], b),
+            "a post page with no BlogPosting",
+        ),
+        (
+            "Blog taken as a type on top of BlogPosting",
+            lambda n, b: ([*n[:2], {**n[2], "@type": "Blog"}, *n[3:]], b),
+            "not in this site's allowed set",
+        ),
+        (
+            "a rating on a post",
+            lambda n, b: ([*n[:2], {**n[2], "aggregateRating": {"ratingValue": 5}}, *n[3:]], b),
+            "aggregateRating",
+        ),
+    ]
+
+    for label, mutate, expected in post_cases:
+        found = run_post(mutate)
+        if not any(expected in error for error in found):
+            errors.append(
+                f"selftest: {label} was not caught by a message naming "
+                f"{expected!r} (got {found[:2] or 'nothing'})"
+            )
 
     for label, mutate, expected in cases:
         found = run(mutate)

@@ -27,12 +27,18 @@ pending route that is still missing after its gate has shipped is exactly the
 kind of thing this check exists to notice, so the list is small, explicit and
 visible.
 
-── Why `/rss.xml` is on it ───────────────────────────────────────────────────
+── `/rss.xml`, and how it came off the list ──────────────────────────────────
 
-No route table in TRD.md, UX.md or DESIGN.md mentions `/rss.xml`. It is in the
-footer because the footer was written before anything generated feeds. It is
-assigned to Gate 11 with the blog, which is the only content on the site a feed
-would carry (decision recorded 2026-08-08, TRD.md §4.2 amendment).
+No route table in TRD.md, UX.md or DESIGN.md mentioned `/rss.xml`. It was in the
+footer because the footer was written before anything generated feeds, and it
+was assigned to Gate 11 with the blog, which is the only content on the site a
+feed would carry (decision recorded 2026-08-08, TRD.md §4.2 amendment).
+
+**Shipped 2026-08-13 (Gate 11)**, alongside `/blog/`, and its SHAPE was decided
+in TRD.md §3 rather than improvised in the route file. Both came off the list
+the same day, which emptied it. The list being empty is not the mechanism being
+retired: `PENDING_ROUTES` is still read, still printed and still fails on a
+listed route that starts resolving.
 """
 
 from __future__ import annotations
@@ -51,11 +57,17 @@ DIST = SITE_DIR / "dist"
 #: Route -> the gate that ships it. Printed on every run. See the module
 #: docstring: this is an explicit, visible, shrinking list, not a mute allow-list.
 PENDING_ROUTES: dict[str, str] = {
-    # `/methodology/` came off this list on 2026-08-13 when Gate 10 shipped it.
-    # It is now a hard requirement like any other route, which is the point of
-    # the list shrinking rather than the route being permitted quietly.
-    "/blog/": "Gate 11",
-    "/rss.xml": "Gate 11",
+    # EMPTY, and that is the intended end state.
+    #
+    # `/methodology/` came off on 2026-08-13 (Gate 10). `/blog/` and `/rss.xml`
+    # came off the same day when Gate 11 shipped them, which emptied the list.
+    # All three are now hard requirements like any other route, which is the
+    # point of the list shrinking rather than the routes being permitted
+    # quietly.
+    #
+    # The mechanism stays. A future gate that links a route before building it
+    # adds an entry here, and the check keeps failing the moment that route
+    # starts resolving while still listed.
 }
 
 #: Schemes and forms that are not this site's problem.

@@ -31,6 +31,7 @@ import type { APIRoute } from "astro";
 
 import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "../config.ts";
 import { COMPARE_HUB, comparisonsPresent } from "../data/comparisons.ts";
+import { allPosts, postHref } from "../data/posts.ts";
 import {
   allProducers,
   allSubregionsPresent,
@@ -69,6 +70,7 @@ export const GET: APIRoute = async () => {
   const varieties = await varietiesPresent();
   const practices = await practicesPresent();
   const comparisons = await comparisonsPresent();
+  const posts = await allPosts();
 
   const confirmed = producers.filter(
     (producer) => producer.data.ownership_status === "confirmed",
@@ -172,6 +174,24 @@ export const GET: APIRoute = async () => {
     ...comparisons.map((comparison) =>
       link(comparison.title, comparison.href, countOf(comparison.count)),
     ),
+  );
+
+  // The journal (Gate 11). Above `## Optional` deliberately: the posts are
+  // about how this guide decides what it decides, which is the same job the
+  // definitions section does and is what a model summarising the site most
+  // needs. The index is listed even at zero posts, because it is a live route
+  // and this file's whole contract is that it references only live routes.
+  lines.push("", "## Journal", "");
+  lines.push(
+    link(
+      "The journal",
+      "/blog/",
+      "writing about who owns what, how the register works, and what this " +
+        "guide can and cannot show",
+    ),
+  );
+  lines.push(
+    ...posts.map((post) => link(post.data.title, postHref(post.id), post.data.summary)),
   );
 
   // The convention's `## Optional` marks links a shorter context may skip. The
