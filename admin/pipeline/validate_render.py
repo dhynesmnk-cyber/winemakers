@@ -36,6 +36,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from admin.config import SITE_DIR  # noqa: E402
+from admin.pipeline.fetcher import PLAYWRIGHT_SETTLE_MS  # noqa: E402
 
 DIST = SITE_DIR / "dist"
 
@@ -51,9 +52,18 @@ HIDING_STYLE = re.compile(
 #:
 #: A <link rel="canonical">, an <a href> and an og:url are declarations about
 #: where something lives, not requests, and are deliberately not matched.
+#:
+#: `prev` and `next` join them for the same reason, added 2026-08-10. UX.md §2.2
+#: requires them in the head of every page in a paginated series, and they are
+#: absolute so they read the same way as the canonical directly above them. No
+#: browser fetches a rel=prev/next; it is a statement about sequence. They were
+#: absent from this list because no series had ever had a second page — Gate 6
+#: verified pagination by temporarily setting the page size to 1 and added no
+#: permanent fixture, so the first real multi-page build at Gate 8 was the first
+#: time this check ever saw one.
 EXTERNAL_REF = re.compile(
     r'<(?:script|img|iframe|embed|source|video|audio)\b[^>]*\bsrc="(https?://[^"]+)"'
-    r'|<link\b(?![^>]*\brel="(?:canonical|alternate)")[^>]*\bhref="(https?://[^"]+)"',
+    r'|<link\b(?![^>]*\brel="(?:canonical|alternate|prev|next)")[^>]*\bhref="(https?://[^"]+)"',
     re.I,
 )
 
@@ -129,6 +139,33 @@ def _serve(port: int) -> socketserver.TCPServer:
     return httpd
 
 
+def _goto_settled(page, url: str, timeout_ms: int) -> None:
+    """Navigate, then give the network a BOUNDED budget to go quiet.
+
+    The same pattern, and the same reasoning, as `fetcher._fetch_playwright`:
+    `networkidle` as a `wait_until` is a requirement the page may never be able
+    to meet. It cannot fire while a connection is held open and it stalls behind
+    a slow third-party embed, so a page that rendered perfectly well fails on a
+    30-second navigation timeout.
+
+    This is the 2026-08-09 engagement's defect (D), which was fixed in the
+    fetcher and missed here — this module never ran in CI and its browser layer
+    skips silently when Playwright is absent, so nothing exercised it until the
+    Gate 8 corpus was checked with the venv interpreter.
+
+    `domcontentloaded` is the real requirement: the served markup has parsed,
+    which is the only thing a no-JS assertion can be made against. Whatever has
+    settled when the budget expires is what gets measured.
+    """
+    from playwright.sync_api import TimeoutError as PlaywrightTimeout
+
+    page.goto(url, wait_until="domcontentloaded")
+    try:
+        page.wait_for_load_state("networkidle", timeout=timeout_ms)
+    except PlaywrightTimeout:
+        pass  # Took the rendered page, exactly as the fetcher does.
+
+
 def rendered_checks(port: int = 0) -> tuple[list[str], bool]:
     """Returns (errors, ran). `ran` is False when no browser is available."""
     try:
@@ -159,7 +196,7 @@ def rendered_checks(port: int = 0) -> tuple[list[str], bool]:
 
                 with_js = browser.new_context()
                 page = with_js.new_page()
-                page.goto(url, wait_until="networkidle")
+                _goto_settled(page, url, PLAYWRIGHT_SETTLE_MS)
                 text_with = page.inner_text("body")
                 page.close()
                 with_js.close()
@@ -198,7 +235,7 @@ def rendered_checks(port: int = 0) -> tuple[list[str], bool]:
                 # prefers-reduced-motion: everything in its final position.
                 reduced = browser.new_context(reduced_motion="reduce")
                 page = reduced.new_page()
-                page.goto(url, wait_until="networkidle")
+                _goto_settled(page, url, PLAYWRIGHT_SETTLE_MS)
                 faded = page.eval_on_selector_all(
                     "body *",
                     "els => els.filter(e => {"
