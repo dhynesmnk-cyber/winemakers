@@ -41,6 +41,7 @@ from admin.pipeline import (  # noqa: E402
     images,
     orchestrator,
     ownership,
+    staging,
 )
 
 TODAY = date(2026, 8, 7)
@@ -868,6 +869,10 @@ def main() -> int:
             # And that failed call must still report what it cost. The runs
             # whose cost matters most are the ones that failed.
             + agents._selftest_ledger()
+            # Engagement 2026-08-13 (second). A STAGED queue row outlives the
+            # draft it describes, so where that draft went is resolved on read.
+            # Get the precedence wrong and an undone approve loses its link.
+            + staging._selftest_locations()
         )
     except Exception as exc:  # noqa: BLE001
         import traceback
@@ -886,7 +891,8 @@ def main() -> int:
         "downgrade, token ledger, "
         "Gatekeeper fallback, a ten-URL batch with two isolated failures, and the "
         "HTML-only ABN reaching the determination with its checksum enforced, "
-        "recovered by the probe when the harvested page has none and skipped when it does"
+        "recovered by the probe when the harvested page has none and skipped when it does, "
+        "and a STAGED row resolving all four whereabouts of the draft it describes"
     )
     return 0
 
