@@ -670,6 +670,15 @@ Numbered to stand alone; they are not a continuation of §2a and share nothing w
 5. **No hardcoded figures.** A numeral in the body that states a count this repository
    already knows — producers published, producers in a region, terms in the glossary,
    the ownership split — is written as a `<Figure>` (§9.5), never typed. Check 22.
+6. **A removed claim stays removed.** *Added 2026-08-13.* No claim verdicted `removed`
+   in the audit may have its text back in the published body. The fact-check stage
+   already refuses to *return* one, but that ran once, at the moment the model
+   answered. UX.md §6 lets a published post be edited in place and the save writes
+   straight into `_published`, so nothing re-checked the body that ships — a post
+   could carry, verbatim, the sentence its own audit records as deleted for being
+   false, with every check green. Reproduced against the shipped corpus before the
+   rule was written. Enforced by check 22 on what is published and by the publish gate
+   on what is about to be, through one shared comparison (`blog.restored_claims`).
 
 ### 9.4 The claim audit — `data/factchecks/<slug>.json`
 

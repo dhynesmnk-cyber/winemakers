@@ -214,7 +214,7 @@ The staged drafts the gate currently refuses are printed on every run, as notes 
 ### 22. Blog integrity — *G11*
 `python3 -m admin.pipeline.validate_blog`.
 
-The three SCHEMA.md §9.3 rules zod structurally cannot see. The cover
+The four SCHEMA.md §9.3 rules zod structurally cannot see. The cover
 co-requirements, the `updated` ordering, duplicate source URLs, the 160-character
 summary bound and `.strict()` all fail `npm run build` with a field-level error
 already, and are deliberately not restated here — a second implementation of a
@@ -229,6 +229,19 @@ is the standing audit over what is *already* published, because a post can reach
 **A `removed` claim keeps its text verbatim.** UX.md §6: a deletion that leaves
 no trace is indistinguishable from a claim that was never made. The record IS the
 deletion, so an empty `text` on a removed claim fails.
+
+**A `removed` claim stays removed** (§9.3 rule 6, added 2026-08-13). Its text must
+not be back in the published body. The fact-check refuses to *return* a removed
+claim whose sentence it left in place, but that rule ran once, when the model
+answered. UX.md §6 lets a published post be edited in place and the save writes
+straight into `_published`, so nothing re-checked the body that ships. A post
+could carry, verbatim, the claim its own committed audit records as
+deleted-for-being-false, and this check passed. *That was reproduced against the
+shipped post and its shipped audit before the rule was written, and the fixture
+case now reinstates `_CLEAN_AUDIT`'s removed sentence on every run.* The
+comparison is `blog.restored_claims`, shared with the publish gate and with the
+fact-check's own output rule, so there is one exact-substring test rather than
+three that agree today.
 
 **No hardcoded figures.** A numeral stating a count this repository holds is a
 `<Figure>`, never typed prose. Nothing else catches this: a typed `97 producers`

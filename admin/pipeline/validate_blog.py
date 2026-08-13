@@ -24,6 +24,15 @@ repository holds is a defect (UX.md §6), and it is one nothing else catches: a
 typed `97 producers` renders perfectly, reads correctly, and is wrong after the
 next harvest with nobody told.
 
+**Rule 6 — a removed claim stayed removed.** The fact-check refuses to return a
+`removed` claim whose sentence is still in the body it hands back, but that rule
+only ever ran at the moment the model answered. UX.md §6 lets a published post be
+edited in place and `save_post` writes those edits straight into `_published`, so
+nothing re-checked the body that actually ships. A post could carry, verbatim,
+the claim its own audit records as deleted-for-being-false, and every check
+passed. Added 2026-08-13 after exactly that was reproduced against the shipped
+corpus.
+
 **The removed claims are still recorded.** A `removed` verdict whose text is
 gone from the audit is a deletion that left no trace, which UX.md §6 says is
 indistinguishable from a claim that was never made.
@@ -56,6 +65,12 @@ _FIGURE_TAG = re.compile(r'<Figure\s+of="([a-z]+)"(?:\s+member="([^"]*)")?\s*/>'
 
 def _figure_queries(body: str) -> list[tuple[str, str | None]]:
     return [(m.group(1), m.group(2)) for m in _FIGURE_TAG.finditer(body)]
+
+
+def _clip(value: Any, limit: int) -> str:
+    """Quote a fragment in an error, ellipsised only when it was actually cut."""
+    text = " ".join(str(value or "").split())
+    return text if len(text) <= limit else f"{text[:limit]}…"
 
 
 def run(
@@ -101,7 +116,7 @@ def run(
                     audit = None
 
                 if isinstance(audit, dict):
-                    errors.extend(_check_audit(audit, name, slug, stats))
+                    errors.extend(_check_audit(audit, name, slug, stats, body))
                     if audit.get("self_review"):
                         # A note rather than an error. The post is published and
                         # the audit says plainly that the drafting model checked
@@ -128,7 +143,11 @@ def run(
 
 
 def _check_audit(
-    audit: dict[str, Any], name: str, slug: str, stats: dict[str, int]
+    audit: dict[str, Any],
+    name: str,
+    slug: str,
+    stats: dict[str, int],
+    body: str,
 ) -> list[str]:
     errors: list[str] = []
 
@@ -187,6 +206,21 @@ def _check_audit(
             errors.append(
                 f"data/factchecks/{name}.json: claims[{index}] carries no reason"
             )
+
+    # ── Rule 6 — a removed claim stayed removed ───────────────────────────
+    #
+    # The comparison is `blog.restored_claims`, which is the same function the
+    # publish gate uses and the same exact-substring test the fact-check applies
+    # to its own output. One implementation, three call sites: a second one here
+    # would be the one that drifts.
+    for claim in blog.restored_claims(body, audit):
+        errors.append(
+            f"{slug}: claim {claim.get('id')} is verdicted removed and its text is "
+            f"still in the published body: “{_clip(claim.get('text'), 70)}”. It was "
+            f"removed because: “{_clip(claim.get('reason'), 120)}”. "
+            f"A deletion the post did not make is not a deletion "
+            f"(SCHEMA.md §9.3 rule 6, UX.md §6)."
+        )
 
     return errors
 
@@ -313,6 +347,14 @@ def _selftest() -> list[str]:
                 {**a["claims"][1], "text": ""}]}),
             "left no trace",
             "a removed claim with no text",
+        ),
+        # Rule 6. The defect this check was extended for: the sentence the audit
+        # records as removed, back in the published body. It reproduced against
+        # the real corpus and passed clean before this case existed.
+        (
+            lambda f, b, a: (f, f"{b}\n\n{a['claims'][1]['text']}", a),
+            "still in the published body",
+            "a removed claim whose text is back in the body",
         ),
         (
             lambda f, b, a: (f, b, {**a, "claims": [
