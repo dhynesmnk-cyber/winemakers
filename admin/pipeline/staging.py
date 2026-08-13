@@ -38,6 +38,7 @@ that publishes without passing what the UI enforces.
 from __future__ import annotations
 
 import logging
+import re
 import shutil
 import sys
 import time
@@ -60,6 +61,7 @@ from admin.config import (  # noqa: E402
     REJECTED_DIR,
     STALE_DRAFT_DAYS,
     STAGING_DIR,
+    STATIC_DIR,
     SUMMARY_MAX_CHARS,
     UNDO_WINDOW_SECONDS,
 )
@@ -105,6 +107,40 @@ def _has_candidate_images(slug: str) -> bool:
     """Candidate images are staging-only until the separate publish action (UX.md §4)."""
     directory = IMAGES_DIR / slug
     return directory.is_dir() and any(directory.iterdir())
+
+
+#: Where a harvested draft sits now (UX.md §1.1, amended 2026-08-13), in the
+#: order `draft_location` tests them.
+DRAFT_LOCATIONS = ("staging", "published", "rejected", "gone")
+
+
+def draft_location(slug: str) -> str:
+    """One of `DRAFT_LOCATIONS`, for a slug the harvest reported as `STAGED`.
+
+    A `STAGED` queue row records what the harvest did and is history, exactly
+    like a `BLOCKED` one. Where the draft went afterwards is a separate and
+    perishable fact, and the row used to assert the stale half of it: the queue
+    survives restarts while the draft leaves `_staging/` on the first approve,
+    so the row went on offering a link to a review-queue row that had gone.
+
+    Resolved on read and never stored. `harvest_queue.json` holds URLs and
+    per-URL status only, and a cached location would be one more thing that
+    goes stale between an approve and the next render, which is the whole
+    defect this answers.
+
+    Staging is tested first because `undo` moves a file back into it: a draft
+    approved and then un-approved inside the window is in the review queue
+    again, and the newest true answer is the one to report.
+    """
+    if not slug:
+        return "gone"
+    if (STAGING_DIR / f"{slug}.mdx").is_file():
+        return "staging"
+    if (PUBLISHED_DIR / f"{slug}.mdx").is_file():
+        return "published"
+    if (REJECTED_DIR / f"{slug}.mdx").is_file():
+        return "rejected"
+    return "gone"
 
 
 def ownership_chip(slug: str) -> str:
@@ -608,3 +644,74 @@ def unpublish(slug: str, log: Logger = _null_log) -> dict[str, Any]:
     log("warn", f"unpublished {slug}, parked in {DELETED_DIR.name}/")
     _rebuild_derived(log)
     return {"slug": slug}
+
+
+def _selftest_locations() -> list[str]:
+    """`draft_location` must name all four whereabouts, and the JS must too.
+
+    Written with the fix for the engagement of 2026-08-13 (second), where a
+    `STAGED` queue row went on offering a link to a review-queue row that had
+    been approved away days earlier, and the click did nothing at all.
+
+    The case that earns its keep is the fifth: a slug in `_staging` **and** in
+    `_published` is an approve that was undone inside the window, and it must
+    read `staging`. Get that precedence backwards and the one draft a reviewer
+    is actively working on is the one whose link disappears.
+    """
+    import tempfile
+
+    errors: list[str] = []
+    globals_ = globals()
+    saved = {name: globals_[name] for name in ("STAGING_DIR", "PUBLISHED_DIR", "REJECTED_DIR")}
+
+    with tempfile.TemporaryDirectory() as raw:
+        root = Path(raw)
+        for name, sub in (
+            ("STAGING_DIR", "_staging"),
+            ("PUBLISHED_DIR", "_published"),
+            ("REJECTED_DIR", "_rejected"),
+        ):
+            globals_[name] = root / sub
+            globals_[name].mkdir()
+        try:
+            (globals_["STAGING_DIR"] / "in-the-queue.mdx").write_text("x", encoding="utf-8")
+            (globals_["PUBLISHED_DIR"] / "approved.mdx").write_text("x", encoding="utf-8")
+            (globals_["REJECTED_DIR"] / "refused.mdx").write_text("x", encoding="utf-8")
+            # An approve taken back inside the undo window: the file is in both.
+            (globals_["STAGING_DIR"] / "undone.mdx").write_text("x", encoding="utf-8")
+            (globals_["PUBLISHED_DIR"] / "undone.mdx").write_text("x", encoding="utf-8")
+
+            for slug, expected in (
+                ("in-the-queue", "staging"),
+                ("approved", "published"),
+                ("refused", "rejected"),
+                ("harvested-then-deleted", "gone"),
+                ("undone", "staging"),
+                ("", "gone"),
+            ):
+                found = draft_location(slug)
+                if found != expected:
+                    errors.append(
+                        f"draft_location({slug!r}) is {found!r}, expected {expected!r}"
+                    )
+                if found not in DRAFT_LOCATIONS:
+                    errors.append(f"draft_location({slug!r}) returned {found!r}, off the vocabulary")
+        finally:
+            globals_.update(saved)
+
+    # The row is rendered by admin.js, which maps every whereabouts except
+    # `staging` to words. `staging` draws the link instead, so it has no label.
+    # A value added here and not there would render its own enum name at a
+    # reviewer, which is the four-surface lesson in miniature.
+    source = (STATIC_DIR / "admin.js").read_text(encoding="utf-8")
+    block = re.search(r"const LOCATED_WORDS = \{(.*?)\};", source, re.DOTALL)
+    if block is None:
+        errors.append("admin.js has no LOCATED_WORDS map")
+    else:
+        labelled = set(re.findall(r"^\s*(\w+):", block.group(1), re.MULTILINE))
+        expected = set(DRAFT_LOCATIONS) - {"staging"}
+        for missing in sorted(expected - labelled):
+            errors.append(f"admin.js LOCATED_WORDS has no wording for {missing!r}")
+        for extra in sorted(labelled - expected):
+            errors.append(f"admin.js LOCATED_WORDS carries {extra!r}, not in DRAFT_LOCATIONS")
+    return errors

@@ -977,6 +977,14 @@ dialog dt {
   font-size: 11px;
 }
 
+/* A STAGED draft that has left the review queue (UX.md §1.1, amended
+   2026-08-13). Same slot and size as the link it replaces, so the row does not
+   reflow when a draft is approved, and plainly not a control. */
+.harvest-row .faded {
+  margin: 0.3rem 0 0;
+  font-size: 11px;
+}
+
 .harvest-row .btn {
   margin-top: 0.4rem;
 }

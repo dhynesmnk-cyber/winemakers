@@ -86,6 +86,14 @@ function appendLog(line) {
   if (pinnedToBottom) logPane.scrollTop = logPane.scrollHeight;
 }
 
+/* A line from this page rather than from the pipeline. The log pane is the
+   only place the hub tells the reviewer that something happened (UX.md §1.2),
+   and an action that ends in silence is the one thing §1.5 forbids outright.
+   The server stamps `at` for its own lines; this stamps the same shape. */
+function clientLog(level, message) {
+  appendLog({ at: new Date().toTimeString().slice(0, 8), level, message });
+}
+
 function startLogStream() {
   if (!("EventSource" in window)) {
     // Falls back to polling, per UX.md §1.2.
@@ -129,6 +137,12 @@ async function submitHarvest(value) {
   followHarvest();
 }
 
+function refreshHarvestQueue() {
+  return fetch("/api/harvest/queue")
+    .then((r) => r.json())
+    .then(renderHarvestQueue);
+}
+
 /* The runner is serial and server-held, so the browser has to ask how it is
  * going. Polling stops as soon as nothing is queued or running, rather than
  * ticking forever against an idle queue. */
@@ -165,6 +179,33 @@ $("#harvest-batch").addEventListener("submit", (event) => {
   if (area.value.trim()) submitHarvest(area.value);
 });
 
+/* UX.md §1.1's whereabouts, as words. `staging` is absent because it is the
+   only one that draws a control, and the control is its own label. */
+const LOCATED_WORDS = {
+  published: "published, no longer in the review queue",
+  rejected: "rejected, no longer in the review queue",
+  gone: "no longer on disk",
+};
+
+/* Never a silent no-op. The row may simply have been drawn before the queue
+   moved on, so refresh once and look again before saying anything: a stale
+   render corrects itself rather than being reported as a problem. If the draft
+   really has gone, say so and redraw the harvest queue, which drops the link
+   the server can now see is unfollowable. */
+async function selectStagedRow(slug) {
+  let row = $(`#review-queue [data-slug="${slug}"]`);
+  if (!row) {
+    await refreshQueue();
+    row = $(`#review-queue [data-slug="${slug}"]`);
+  }
+  if (row) {
+    selectRow(row);
+    return;
+  }
+  clientLog("warn", `${slug} has left the review queue`);
+  refreshHarvestQueue();
+}
+
 function renderHarvestQueue(data) {
   $("#queue-summary").textContent = data.summary || "";
   const list = $("#harvest-queue");
@@ -186,18 +227,29 @@ function renderHarvestQueue(data) {
 
     /* A STAGED row shows its slug as a link that selects the draft (UX.md
        §1.1). Getting from "that one finished" to reviewing it should not
-       require finding it again in a second list. */
+       require finding it again in a second list.
+
+       The link is drawn only while the draft is still in the review queue.
+       This row outlives its draft: the queue is durable across restarts by
+       design and the draft leaves _staging on the first approve, so a link
+       drawn unconditionally is a control that does nothing when clicked. The
+       server says where the draft went (UX.md §1.1, amended 2026-08-13) and
+       the other three whereabouts render as plain text saying so. A control
+       that cannot act is not drawn. */
     let staged = null;
     if (item.state === "STAGED" && item.slug) {
-      staged = el("button", {
-        class: "linkish mono",
-        type: "button",
-        text: item.slug,
-        onclick: () => {
-          const row = $(`#review-queue [data-slug="${item.slug}"]`);
-          if (row) selectRow(row);
-        },
-      });
+      staged =
+        !item.located || item.located === "staging"
+          ? el("button", {
+              class: "linkish mono",
+              type: "button",
+              text: item.slug,
+              onclick: () => selectStagedRow(item.slug),
+            })
+          : el("p", {
+              class: "mono faded",
+              text: `${item.slug} · ${LOCATED_WORDS[item.located] || item.located}`,
+            });
     }
 
     /* UX.md §1.5 rows 3 and 1a. Offered ONLY on an item the server marked, so
@@ -2032,9 +2084,7 @@ async function showBlocked(slug) {
       return;
     }
     await refreshBlocked();
-    fetch("/api/harvest/queue")
-      .then((r) => r.json())
-      .then(renderHarvestQueue);
+    refreshHarvestQueue();
   };
   const openJson = $("#blocked-open-json");
   if (openJson) openJson.addEventListener("click", () => $("#ownership-open").click());

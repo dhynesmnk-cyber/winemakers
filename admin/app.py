@@ -695,6 +695,27 @@ async def api_regeocode(slug: str, _: None = Depends(require_auth)) -> JSONRespo
 # =============================================================================
 
 
+def _queue_payload() -> dict[str, Any]:
+    """The one shape every harvest endpoint returns (UX.md §1.1).
+
+    Four routes used to build this by hand and only one of them sent `paused`,
+    which is the arithmetic-in-two-places smell the build has been bitten by
+    before. One builder, four callers.
+
+    `located` is attached here rather than stored on the item: it is a fact
+    about the content directories, not about the harvest, and it changes every
+    time a reviewer approves something. Only a `STAGED` row carries it, because
+    it is the only state that ever claimed a draft was somewhere.
+    """
+    items = []
+    for item in QUEUE.items:
+        row = dict(item)
+        if row.get("state") == "STAGED":
+            row["located"] = staging.draft_location(str(row.get("slug") or ""))
+        items.append(row)
+    return {"items": items, "summary": QUEUE.summary(), "paused": QUEUE.paused}
+
+
 @app.post("/api/harvest")
 async def api_harvest(request: Request, _: None = Depends(require_auth)) -> JSONResponse:
     """Single URL and batch share one runner (UX.md §1.1)."""
@@ -719,9 +740,7 @@ async def api_harvest(request: Request, _: None = Depends(require_auth)) -> JSON
         QUEUE.add(valid)
         log("info", f"queued {len(valid)} URL{'s' if len(valid) != 1 else ''}")
         _start_runner()
-    return JSONResponse(
-        {"queued": len(valid), "notes": notes, "items": QUEUE.items, "summary": QUEUE.summary()}
-    )
+    return JSONResponse({**_queue_payload(), "queued": len(valid), "notes": notes})
 
 
 @app.post("/api/harvest/playwright")
@@ -775,12 +794,12 @@ async def api_harvest_playwright(
         QUEUE.save()
 
     asyncio.create_task(asyncio.to_thread(run))
-    return JSONResponse({"items": QUEUE.items, "summary": QUEUE.summary()})
+    return JSONResponse(_queue_payload())
 
 
 @app.get("/api/harvest/queue")
 async def api_harvest_queue(_: None = Depends(require_auth)) -> JSONResponse:
-    return JSONResponse({"items": QUEUE.items, "summary": QUEUE.summary(), "paused": QUEUE.paused})
+    return JSONResponse(_queue_payload())
 
 
 @app.post("/api/harvest/control/{action}")
@@ -806,7 +825,7 @@ async def api_harvest_control(action: str, _: None = Depends(require_auth)) -> J
         log("warn", "queue cancelled after the current item")
     else:
         raise HTTPException(status_code=404, detail=f"no such queue control: {action}")
-    return JSONResponse({"items": QUEUE.items, "summary": QUEUE.summary(), "paused": QUEUE.paused})
+    return JSONResponse(_queue_payload())
 
 
 # =============================================================================
