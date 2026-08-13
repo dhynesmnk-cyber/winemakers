@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import html
 import json
 import logging
 import re
@@ -567,17 +568,32 @@ async def api_save_ownership(
     )
 
 
+def _preview_error(headline: str, exc: Exception) -> str:
+    """The iframe's failure page, with the exception ESCAPED.
+
+    It was interpolated raw, and the exceptions that reach here quote the slug
+    back — `blog._guard` raises `not a valid post slug: {slug!r}`, and the slug
+    arrives from the URL. So `/blog-preview/%3Cimg%20src=x%20onerror=…%3E` put
+    live markup on an admin page. Behind auth and admin-only, but every string
+    `mdx_preview` emits goes through `html.escape` and these two did not.
+
+    Status 200 deliberately: the iframe shows the message, and a 4xx would make
+    the browser render its own error page over it.
+    """
+    return (
+        "<!doctype html><meta charset='utf-8'>"
+        "<body style='font:14px system-ui;padding:2rem'>"
+        f"<p>{html.escape(headline)}: {html.escape(str(exc))}</p></body>"
+    )
+
+
 @app.get("/preview/{slug}", response_class=HTMLResponse)
 async def preview(slug: str, _: None = Depends(require_auth)) -> HTMLResponse:
     """The draft in the public site's real styles, for the review pane iframe."""
     try:
         data, body = staging.load_draft(slug)
     except (schema.FrontmatterError, FileNotFoundError) as exc:
-        return HTMLResponse(
-            f"<!doctype html><meta charset='utf-8'><body style='font:14px system-ui;padding:2rem'>"
-            f"<p>This draft cannot be rendered: {exc}</p></body>",
-            status_code=200,
-        )
+        return HTMLResponse(_preview_error("This draft cannot be rendered", exc))
     return HTMLResponse(mdx_preview.render_document(data, body))
 
 
@@ -1305,11 +1321,7 @@ async def blog_preview(slug: str, _: None = Depends(require_auth)) -> HTMLRespon
     try:
         data, body = blog_module.load_post(slug)
     except (schema.FrontmatterError, FileNotFoundError, ValueError) as exc:
-        return HTMLResponse(
-            f"<!doctype html><meta charset='utf-8'><body style='font:14px system-ui;padding:2rem'>"
-            f"<p>This post cannot be rendered: {exc}</p></body>",
-            status_code=200,
-        )
+        return HTMLResponse(_preview_error("This post cannot be rendered", exc))
     return HTMLResponse(mdx_preview.render_post(data, body))
 
 
