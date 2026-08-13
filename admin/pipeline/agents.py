@@ -406,6 +406,58 @@ def _selftest_truncation() -> list[str]:
     return errors
 
 
+def _selftest_ledger() -> list[str]:
+    """A call that fails must still report what it spent.
+
+    Added with the `finally` in `call`. Cost visibility is a requirement at this
+    corpus size (TRD.md §7.3), and the runs whose cost matters most are the ones
+    that failed — a stage that burned its whole output budget on reasoning and
+    returned nothing was reported as free.
+    """
+    errors: list[str] = []
+
+    class _Usage:
+        input_tokens = 1200
+        output_tokens = 8000
+        output_tokens_details = {"thinking_tokens": 8000}
+
+    class _Truncated:
+        stop_reason = "max_tokens"
+        usage = _Usage()
+        content: list[Any] = []
+
+    class _Client:
+        class messages:
+            @staticmethod
+            def create(**_kwargs: Any) -> Any:
+                return _Truncated()
+
+    ledger = Ledger()
+    try:
+        call(
+            "factcheck",
+            "a-model",
+            "a prompt",
+            validate=lambda text: text,
+            ledger=ledger,
+            client=_Client(),
+        )
+    except AgentError:
+        pass
+    else:
+        errors.append("selftest: a truncated response did not raise")
+
+    total = ledger.total()
+    if total.output_tokens != 8000 or total.input_tokens != 1200:
+        errors.append(
+            f"selftest: the ledger lost what a failed call spent. It recorded "
+            f"{total.input_tokens}/{total.output_tokens}, and the call was billed "
+            f"1200/8000"
+        )
+
+    return errors
+
+
 def save_failed(stage: str, slug: str, raw: str) -> Path:
     """`temp_data/failed/{slug}-{stage}-{time}.txt` (UX.md §1.5 row 4)."""
     FAILED_DIR.mkdir(parents=True, exist_ok=True)
@@ -451,22 +503,31 @@ def call(
     client = client if client is not None else get_client()
     rate_limit_error, status_error, connection_error = _error_classes()
 
-    def attempt(text_prompt: str) -> tuple[str, Usage]:
-        """One transport-tier-protected send. Returns (text, usage).
+    total = Usage()
+
+    def attempt(text_prompt: str) -> str:
+        """One transport-tier-protected send. Returns the text.
 
         A response truncated at `max_tokens` raises here rather than falling
         through to `validate()`. See `_truncated`: the content tier would
         report it as a formatting failure and spend the one re-ask proving it
         again, which is two full-price calls and a wrong conclusion.
+
+        Usage accumulates into `total` the moment the response is in hand, and
+        BEFORE anything can raise on it. A truncated answer cost a full output
+        budget; billing it to nobody is how a stage that burned 8000 tokens and
+        failed can look free in the log pane.
         """
+        nonlocal total
         for is_retry in (False, True):
             try:
                 message = _send(client, model, text_prompt, max_tokens)
                 text = _text_of(message)
+                total = total + _usage_of(message)
                 cut = _truncated(message, text, stage)
                 if cut is not None:
                     raise AgentError(cut)
-                return text, _usage_of(message)
+                return text
             except rate_limit_error as exc:
                 if is_retry:
                     raise AgentError(f"{stage}: rate limited twice, giving up") from exc
@@ -492,39 +553,42 @@ def call(
                 )
         raise AgentError(f"{stage}: transport retry fell through")  # pragma: no cover
 
-    total = Usage()
-    text, usage = attempt(prompt)
-    total = total + usage
-
+    # The ledger is written in a `finally` so EVERY exit path records what the
+    # stage actually spent. It used to record on success and on a content-tier
+    # failure only, so a transport failure or a truncation during the re-ask
+    # discarded the tokens the first call had already been billed for — which is
+    # exactly the shape of the run `_truncated` was written for: two full-price
+    # calls, reported as none.
     try:
-        result = validate(strip_fence(text))
-    except ValueError as first_error:
-        # ── Content tier: one re-ask, with the error appended ──────────────
-        log("warn", f"{stage}: {first_error}, re-asking once")
-        reask = (
-            f"{prompt}\n\n"
-            f"---\n\n"
-            f"Your previous response could not be used. The error was:\n\n"
-            f"{first_error}\n\n"
-            f"Return corrected output only."
-        )
-        text, usage = attempt(reask)
-        total = total + usage
+        text = attempt(prompt)
+
         try:
             result = validate(strip_fence(text))
-        except ValueError as second_error:
-            path = save_failed(stage, slug, text)
-            if ledger is not None:
-                ledger.record(stage, total)
-            log(
-                "error",
-                f"{stage}: {second_error} after one re-ask. "
-                f"Raw output saved to {path.parent.name}/{path.name}",
+        except ValueError as first_error:
+            # ── Content tier: one re-ask, with the error appended ──────────
+            log("warn", f"{stage}: {first_error}, re-asking once")
+            reask = (
+                f"{prompt}\n\n"
+                f"---\n\n"
+                f"Your previous response could not be used. The error was:\n\n"
+                f"{first_error}\n\n"
+                f"Return corrected output only."
             )
-            raise MalformedOutput(
-                f"{stage}: {second_error}", stage=stage, raw=text, path=path
-            ) from second_error
+            text = attempt(reask)
+            try:
+                result = validate(strip_fence(text))
+            except ValueError as second_error:
+                path = save_failed(stage, slug, text)
+                log(
+                    "error",
+                    f"{stage}: {second_error} after one re-ask. "
+                    f"Raw output saved to {path.parent.name}/{path.name}",
+                )
+                raise MalformedOutput(
+                    f"{stage}: {second_error}", stage=stage, raw=text, path=path
+                ) from second_error
+    finally:
+        if ledger is not None:
+            ledger.record(stage, total)
 
-    if ledger is not None:
-        ledger.record(stage, total)
     return result

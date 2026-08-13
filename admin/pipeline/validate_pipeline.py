@@ -865,6 +865,9 @@ def main() -> int:
             # operator sent after the prompt, and the one re-ask spent on
             # an attempt that could not succeed.
             + agents._selftest_truncation()
+            # And that failed call must still report what it cost. The runs
+            # whose cost matters most are the ones that failed.
+            + agents._selftest_ledger()
         )
     except Exception as exc:  # noqa: BLE001
         import traceback
