@@ -306,6 +306,19 @@ Appended after the review sweep above closed. Reported by the user against the l
 
 **Done when:** a `STAGED` row whose draft has been approved, rejected or deleted renders as plain text naming where it went rather than as a link; the link is still drawn and still works while the draft is in `_staging`; no click on a queue row ends without a visible response; all four whereabouts are asserted by a self-test that fails on a deliberately wrong one; `/validate` and `npm run build` pass.
 
+***CLOSED 2026-08-13.** All five done-conditions met, and the first three were demonstrated by driving a browser rather than by asserting a response body.*
+
+*The live queue rendered **all four whereabouts at once**: `grosset` drew its link and selecting it loaded the review pane, while 58 rows read `published, no longer in the review queue`, one read `rejected, no longer in the review queue` and three read `no longer on disk`. **The never-silent path was exercised by removing the draft between the render and the click** — the log printed `grosset has left the review queue` and the row redrew itself as plain text. The self-test was proved to bite both ways: reversing the precedence fails on the undone-approve case, and renaming `gone` in the JS map fails both halves of the cross-surface diff.*
+
+***`temp_data/harvest_queue.json` is byte-identical throughout**, carrying no `located` key on any item, which is the assertion that the whereabouts is resolved on read and never stored.*
+
+*Full suite green — checks 1–3, 5, 7–22 pass, check 6 warns only at **98 hits across 45 files**, unchanged; the pipeline fixtures pass with the new case; `npm run build` emits **331 pages** with zero warnings; and check 16 completed its **browser layer** — PASS, not PARTIAL, under `.venv/bin/python`.*
+
+*Two things are worth carrying forward.*
+
+1. ***Piping a validator into `tail` discards its exit code.*** *The first run of check 16 was invoked as `... | tail -6`, and the harness reported **exit 0** while the check had in fact failed with six errors — `tail`'s status is what the pipeline returns. The summary line was outside the tail window, so the run looked like a pass that had merely printed something. A suite whose result is read through a pipe is not a suite that ran. Capture the whole output and read the exit code, every time.*
+2. ***Check 16 can also fail spuriously, not only report PARTIAL.*** *Those six failures did not reproduce: the clean re-run passed all 331 pages. They named `<main> is not visible with JS disabled` on pages that are 49 kB of static HTML with a plain `<main>`, and listed `error`, `explanation`, `file`, `found` and `message` as words present with JS and absent without, which is Chromium's own error page rather than anything the site emits. Two environmental causes were live at once: `~/.cache/ms-playwright` still holds a stray `chromium-1234` beside the pinned `chromium-1140`, and a wedged admin server was holding 20 to 40% of a core. **This is a third route to a misleading answer from this check**, after the wrong interpreter and the moving browser cache — and it is the worst-shaped of the three, because a false failure teaches an operator to re-run until green, which is exactly the habit that would hide a true one.*
+
 ## Working style
 
 Small commits per logical unit within a gate, imperative messages, gate-prefixed (`Gate 4: …`) so the boundary stays greppable. No drive-by refactors. **Each new `/validate` check lands as its own commit, right after the feature it guards.** When a screenshot is possible, take one before claiming visual work is done. When you are unsure whether something meets DESIGN.md, it doesn't — ask.
