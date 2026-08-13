@@ -317,6 +317,34 @@ def unresolved_claims(slug: str) -> list[dict[str, Any]]:
     ]
 
 
+def restored_claims(body: str, audit: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Claims verdicted `removed` whose sentence is back in the body.
+
+    The fact-check refuses to RETURN a `removed` claim whose text is still in the
+    body it hands back (`article_factcheck._validate_result`). This is that same
+    comparison, standing watch over the body the post actually carries later.
+
+    It is needed because the rule had no second half. UX.md §6 lets a published
+    post be edited in place and `save_post` writes those edits straight into
+    `_published`, so between the fact-check answering and the post shipping there
+    was nothing asserting that a sentence deleted for being false had stayed
+    deleted. A post could carry, verbatim, the claim its own committed audit
+    records as removed, with the whole suite green.
+
+    Exact substring, deliberately the same test as the draft-time one. Two
+    comparisons that agree today and drift tomorrow would be worse than one.
+    """
+    if not audit:
+        return []
+    return [
+        claim
+        for claim in audit.get("claims", [])
+        if claim.get("verdict") == "removed"
+        and str(claim.get("text") or "").strip()
+        and str(claim["text"]).strip() in body
+    ]
+
+
 def resolve_claim(
     slug: str, claim_id: str, verdict: str, reason: str, source: str | None = None
 ) -> dict[str, Any]:
@@ -409,12 +437,27 @@ def publish_blocks(slug: str) -> list[str]:
             f"Run the fact-check before publishing."
         )
 
-    unresolved = unresolved_claims(str(data.get("factcheck") or slug))
+    audit_name = str(data.get("factcheck") or slug)
+
+    unresolved = unresolved_claims(audit_name)
     for claim in unresolved:
         text = str(claim.get("text", ""))[:90]
         blocks.append(
             f"claim {claim.get('id')} is unresolved: “{text}…” "
             f"Find the source, edit the claim, or remove it."
+        )
+
+    # A claim the fact-check deleted, back in the body. Blocked here rather than
+    # refused at save time on purpose: the author has to be able to type the
+    # sentence in order to rewrite it with a source. They must not be able to
+    # publish it.
+    for claim in restored_claims(body, load_factcheck(audit_name)):
+        text = str(claim.get("text", ""))[:90]
+        reason = str(claim.get("reason") or "no reason recorded")[:120]
+        blocks.append(
+            f"claim {claim.get('id')} was removed by the fact-check and its text is "
+            f"back in the body: “{text}…” It was removed because: {reason} "
+            f"Delete it again, or resolve the claim with a source that stands it up."
         )
 
     if data.get("cover"):
@@ -643,6 +686,30 @@ def _selftest() -> list[str]:
             errors.append(f"selftest: resolve_claim reached the file for {why}")
         else:
             errors.append(f"selftest: resolve_claim ACCEPTED {why}")
+
+    # `restored_claims` — the standing half of the fact-check's own deletion
+    # rule. It must fire on a removed sentence that came back and stay quiet on
+    # everything else, because a block nobody can clear is a block reviewers
+    # learn to route around.
+    deleted = "Most producers have been in the same family for generations."
+    audit = {
+        "claims": [
+            {"id": "c1", "text": deleted, "verdict": "removed", "reason": "Unsupported."},
+            {"id": "c2", "text": "Production sits under a thousand cases.",
+             "verdict": "supported", "reason": "The producer states it."},
+            {"id": "c3", "text": "", "verdict": "removed", "reason": "Empty."},
+        ]
+    }
+    if not restored_claims(f"A paragraph.\n\n{deleted}\n\nAnother.", audit):
+        errors.append("selftest: a removed claim restored to the body was NOT caught")
+    if restored_claims("A body carrying neither sentence.", audit):
+        errors.append("selftest: restored_claims fired on a body carrying no removed text")
+    if restored_claims("Production sits under a thousand cases.", audit):
+        errors.append("selftest: restored_claims fired on a SUPPORTED claim's text")
+    if restored_claims("anything at all", None):
+        errors.append("selftest: restored_claims fired with no audit")
+    if restored_claims("", audit):
+        errors.append("selftest: an empty removed `text` matched an empty body")
 
     return errors
 
