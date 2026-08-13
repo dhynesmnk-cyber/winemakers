@@ -294,6 +294,18 @@ Appended **after Gate 11 closed at 10:08 the same day**, and that sequencing is 
 
 *One gap is left open deliberately. **`SITE_URL` is still not diffed by check 13**, because `.env` overrides it at runtime and comparing the literal would pass on a machine whose live value is something else. That is Gate 10's carried-forward note 2, unchanged; the scalar comparison added here does not close it, and pretending it did would be worse than leaving it open.*
 
+### Engagement 2026-08-13 (second) — a queue row that outlived its draft
+
+Appended after the review sweep above closed. Reported by the user against the live hub, in the plainest possible terms: *nothing happens when I click on it.* **Scope contract: the two defects below, the UX.md §1.1 amendment they need and their self-test, and nothing else.**
+
+**What was on screen.** The harvest panel read `59 staged, 7 blocked, 5 failed, 1 skipped` while the review queue read `No drafts staged.` and `content-staging/_staging/` held no files. Of those 59 `STAGED` rows, 55 were in `_published`, 1 in `_rejected` and 3 nowhere on disk. Every one of the 59 offered its slug as a link, and every one of those links did nothing at all when clicked.
+
+1. **A `STAGED` row claimed the present tense and nothing ever repaired it.** UX.md §1.1 defined `STAGED` as "now in the review queue", but the queue is durable across restarts by design (`temp_data/harvest_queue.json`) while the draft it describes leaves `_staging/` on the first approve. The row therefore outlives its draft, and `Clear finished` — the only thing that removes it — is a control somebody has to remember to press. A panel must not depend on that to stop misreporting. **Fixed by resolving where the draft went, server-side, every time the queue is read**, rather than by pruning: a `STAGED` row records what the harvest did, which is history and belongs beside the `BLOCKED` rows, and auto-pruning would delete the record of a forty-URL run as the reviewer worked through it.
+
+2. **The click was a silent no-op.** `admin.js` looked the slug up in the review queue and ran `if (row) selectRow(row)` — no message, no error, nothing, on a control drawn to look like a link. Now the affordance is drawn only when it can act, and the fallback path can still never end in silence.
+
+**Done when:** a `STAGED` row whose draft has been approved, rejected or deleted renders as plain text naming where it went rather than as a link; the link is still drawn and still works while the draft is in `_staging`; no click on a queue row ends without a visible response; all four whereabouts are asserted by a self-test that fails on a deliberately wrong one; `/validate` and `npm run build` pass.
+
 ## Working style
 
 Small commits per logical unit within a gate, imperative messages, gate-prefixed (`Gate 4: …`) so the boundary stays greppable. No drive-by refactors. **Each new `/validate` check lands as its own commit, right after the feature it guards.** When a screenshot is possible, take one before claiming visual work is done. When you are unsure whether something meets DESIGN.md, it doesn't — ask.

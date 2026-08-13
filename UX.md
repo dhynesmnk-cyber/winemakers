@@ -50,7 +50,7 @@ Batch harvest is required at this project's target coverage of 150 to 300 produc
 |---|---|
 | `QUEUED` | Waiting. |
 | `RUNNING` | The current job. One row at most is ever in this state. |
-| `STAGED` | Finished, draft written, now in the review queue. Shows the slug as a link that selects it. |
+| `STAGED` | Finished, draft written. Shows the slug as a link that selects it while the draft is still in the review queue, and as plain text naming where the draft went once it is not (amended 2026-08-13, below). |
 | `BLOCKED` | Stopped by the ownership determination before a draft was written (§1.4.4). Shows the reason in one line. |
 | `FAILED` | Stopped by any other failure (§1.5). Shows the failing stage and the one-line reason. |
 | `SKIPPED` | Not attempted: duplicate slug, or the reviewer skipped it. |
@@ -60,6 +60,14 @@ Batch harvest is required at this project's target coverage of 150 to 300 produc
 **Queue controls.** `Pause after current` (finishes the running item, then stops with the rest still `QUEUED`), `Resume`, `Retry failed` (requeues every `FAILED` row, leaving `BLOCKED` rows alone, because a `BLOCKED` row is a determination and not a transient error), `Clear finished` (removes `STAGED` and `SKIPPED` rows from view; the drafts themselves are untouched). There is no `Clear all` and no way to delete a `BLOCKED` row from the UI; blocked records are history (§1.4.4).
 
 **Queue summary line**, always present above the rows: `12 queued, 1 running, 7 staged, 2 blocked, 1 failed`.
+
+**Amended 2026-08-13, signed off.** The `STAGED` row previously read ~~"Finished, draft written, now in the review queue. Shows the slug as a link that selects it."~~ That is a present-tense claim about a draft, made by a row that outlives it. The queue is durable across restarts by design, and a draft leaves `_staging/` on the first approve, so the row goes on offering a link to a review-queue row that is no longer there. Found live at 59 `STAGED` rows against an empty review queue, 55 of them published days earlier, and every one of the 59 links did nothing at all when clicked.
+
+`Clear finished` is not the answer to it. That is a manual control, and the panel must not depend on somebody having remembered to press it in order to stop misreporting. **A `STAGED` row states what the harvest did, which is history and stays; where the draft is *now* is resolved server-side each time the queue is read** — `staging`, `published`, `rejected` or `gone` — and the row draws the slug as a link only in the first case. In the other three it is plain text saying where the draft went. **A control that cannot act is not drawn**, and no click on a queue row ever ends in silence.
+
+Pruning the row instead was considered and refused. A `STAGED` row belongs beside a `BLOCKED` one as the record of what a run of forty URLs did, and dropping each row as its draft was approved would erase that record while the reviewer was still working through it.
+
+**No queue state is added and none is removed.** `STAGED` still means the harvest wrote a draft. The whereabouts is a separate and perishable fact about the content directories, resolved on read and never written to `harvest_queue.json`, which holds URLs and per-URL status only.
 
 **Empty state:** `No URLs queued. Paste one URL, or a list of them, to begin.`
 
