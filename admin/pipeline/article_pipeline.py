@@ -380,7 +380,6 @@ def write_brief(
 # =============================================================================
 
 _FIGURE_TAG = re.compile(r"<Figure\b[^>]*/>")
-_PULL = re.compile(r"<Pull\b.*?</Pull>", re.DOTALL)
 
 
 def _word_count(body: str) -> int:
@@ -427,8 +426,11 @@ def _validate_draft(text: str) -> str:
 def _lint_blockers(body: str) -> list[str]:
     """The absolute bans, in the body the house-voice stage returned.
 
-    Masked exactly as `/validate` check 6 masks: a `<Pull>` is somebody's
-    published words and the prompts tell every stage to leave a quotation alone.
+    `<Pull>` blocks are exempt, and that exemption lives inside `lint_text`
+    rather than here: a quotation is somebody's published words and the prompts
+    tell every stage to leave one alone. Check 6 gets the same behaviour from
+    the same function, which is the point — the masking is one implementation,
+    not a rule this module also has to remember.
 
     Only the ABSOLUTE bans block. `conditional claim` is excluded for the reason
     check 21 excludes it: `single-vineyard`, `old vines`, `family-owned` and
