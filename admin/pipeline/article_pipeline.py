@@ -48,8 +48,11 @@ from admin.config import (  # noqa: E402
     ARTICLE_STAGING_DIR,
     MODEL_ARTICLE,
     MODEL_BRIEF,
+    OWNERSHIP_STATES,
     PRACTICE_KEYS,
     PRODUCERS_JSON_PATH,
+    STATES,
+    VARIETY_KEYS,
 )
 from admin.pipeline import blog, ts_data  # noqa: E402
 from admin.pipeline.agents import (  # noqa: E402
@@ -89,6 +92,66 @@ def _published() -> list[dict[str, Any]]:
     if not PRODUCERS_JSON_PATH.is_file():
         return []
     return json.loads(PRODUCERS_JSON_PATH.read_text(encoding="utf-8"))
+
+
+def figure_vocabulary() -> dict[str, list[str] | None]:
+    """The members each `<Figure>` query draws from; `None` for the three that
+    take none.
+
+    Mirrors `VOCABULARY` in `site/src/data/figures.ts`, which is the build-time
+    authority, and is read from the same registers and tuples everything else
+    reads rather than restated as literals here. A literal list would be a
+    second register, and the first symptom of its drift would be the preview
+    calling a legal tag broken.
+
+    **The distinction this exists to carry**: a query or a member the vocabulary
+    has never heard of is a TYPO and fails the build. A legal member with no
+    published producers is a legitimate question that answers 0. Conflating the
+    two is what `_figure_value` used to do.
+    """
+    return {
+        "published": None,
+        "region": [row["slug"] for row in ts_data.regions()],
+        "subregion": [row["slug"] for row in ts_data.subregions()],
+        "state": list(STATES),
+        "variety": list(VARIETY_KEYS),
+        "practice": list(PRACTICE_KEYS),
+        "ownership": list(OWNERSHIP_STATES),
+        "regions": None,
+        "glossary": None,
+    }
+
+
+def figure_value(
+    of: str, member: str | None = None, producers: list[dict[str, Any]] | None = None
+) -> int:
+    """One `<Figure>` query resolved the way `figures.ts` resolves it.
+
+    Raises `KeyError` on an unknown query or a member outside the vocabulary,
+    which is what the build fails on. Returns 0 for a legal member with no
+    published producers, which is what the build renders.
+    """
+    vocabulary = figure_vocabulary()
+    if of not in vocabulary:
+        raise KeyError(f"{of!r} is not a known figure query")
+
+    members = vocabulary[of]
+    if members is None:
+        if member:
+            raise KeyError(f"<Figure of={of!r}> takes no member")
+    elif not member:
+        raise KeyError(f"<Figure of={of!r}> requires a member")
+    elif member not in members:
+        raise KeyError(f"{member!r} is not a member of the {of!r} vocabulary")
+
+    for figure in available_figures(producers):
+        if figure["of"] == of and figure["member"] == (member or None):
+            return int(figure["value"])
+
+    # Legal, and nothing published carries it. `figures.ts` says so in as many
+    # words: zero is an answer, and present-only generation is a rule about
+    # listings rather than about arithmetic.
+    return 0
 
 
 def available_figures(producers: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
@@ -611,6 +674,55 @@ def _selftest() -> list[str]:
             errors.append(f"selftest: available_figures missed {expected}")
     if ("practice", "unfined") in offered:
         errors.append("selftest: available_figures offered a practice flagged FALSE")
+
+    # `figure_vocabulary` is a Python mirror of `VOCABULARY` in `figures.ts`, so
+    # the query set is read back out of that file rather than trusted. A tenth
+    # query added there and not here would otherwise show up as the preview
+    # calling a legal tag broken, which is the defect this pair was written for.
+    try:
+        shipped = ts_data.parse_const_array(
+            ts_data.FIGURES_TS_PATH.read_text(encoding="utf-8"), "FIGURE_QUERIES"
+        )
+    except (OSError, ValueError) as exc:
+        errors.append(f"selftest: could not read FIGURE_QUERIES from figures.ts: {exc}")
+    else:
+        if sorted(shipped) != sorted(figure_vocabulary()):
+            errors.append(
+                f"selftest: figure_vocabulary() and figures.ts disagree on the query "
+                f"set. Python has {sorted(figure_vocabulary())}, figures.ts has "
+                f"{sorted(shipped)}"
+            )
+
+    # The distinction the preview got wrong: a legal member with no producers
+    # answers 0, and only a typo raises. Four vocabularies rather than one,
+    # because the corpus leaves 59 of 71 regions, 26 of 42 subregions, 6 of 8
+    # states and 16 of 58 varieties at zero, and every one of them used to
+    # render in the preview as a tag about to fail the build.
+    for of, member in (
+        ("region", "coonawarra"),
+        ("subregion", "high-eden"),
+        ("state", "TAS"),
+        ("variety", "zinfandel"),
+    ):
+        try:
+            if figure_value(of, member, fixture) != 0:
+                errors.append(f"selftest: <Figure of={of!r} member={member!r}> did not answer 0")
+        except KeyError:
+            errors.append(
+                f"selftest: <Figure of={of!r} member={member!r}> raised. It is a legal "
+                f"register member with no published producers, which builds and renders 0"
+            )
+    for of, member, why in (
+        ("nonsense", "x", "an unknown query"),
+        ("region", "not-a-region", "an unknown member"),
+        ("published", "x", "a member on a query that takes none"),
+        ("region", None, "a missing member on a query that requires one"),
+    ):
+        try:
+            figure_value(of, member, fixture)
+        except KeyError:
+            continue
+        errors.append(f"selftest: figure_value ACCEPTED {why}")
 
     return errors
 

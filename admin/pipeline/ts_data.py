@@ -45,6 +45,7 @@ from ..config import SITE_DIR
 
 REGIONS_TS_PATH = SITE_DIR / "src" / "data" / "regions.ts"
 GLOSSARY_TS_PATH = SITE_DIR / "src" / "data" / "glossary.ts"
+FIGURES_TS_PATH = SITE_DIR / "src" / "data" / "figures.ts"
 
 
 class TsParseError(Exception):

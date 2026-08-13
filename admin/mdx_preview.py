@@ -283,19 +283,24 @@ def render_body(body: str) -> str:
 
 
 def _figure_value(of: str, member: str | None) -> int:
-    """One `<Figure>` query, from `producers.json`. Raises on anything unknown.
+    """One `<Figure>` query, resolved as the build resolves it.
 
-    Reads `article_pipeline.available_figures`, which is the same list the
-    drafting stage is offered, rather than reimplementing the nine counts. There
-    are already two implementations of this set — that one and
+    Delegates to `article_pipeline.figure_value` rather than reimplementing the
+    nine counts. There are already two statements of this set — that one and
     `site/src/data/figures.ts` — and a third would be the one that disagrees.
-    """
-    from admin.pipeline.article_pipeline import available_figures
 
-    for figure in available_figures():
-        if figure["of"] == of and figure["member"] == (member or None):
-            return int(figure["value"])
-    raise KeyError(f"no figure for of={of!r} member={member!r}")
+    **This used to scan `available_figures` directly, and that was wrong.** That
+    list is the set OFFERED to the drafting stage, which deliberately excludes
+    members with no published producers so a model is not invited to write about
+    a region this guide does not document. Resolution is a different question.
+    A legal register member with zero producers builds fine and renders `0`, and
+    the preview was painting it red and telling the author it was about to fail
+    the build. Being told to delete a correct tag is worse than seeing no
+    preview at all.
+    """
+    from admin.pipeline.article_pipeline import figure_value
+
+    return figure_value(of, member)
 
 
 def prose_word_count(body: str) -> int:
