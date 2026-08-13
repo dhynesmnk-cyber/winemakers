@@ -100,20 +100,40 @@ HOSTILE = """<Pull attribution='He said "hello" &amp; left'>
   <script>alert(1)</script> and an <img src=x onerror=alert(2)> tag.
 </Pull>"""
 
+#: What the blog toolbar's image button writes, beside an ordinary link.
+#:
+#: Added at Gate 11 with the upload path. The link pattern matched the
+#: `[alt](url)` inside `![alt](url)`, so an uploaded photograph rendered in the
+#: preview as a stray `!` in front of an anchor. The author uploaded an image
+#: and the preview showed a link where the picture was going to be — found by
+#: driving the file picker in a browser rather than by calling the route.
+IMAGE = """An opening paragraph.
+
+![A vineyard block, looking west.](/blog-staging-images/a-post/vineyard.webp)
+
+And a [methodology page](/methodology/) link, which must still be an anchor."""
+
+
+#: Every body run through the three universal properties. Module-level so the
+#: summary line can COUNT it rather than restate it: the count was hardcoded at
+#: six, and adding the image case left the check reporting six while running
+#: seven. Gate 9's carried-forward note in miniature — a number the code under
+#: test already knows should never be typed out a second time.
+CASES = {
+    "pull with attribution": PULL,
+    "pull without attribution": PULL_NO_ATTRIBUTION,
+    "tipped photo": TIPPED,
+    "both components in one body": BOTH,
+    "prose containing angle brackets": ANGLED,
+    "hostile source text": HOSTILE,
+    "an inserted image beside a link": IMAGE,
+}
+
 
 def check_20_preview() -> list[str]:
     errors: list[str] = []
 
-    cases = {
-        "pull with attribution": PULL,
-        "pull without attribution": PULL_NO_ATTRIBUTION,
-        "tipped photo": TIPPED,
-        "both components in one body": BOTH,
-        "prose containing angle brackets": ANGLED,
-        "hostile source text": HOSTILE,
-    }
-
-    for name, body in cases.items():
+    for name, body in CASES.items():
         out = mdx_preview.render_body(body)
 
         errors += [f"{name}: {message}" for message in _balance_errors(out)]
@@ -144,6 +164,22 @@ def check_20_preview() -> list[str]:
     if "The cellar door" not in tipped_out:
         errors.append("tipped photo: the caption did not survive")
 
+    # An image the toolbar inserted must render AS an image, and must not take
+    # the link pattern with it. A preview that shows an anchor where a
+    # photograph is going is a preview of a page nobody is reviewing.
+    image_out = mdx_preview.render_body(IMAGE)
+    if '<img src="/blog-staging-images/a-post/vineyard.webp"' not in image_out:
+        errors.append("inserted image: it did not render as an <img>")
+    if 'alt="A vineyard block, looking west."' not in image_out:
+        errors.append("inserted image: the alt text did not survive")
+    if "!<a" in image_out or ">!<" in image_out:
+        errors.append(
+            "inserted image: a stray `!` is sitting in front of an anchor — the link "
+            "pattern matched inside the image syntax"
+        )
+    if '<a href="/methodology/">' not in image_out:
+        errors.append("inserted image: an ordinary link stopped rendering as an anchor")
+
     # Untrusted prose must arrive as text, never as markup.
     hostile_out = mdx_preview.render_body(HOSTILE)
     if "<script>" in hostile_out:
@@ -162,7 +198,7 @@ def main() -> int:
             print(f"  {message}")
         return 1
     print(
-        "VALIDATE 20 PASS — 6 preview bodies render balanced, sentinel-free "
+        f"VALIDATE 20 PASS — {len(CASES)} preview bodies render balanced, sentinel-free "
         "and escaped"
     )
     return 0

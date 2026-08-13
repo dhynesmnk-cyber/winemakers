@@ -156,6 +156,12 @@ def _icon(key: str, size: int = _ICON_SIZE_FACT_ROW) -> str:
 # =============================================================================
 
 _INLINE = (
+    # Images BEFORE links, because the link pattern matches the `[alt](url)`
+    # inside `![alt](url)` and leaves a stray `!` in front of an anchor. That is
+    # what it did until Gate 11 gave the toolbar an image button: the author
+    # uploaded a photograph, the URL went into the body, and the preview showed
+    # a link where the picture was going to be.
+    (re.compile(r"!\[([^\]]*)\]\(([^)]+)\)"), r'<img src="\2" alt="\1" />'),
     (re.compile(r"\[([^\]]+)\]\(([^)]+)\)"), r'<a href="\2">\1</a>'),
     (re.compile(r"\*\*([^*]+)\*\*"), r"<b>\1</b>"),
     (re.compile(r"(?<!\*)\*([^*]+)\*(?!\*)"), r"<i>\1</i>"),
