@@ -113,6 +113,23 @@ IMAGE = """An opening paragraph.
 
 And a [methodology page](/methodology/) link, which must still be an anchor."""
 
+#: A list, which the blog is the first body surface to use.
+#:
+#: The splitter had no list branch, so this rendered as one paragraph with the
+#: hyphens literal while the shipped MDX page rendered a real `<ul>`. The last
+#: block is the boundary: one line carrying a marker does not make a list, and
+#: guessing at it would be worse than leaving it as prose.
+LISTS = """Three kinds of source:
+
+- **producer_statement**: the producer's own published page.
+- **trade_source**: a regional association register.
+- **registry**: the Australian Business Register.
+
+1. First
+2. Second
+
+A paragraph - with a dash in it - that is not a list."""
+
 
 #: Every body run through the three universal properties. Module-level so the
 #: summary line can COUNT it rather than restate it: the count was hardcoded at
@@ -127,6 +144,7 @@ CASES = {
     "prose containing angle brackets": ANGLED,
     "hostile source text": HOSTILE,
     "an inserted image beside a link": IMAGE,
+    "bulleted and numbered lists": LISTS,
 }
 
 
@@ -179,6 +197,26 @@ def check_20_preview() -> list[str]:
         )
     if '<a href="/methodology/">' not in image_out:
         errors.append("inserted image: an ordinary link stopped rendering as an anchor")
+
+    # Lists must be lists. The shipped page renders a real <ul>, and a preview
+    # showing run-on prose with literal hyphens is a preview of a different page.
+    list_out = mdx_preview.render_body(LISTS)
+    if list_out.count("<li>") != 5:
+        errors.append(
+            f"lists: expected 5 <li>, got {list_out.count('<li>')} — three bulleted "
+            f"and two numbered"
+        )
+    if "<ul>" not in list_out or "<ol>" not in list_out:
+        errors.append("lists: a bulleted or numbered list did not render as a list")
+    if "<li>- " in list_out or "<p>- " in list_out:
+        errors.append("lists: a marker survived into the rendered text")
+    if "<b>producer_statement</b>" not in list_out:
+        errors.append("lists: inline formatting inside an item did not render")
+    if "<li>A paragraph" in list_out:
+        errors.append(
+            "lists: a paragraph containing a dash was rendered as a list item. One "
+            "line carrying a marker does not make a list."
+        )
 
     # Untrusted prose must arrive as text, never as markup.
     hostile_out = mdx_preview.render_body(HOSTILE)

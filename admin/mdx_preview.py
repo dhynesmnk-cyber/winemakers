@@ -191,6 +191,38 @@ def _raw(markup: str) -> str:
     return f"\n\n{RAW_OPEN}{markup}{RAW_CLOSE}\n\n"
 
 
+_BULLET = re.compile(r"^\s*[-*]\s+(.*)$")
+_NUMBERED = re.compile(r"^\s*\d+\.\s+(.*)$")
+
+
+def _list_markup(block: str) -> str | None:
+    """A `-` or `1.` block as a `<ul>`/`<ol>`, or `None` when it is not one.
+
+    Added at Gate 11. The splitter had no list branch, so a list arrived at the
+    paragraph branch and rendered as one run-on paragraph with the hyphens
+    literal — while the shipped MDX page rendered a real `<ul>`. The blog is the
+    first body surface to use lists; a producer entry is flowing prose.
+
+    Every line must carry a marker. A block that only starts with one is a
+    paragraph the author began with a dash, and guessing at it would be worse
+    than leaving it alone.
+    """
+    lines = [line for line in block.splitlines() if line.strip()]
+    if not lines:
+        return None
+
+    for pattern, tag in ((_BULLET, "ul"), (_NUMBERED, "ol")):
+        matches = [pattern.match(line) for line in lines]
+        if all(matches):
+            items = "".join(
+                f"<li>{_inline(match.group(1))}</li>"
+                for match in matches
+                if match is not None
+            )
+            return f"<{tag}>{items}</{tag}>"
+    return None
+
+
 def render_body(body: str) -> str:
     """The MDX body as HTML, with the two components the entries use."""
     # JSX comments — `{/* … */}` — are not rendered by MDX and are not here.
@@ -278,6 +310,8 @@ def render_body(body: str) -> str:
             rendered.append(f"<h2>{_inline(block[3:])}</h2>")
         elif block.startswith("### "):
             rendered.append(f"<h3>{_inline(block[4:])}</h3>")
+        elif (as_list := _list_markup(block)) is not None:
+            rendered.append(as_list)
         else:
             rendered.append(f"<p>{_inline(block)}</p>")
 
@@ -721,6 +755,14 @@ def render_post(data: dict[str, Any], body: str) -> str:
      preview of a page nobody is reviewing (UX.md §1.4). */
   .prose h2 {{ margin-top: clamp(2.75rem, 5vw, 4rem); margin-bottom: 1rem; }}
   .prose h3 {{ margin-top: clamp(2rem, 3.5vw, 2.75rem); margin-bottom: .75rem; }}
+  /* Lists, restated for the same reason. Tailwind's preflight strips the
+     markers site-wide, so without these a list previews as loose paragraphs
+     while the shipped page shows discs. */
+  .prose ul, .prose ol {{ margin: 0 0 1.35em; padding-left: 1.25rem; }}
+  .prose ul {{ list-style: disc; }}
+  .prose ol {{ list-style: decimal; }}
+  .prose li {{ margin-bottom: .5rem; max-width: 68ch; }}
+  .prose li::marker {{ color: var(--ink-faded); }}
   /* An unresolvable <Figure> shows as the tag it is, so the author sees the
      thing that is about to fail the build. */
   .figure--unresolved {{ color: var(--claret, #8a2a2a); font-family: var(--font-mono); }}

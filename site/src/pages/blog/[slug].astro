@@ -204,6 +204,43 @@ const { Content } = await render(post);
     margin-bottom: 0.75rem;
   }
 
+  /*
+    Lists in a post body.
+
+    Tailwind's preflight strips list markers site-wide, which is right for the
+    listing components and wrong here — the same problem `/methodology/` hit and
+    solved for itself, and these are deliberately its rules rather than a second
+    set invented here. Without a marker the items read as loose paragraphs, and
+    a post explaining three kinds of evidence is exactly the shape of prose that
+    uses a list.
+
+    `.prose` carries no list rules anywhere else on the site because a producer
+    entry is flowing prose with no list in it. The blog is the first body
+    surface that needs them.
+  */
+  .prose :global(ul),
+  .prose :global(ol) {
+    margin: 0 0 1.35em;
+    padding-left: 1.25rem;
+  }
+
+  .prose :global(ul) {
+    list-style: disc;
+  }
+
+  .prose :global(ol) {
+    list-style: decimal;
+  }
+
+  .prose :global(li) {
+    margin-bottom: 0.5rem;
+    max-width: 68ch;
+  }
+
+  .prose :global(li)::marker {
+    color: var(--ink-faded);
+  }
+
   .post-sources__list {
     margin: 0 0 1.5rem;
     padding: 0;
