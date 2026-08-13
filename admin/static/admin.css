@@ -1110,6 +1110,18 @@ dialog dt {
   color: var(--claret);
 }
 
+/* Why the editor is locked, on the screen rather than only in the log pane.
+   UX.md §5 counts a disabled control with no stated reason as a UX bug. */
+.locked-notice {
+  font-size: 11px;
+  color: var(--claret);
+  border: 1px solid var(--hairline);
+  border-left: 2px solid var(--claret);
+  padding: 0.5rem 0.7rem;
+  margin: 0 0 1.1rem;
+  line-height: 1.5;
+}
+
 .two-up {
   display: grid;
   grid-template-columns: 1fr 1fr;

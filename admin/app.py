@@ -36,6 +36,7 @@ import json
 import logging
 import re
 import sys
+import threading
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -1061,7 +1062,42 @@ async def api_deploy(request: Request, _: None = Depends(require_auth)) -> JSONR
 #
 # It streams into the SAME log pane as everything else (UX.md §6). There is one
 # log in this system, not two, so `log()` here is the hub's `log()`.
+#
+# ── The fact-check holds the post while it runs ──────────────────────────────
+#
+# `article_factcheck.check` rewrites the staged body from a worker thread, and
+# the editor autosaves the author's copy on a 600ms debounce. Nothing sat
+# between them, so a keystroke during a run put the pre-check body back over the
+# corrected one — reinstating sentences the audit had just recorded as removed,
+# while the audit went on saying they were gone. That is the mechanism behind
+# the defect SCHEMA.md §9.3 rule 6 exists to catch, so it is closed here as well
+# as caught there.
+#
+# `DEPLOY_LOCK`'s pattern (TRD.md §6.5): one lock, and the API refuses rather
+# than queues. A save that silently waited would look like a save that worked.
 # =============================================================================
+
+_FACTCHECK_LOCK = threading.Lock()
+_FACTCHECKING: set[str] = set()
+
+
+def _claim_factcheck(slug: str) -> bool:
+    """Take the post for a fact-check. False when one is already running."""
+    with _FACTCHECK_LOCK:
+        if slug in _FACTCHECKING:
+            return False
+        _FACTCHECKING.add(slug)
+        return True
+
+
+def _release_factcheck(slug: str) -> None:
+    with _FACTCHECK_LOCK:
+        _FACTCHECKING.discard(slug)
+
+
+def _factcheck_running(slug: str) -> bool:
+    with _FACTCHECK_LOCK:
+        return slug in _FACTCHECKING
 
 
 @app.get("/blog", response_class=HTMLResponse)
@@ -1108,6 +1144,9 @@ async def api_post(slug: str, _: None = Depends(require_auth)) -> JSONResponse:
             "published": blog_module.is_published(slug),
             "blocks": blog_module.publish_blocks(slug),
             "factcheck": blog_module.load_factcheck(str(data.get("factcheck") or slug)),
+            # So a browser opening the post mid-run knows to lock the editor,
+            # rather than only the tab that started the run.
+            "factchecking": _factcheck_running(slug),
         }
     )
 
@@ -1125,6 +1164,18 @@ async def api_post_create(request: Request, _: None = Depends(require_auth)) -> 
 @app.put("/api/post/{slug}")
 async def api_post_save(slug: str, request: Request, _: None = Depends(require_auth)) -> JSONResponse:
     """Autosave, on the same debounce as the producer frontmatter editor."""
+    if _factcheck_running(slug):
+        # Refused, not queued. The fact-check is rewriting this body right now,
+        # and a save that landed after it would silently reinstate the sentences
+        # it had just removed.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "the fact-check is rewriting this post. Your edit was not saved. "
+                "It finishes in a moment and the editor reopens on the checked copy."
+            ),
+        )
+
     payload = await request.json()
     try:
         blog_module.save_post(
@@ -1227,12 +1278,22 @@ async def api_post_factcheck(slug: str, _: None = Depends(require_auth)) -> JSON
             detail="a published post is fact-checked before it publishes, not after",
         )
 
+    if not _claim_factcheck(slug):
+        raise HTTPException(
+            status_code=409,
+            detail="a fact-check is already running on this post.",
+        )
+
     def run() -> None:
         try:
             article_factcheck.check(slug, log=log)
         except Exception as exc:  # noqa: BLE001
             log("error", f"fact-check failed: {exc}")
             _logger.exception("fact-check crashed")
+        finally:
+            # In a `finally`, so a crashed stage does not leave the post locked
+            # against editing with no way back short of restarting the admin.
+            _release_factcheck(slug)
 
     asyncio.create_task(asyncio.to_thread(run))
     return JSONResponse({"started": True}, status_code=202)

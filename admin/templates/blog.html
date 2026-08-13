@@ -101,6 +101,13 @@
 
     <div id="editor" hidden>
 
+      {#
+        Shown while the fact-check holds this post. UX.md §5: a disabled control
+        never sits there with no stated cause, so the reason is on the screen
+        rather than only in the log pane.
+      #}
+      <p id="locked-notice" class="locked-notice mono" hidden role="status"></p>
+
       <div class="stack" data-field="title">
         <label for="f-title">Title</label>
         <input type="text" id="f-title" autocomplete="off" />

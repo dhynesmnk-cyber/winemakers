@@ -38,6 +38,8 @@ const state = {
   published: false,
   factcheck: null,
   saveTimer: null,
+  // True while the fact-check holds the post on the server. See `setLocked`.
+  locked: false,
 };
 
 /* ── The log, shared with the hub ─────────────────────────────────────── */
@@ -148,11 +150,47 @@ async function open(slug) {
   countSummary();
   reloadPreview();
   refreshList();
+
+  // A run may already be in flight, started from another tab or before this
+  // page was loaded. The server is the authority on that, not this tab.
+  setLocked(
+    Boolean(data.factchecking),
+    "The fact-check is running on this post. The editor reopens on the checked " +
+      "copy when it finishes.",
+  );
+}
+
+/* ── The editor lock ──────────────────────────────────────────────────────
+ *
+ * The fact-check rewrites the staged body on the server while this textarea
+ * stays live on a 600ms debounce. A keystroke during a run used to put the
+ * pre-check body back over the corrected one, reinstating the sentences the
+ * audit had just recorded as removed. The server refuses those saves with a
+ * 409; this stops the author typing into a box whose contents are about to be
+ * thrown away.
+ *
+ * The reason is printed, never implied. UX.md §5 counts a disabled control with
+ * no stated cause as a UX bug against the specification.
+ */
+const LOCKABLE =
+  "#f-title, #f-summary, #f-dateline, #f-published, #f-cover, #f-cover-source," +
+  " #f-cover-caption, #f-body, #source-title, #source-url, #source-add," +
+  " #factcheck, #publish, #delete, .toolbar button";
+
+function setLocked(locked, reason) {
+  state.locked = locked;
+  $$(LOCKABLE).forEach((node) => {
+    node.disabled = locked;
+  });
+  const notice = $("#locked-notice");
+  notice.hidden = !locked;
+  notice.textContent = locked ? reason : "";
 }
 
 /* ── Autosave — the same 600ms debounce as the producer editor (UX.md §1.4) ── */
 
 function queueSave() {
+  if (state.locked) return;
   clearTimeout(state.saveTimer);
   state.saveTimer = setTimeout(save, 600);
 }
@@ -451,21 +489,41 @@ $("#article-chain").addEventListener("submit", async (event) => {
 
 $("#factcheck").addEventListener("click", async () => {
   if (!state.slug) return;
+  const slug = state.slug;
+
+  // The pending debounce first, then the lock. Saving after the lock is on
+  // would be refused by the server, and the author's last keystroke would be
+  // the one edit the fact-check never saw.
+  clearTimeout(state.saveTimer);
   await save();
-  const response = await fetch(`/api/post/${state.slug}/factcheck`, { method: "POST" });
+
+  const response = await fetch(`/api/post/${slug}/factcheck`, { method: "POST" });
   if (!response.ok) {
     const detail = await response.json().catch(() => ({}));
     window.alert(detail.detail || "Could not start the fact-check.");
     return;
   }
+
+  setLocked(
+    true,
+    "The fact-check is running on this post. It rewrites the body, so editing " +
+      "is held until it finishes — the editor reopens on the checked copy.",
+  );
+
+  const stop = () => {
+    clearInterval(poll);
+    // `open` sets the lock from the server's answer, so a run that ended
+    // unlocks and one still going stays locked.
+    open(slug);
+  };
   const poll = setInterval(async () => {
-    const data = await fetch(`/api/post/${state.slug}`).then((r) => r.json());
-    if (JSON.stringify(data.factcheck) !== JSON.stringify(state.factcheck)) {
-      clearInterval(poll);
-      open(state.slug);
-    }
+    const data = await fetch(`/api/post/${slug}`).then((r) => r.json()).catch(() => null);
+    if (!data) return;
+    if (!data.factchecking) stop();
   }, 4000);
-  setTimeout(() => clearInterval(poll), 300000);
+  // A stage that hangs must not leave the editor locked forever. Five minutes,
+  // then reopen and take whatever the server says the state is.
+  setTimeout(stop, 300000);
 });
 
 $("#publish").addEventListener("click", async () => {
