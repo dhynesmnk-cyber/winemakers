@@ -112,7 +112,10 @@ Unchanged by Wave 2 and reproduced only as a checklist:
 must never be guessed~~ — **decided 2026-08-12: `winelister`**, signed off and set
 in `config.ts`. The never-guess rule is discharged, not relaxed; it governed every
 gate from Wave 2 to Gate 8 and stands as history), `SITE_TAGLINE`, `SITE_URL`,
-`SITE_CONTACT_EMAIL`, `THEME_STORAGE_KEY`.
+`SITE_CONTACT_EMAIL` (~~placeholder~~ — **decided 2026-08-13**, supplied by the
+user, replacing `hello@example.invalid`. The last placeholder constant in the
+build; from this date no constant in `config.ts` is a stand-in for a decision
+nobody has taken), `THEME_STORAGE_KEY`.
 
 **Display labels** — one map per vocabulary: `CATEGORY_LABELS`,
 `CELLAR_DOOR_LABELS`, `CERTIFICATION_LABELS`, `FRUIT_SOURCE_LABELS`,

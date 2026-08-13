@@ -62,7 +62,25 @@ export const SITE_TAGLINE = "A field guide to independent Australian winemakers"
  */
 export const SITE_URL = "https://winemakers.netlify.app";
 
-export const SITE_CONTACT_EMAIL = "hello@example.invalid";
+/**
+ * The address a producer writes to when they think this guide has them wrong.
+ *
+ * **Decided 2026-08-13**, supplied by the user, replacing the Wave 2 placeholder
+ * `hello@example.invalid`. The last placeholder in the build, and it carried
+ * further than it looked: the footer publishes it as a working `mailto:` on
+ * every page, and the methodology page tells producers to "write to us at the
+ * contact address on this site" — which is the one page whose entire job is to
+ * be answerable, on a site whose whole claim is that it can be corrected.
+ *
+ * `Organization.email` in `data/jsonld.ts` is emitted conditionally and starts
+ * publishing on this change, so the address is now machine-readable as well as
+ * reader-facing. That is the intended state; the condition existed only to keep
+ * a crawler from being told an address that could not receive mail.
+ *
+ * Not mirrored into `admin/config.py`, and deliberately: the site is its sole
+ * consumer, exactly as with `SITE_NAME`. Check 13 does not diff it.
+ */
+export const SITE_CONTACT_EMAIL = "d.hynes.mnk@gmail.com";
 
 /** DESIGN.md §2. Read by the FOUC-avoiding head script and the theme toggle. */
 export const THEME_STORAGE_KEY = "wm-theme";

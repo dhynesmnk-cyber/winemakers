@@ -124,7 +124,9 @@ Four omissions are decisions rather than gaps, recorded here because each is som
 - **No `SearchAction` on `WebSite`.** Search is client-side over an index embedded at build time (§4.7). There is no `/search?q=` route to declare, and a `SearchAction` is a promise about a route.
 - **No `logo` on `Organization`.** The site's mark is set in type (`SiteLogo.astro`) and there is no image file to point at. An `Organization` claiming a logo URL that 404s is worse than one claiming none.
 
-*`Organization.email` is emitted conditionally and is currently **absent**, because `SITE_CONTACT_EMAIL` is still the Wave 2 placeholder at `example.invalid`. A machine-readable contact address that cannot receive mail is a worse claim than no contact address; the footer's `mailto:` shows the placeholder to a reader, who can see what it is, and a crawler cannot. The line publishes the address the moment `config.ts` carries a real one.*
+*`Organization.email` is emitted conditionally and was **absent** through Gate 10, because `SITE_CONTACT_EMAIL` was still the Wave 2 placeholder at `example.invalid`. A machine-readable contact address that cannot receive mail is a worse claim than no contact address; the footer's `mailto:` shows the placeholder to a reader, who can see what it is, and a crawler cannot.*
+
+*__Resolved 2026-08-13__, supplied by the user. `SITE_CONTACT_EMAIL` carries a real address and `Organization.email` now publishes it, which is the line doing exactly what it said it would. **The conditional guard stays** rather than being removed with the placeholder: its reasoning is not spent, it applies to any `.invalid` address a later edit introduces, and it costs one string comparison per build. This was the last Wave 2 placeholder in the build.*
 
 **2026-08-13 exception (Gate 11), with sign-off — `BlogPosting` joins the allowed `@type` set.** This is the first widening of the set since Gate 10 closed it, and it is written here first because that is exactly the mechanism §2's 2026-08-13 entry built: `/validate` check 18 fails on any `@type` outside its allow-list, so a new type cannot ship without somebody coming here to say why.
 
@@ -274,7 +276,7 @@ That is an acceptable trade only because the durable public record lives elsewhe
 
 | Constant | Home | Purpose |
 |---|---|---|
-| `SITE_NAME`, `SITE_TAGLINE`, `SITE_URL`, `SITE_CONTACT_EMAIL` | `config.ts` | **`SITE_NAME` is a placeholder until the brand name is chosen (§1).** |
+| `SITE_NAME`, `SITE_TAGLINE`, `SITE_URL`, `SITE_CONTACT_EMAIL` | `config.ts` | ~~**`SITE_NAME` is a placeholder until the brand name is chosen (§1).**~~ **All four are decided.** `SITE_NAME` 2026-08-12, `SITE_URL` 2026-08-09, `SITE_CONTACT_EMAIL` 2026-08-13. No placeholder constants remain in the build. |
 | `CATEGORIES`, `CELLAR_DOOR_STATES`, `CERTIFICATION_STATES`, `FRUIT_SOURCE`, `PRODUCTION_BANDS`, `PRACTICE_KEYS`, `LOGISTICS_KEYS`, `VESSEL_KEYS`, `WINE_STYLE_KEYS`, `VARIETY_KEYS`, `CONFIDENCE_TIERS`, `CONFIDENCE_TIER_RANK`, `VERIFIABLE_FIELDS`, `STATES` | both, hand-mirrored | SCHEMA.md §1. Closed `as const` tuples; zod sub-schemas built from them programmatically, never an inline enum literal. |
 | `AU_LATITUDE_BOUNDS`, `AU_LONGITUDE_BOUNDS` | both | SCHEMA.md §2 coordinate bounds. |
 | `PRODUCTION_BAND_RANGES` | both | The numeric ranges behind `PRODUCTION_BANDS`, for SCHEMA.md §2a rule 9. |

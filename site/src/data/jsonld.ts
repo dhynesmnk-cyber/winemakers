@@ -86,12 +86,17 @@ function omitEmpty(node: JsonLdNode): JsonLdNode {
  * worse than one that claims none.
  *
  * `email` is emitted only when `SITE_CONTACT_EMAIL` is a real address.
- * It is still the Wave 2 placeholder at `example.invalid`, and a machine-
+ *
+ * ~~It is still the Wave 2 placeholder at `example.invalid`~~ — **resolved
+ * 2026-08-13**: `config.ts` carries a real address and this line now publishes
+ * it, exactly as it said it would.
+ *
+ * The guard stays rather than being deleted. It was written because a machine-
  * readable contact address that cannot receive mail is a worse claim than no
- * contact address at all. The footer's `mailto:` shows the placeholder to a
- * reader, who can see what it is; a crawler cannot. Flagged at Gate 10 rather
- * than papered over: the real address is a value only the user can supply, and
- * this line starts publishing it the moment `config.ts` carries one.
+ * contact address at all: the footer's `mailto:` shows a placeholder to a
+ * reader, who can see what it is, and a crawler cannot. That reasoning is not
+ * spent — it applies again to any `.invalid` address a future edit introduces,
+ * and the cost of keeping it is one string comparison per build.
  */
 const CONTACT_IS_PLACEHOLDER = SITE_CONTACT_EMAIL.endsWith(".invalid");
 
