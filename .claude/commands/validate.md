@@ -58,6 +58,8 @@ The zod↔DDL comparison is not a set diff, because the surfaces are deliberatel
 
 A surface whose gate has not shipped is reported as **pending, not passed**; every run prints which surfaces it compared and which it is still waiting on.
 
+*Amended 2026-08-13: it also diffs the shared **scalars**, which nothing compared before. So far that is `SITE_NAME`, and it is there because it drifted: the 2026-08-12 engagement recorded that the admin need not mirror the brand name "because the name is display-only and the site is its sole consumer", but both admin templates render it and `app.py` carried its own hardcoded Wave 2 placeholder. The brand was decided, `config.ts` was updated, that copy was not, and the recorded reasoning is precisely why this check had never been asked to look. **`SITE_URL` is deliberately excluded**: `.env` overrides it at runtime, so comparing the literal would pass on a machine whose live value is something else — the gap Gate 10 recorded, which needs a check that reads the resolved value rather than this one.*
+
 *Amended 2026-08-13 (Gate 11): a **second, smaller comparison** for the post contract — SCHEMA.md §9.2, the zod `postFrontmatter` and `blog.py`'s `POST_FIELDS`. Deliberately not folded into the producer diff: a post has **two** consumers rather than four (§9.1 records why there is no SQLite table and no Harvester validator), and a shared diff would make every blog field look like a rule-7 field. It also diffs the claim-audit vocabulary against SCHEMA.md §9.4, so a third spelling of the three verdicts fails before it exists. The count is printed on every run, because a silent second comparison is one nobody knows ran.*
 
 ### 8. Ownership determination — *G4*

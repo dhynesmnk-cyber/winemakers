@@ -183,6 +183,22 @@ ADMIN_PASSWORD = env("ADMIN_PASSWORD")
 #: machine whose `.env` sets `SITE_URL` to something else.
 SITE_URL = env("SITE_URL", "https://winemakers.netlify.app").rstrip("/")
 
+#: The brand name, mirroring `site/src/config.ts`. Chosen and signed off
+#: 2026-08-12, verbatim as given, lowercase included.
+#:
+#: **Not read from `.env`**, unlike `SITE_URL`: the name is a decision recorded
+#: in the repository, not a per-machine setting, and the casing is decided in
+#: `config.ts` and nowhere else — no call site re-cases it.
+#:
+#: The 2026-08-12 engagement recorded that `admin/config.py` need not mirror
+#: this "because the name is display-only and the site is its sole consumer".
+#: That was wrong. `admin/templates/index.html` and `blog.html` both render it,
+#: so the admin was a second consumer with its own hardcoded copy, and when the
+#: brand was decided that copy was missed — the hub carried the Wave 2
+#: placeholder for a day with nothing watching. Mirrored here so `/validate`
+#: check 13 diffs it like every other shared vocabulary.
+SITE_NAME = "winelister"
+
 NETLIFY_AUTH_TOKEN = env("NETLIFY_AUTH_TOKEN")
 NETLIFY_SITE_ID = env("NETLIFY_SITE_ID")
 INDEXNOW_KEY = env("INDEXNOW_KEY")

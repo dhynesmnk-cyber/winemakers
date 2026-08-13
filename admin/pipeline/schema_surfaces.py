@@ -428,6 +428,43 @@ def _compare_numeric_bounds(failures: list[str], text: str | None = None) -> Non
             )
 
 
+def _ts_string(text: str, name: str) -> str | None:
+    """An `export const NAME = "...";` scalar from a .ts file."""
+    match = re.search(rf'export const {name}(?::[^=]+)? = "([^"]*)";', text)
+    return match.group(1) if match else None
+
+
+def _compare_config_scalars(text: str, failures: list[str]) -> None:
+    """The shared scalars, which until 2026-08-13 nothing compared.
+
+    Only `SITE_NAME` so far, and it is here because it drifted. The 2026-08-12
+    engagement reasoned that the admin need not mirror the brand name "because
+    the name is display-only and the site is its sole consumer" — but both admin
+    templates render it, so the hub carried its own hardcoded copy. When the
+    brand was decided, `config.ts` was updated and that copy was not.
+
+    **`SITE_URL` is deliberately NOT compared here.** `.env` overrides it at
+    runtime, so the Python side answers "what does this machine think the site
+    is" rather than "what is written down", and a check comparing the literal
+    would pass on a machine whose live value is something else entirely. That
+    gap is real and is recorded at Gate 10; closing it needs a check that reads
+    the resolved value, which is a different mechanism from this one.
+    """
+    for name in ("SITE_NAME",):
+        ts_value = _ts_string(text, name)
+        py_value = getattr(py_config, name, None)
+        if ts_value is None:
+            failures.append(f"{name}: not parsed from config.ts")
+        elif py_value is None:
+            failures.append(f"{name}: present in config.ts, absent from admin/config.py")
+        elif ts_value != py_value:
+            failures.append(
+                f"{name}: config.ts and admin/config.py disagree.\n"
+                f"      config.ts: {ts_value!r}\n"
+                f"      config.py: {py_value!r}"
+            )
+
+
 def _compare_config_pair(failures: list[str]) -> None:
     """`site/src/config.ts` ↔ `admin/config.py`: same names, same order, members.
 
@@ -467,6 +504,8 @@ def _compare_config_pair(failures: list[str]) -> None:
                 f"      config.ts: {ts_values}\n"
                 f"      config.py: {list(py_values)}"
             )
+
+    _compare_config_scalars(text, failures)
 
     # VARIETY_KEYS is the copy that drifts: config.ts derives it from
     # glossary.ts, and Python cannot import a TypeScript module, so

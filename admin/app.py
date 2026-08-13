@@ -74,6 +74,7 @@ from admin.config import (  # noqa: E402
     PRODUCTION_BANDS,
     PUBLISHED_DIR,
     SITE_DIST_DIR,
+    SITE_NAME,
     SITE_URL,
     STAGING_DIR,
     STATES,
@@ -101,9 +102,6 @@ from admin.pipeline import (  # noqa: E402
 
 _logger = logging.getLogger("admin.app")
 
-#: UX.md §1: the hub header carries the site name. `SITE_NAME` is a placeholder
-#: until the brand is chosen, and it is never guessed here.
-SITE_NAME = "Independent Australian Winemakers"
 
 
 # =============================================================================
