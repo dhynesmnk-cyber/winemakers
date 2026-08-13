@@ -77,9 +77,25 @@ export function postCrumbs(title: string): Crumb[] {
  * Written out in words in en-AU order, because a numeric date is ambiguous
  * across the two conventions and the whole site sets dates in words already
  * (DESIGN.md §457's dateline row, the provenance block, the methodology page).
+ *
+ * ── `timeZone: "UTC"` is load-bearing ─────────────────────────────────────────
+ *
+ * `published` is a date with no time, which zod coerces to midnight UTC. Reading
+ * it back in the build machine's local zone lands on the previous day anywhere
+ * west of UTC, and the post page prints this string inside the same `<time>`
+ * element whose `datetime` comes from `isoDate` — which is UTC. So the two
+ * halves of one element disagreed by a day:
+ *
+ *     TZ=America/New_York -> <time datetime="2026-08-13">12 August 2026</time>
+ *
+ * Latent rather than live, because Netlify builds in UTC and AEST is east of it,
+ * but a build host is not a thing this file should have an opinion about. Every
+ * other date path on the site already formats in UTC through `toISOString`; this
+ * was the only human-readable formatter and the only one that could drift.
  */
 export function longDate(date: Date): string {
   return date.toLocaleDateString("en-AU", {
+    timeZone: "UTC",
     day: "numeric",
     month: "long",
     year: "numeric",

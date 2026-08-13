@@ -78,7 +78,34 @@ _TAG = re.compile(r"<[^>]+>")
 _FAQ_PAIR = re.compile(r'class="faq__pair"')
 _ENTRY_ROW = re.compile(r'<li class="entry"')
 _POST_H1 = re.compile(r'<h1 class="post-head__title"[^>]*>(.*?)</h1>', re.S)
-_POST_TIME = re.compile(r'<time datetime="(\d{4}-\d{2}-\d{2})"')
+#: Both halves of a `<time>`: the machine attribute and the words beside it.
+#:
+#: It read only the attribute until 2026-08-13, which made it structurally blind
+#: to the defect it was best placed to catch. `datePublished` is compared against
+#: the attribute, and the attribute came from `isoDate` (UTC) while the visible
+#: words came from `longDate` (the build machine's local zone), so under any
+#: timezone west of UTC one element read `datetime="2026-08-13">12 August 2026`.
+#: Both this check and the page looked right; only a reader would have seen it.
+#:
+#: The 2026-08-12 dateline lesson, in the same shape: a check whose regex cannot
+#: see the markup it is checking reports zero and means nothing.
+_POST_TIME = re.compile(r'<time datetime="(\d{4}-\d{2}-\d{2})"[^>]*>(.*?)</time>', re.S)
+
+#: en-AU long-form month names, as `posts.ts` prints them.
+#:
+#: A tuple rather than `strftime("%B")`: `%B` is locale-dependent, and a check
+#: that reports a defect because the machine running it has a different LC_TIME
+#: is a check that gets switched off.
+_MONTHS = (
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+
+
+def _in_words(iso: str) -> str:
+    """`2026-08-13` -> `13 August 2026`, the form `posts.ts` renders."""
+    year, month, day = (int(part) for part in iso.split("-"))
+    return f"{day} {_MONTHS[month - 1]} {year}"
 _POST_SOURCE = re.compile(r'<li[^>]*>\s*<a href="[^"]+" rel="noopener"[^>]*>')
 _CANONICAL = re.compile(r'<link rel="canonical" href="([^"]+)"', re.I)
 
@@ -334,8 +361,33 @@ def _check_blog_posting(
 
     heading = _POST_H1.search(html)
     rendered_title = _strip_tags(heading.group(1)) if heading else None
-    rendered_dates = _POST_TIME.findall(html)
+    rendered_times = _POST_TIME.findall(html)
+    rendered_dates = [iso for iso, _words in rendered_times]
     rendered_sources = len(_POST_SOURCE.findall(html))
+
+    # ── Both halves of a <time> name the same day ─────────────────────────
+    #
+    # Checked on any page carrying one, not only on a post: `/blog/` prints the
+    # same pair through the same two helpers, so scoping this to post pages
+    # would leave the index unwatched for no reason.
+    #
+    # This is the rule the date agreement below rests on. `datePublished` is
+    # compared against the ATTRIBUTE, so a visible half that disagrees is a date
+    # the structured data asserts, the check confirms, and the reader never sees.
+    for iso, raw in rendered_times:
+        shown = _strip_tags(raw)
+        # The DAY, not the format. `/blog/` and the post page print the long
+        # form and `/methodology/` prints the ISO string; both are true
+        # statements of the same date, and this check has no opinion on which a
+        # page uses. It has an opinion on them naming different days.
+        if shown and shown not in (iso, _in_words(iso)):
+            errors.append(
+                f"{route}: <time datetime=\"{iso}\"> renders {shown!r}, which is not "
+                f"the date it links to — that is {_in_words(iso)!r} or {iso!r}. The "
+                f"two halves of one element must name one day: the attribute is what "
+                f"JSON-LD and every crawler read, and the text is what the reader "
+                f"reads."
+            )
 
     for node in nodes:
         if rendered_title and node.get("headline") != rendered_title:
@@ -927,6 +979,15 @@ def _selftest() -> list[str]:
             "a dateModified nobody can see",
             lambda n, b: ([*n[:2], {**n[2], "dateModified": "2027-01-01"}, *n[3:]], b),
             "is not rendered on",
+        ),
+        # The timezone defect, mechanised. `longDate` read the date in the build
+        # machine's local zone while `isoDate` read it in UTC, so west of UTC one
+        # element carried `datetime="2026-08-13">12 August 2026`. This check read
+        # only the attribute and could not see it.
+        (
+            "a <time> whose words are a different day from its attribute",
+            lambda n, b: (n, b.replace(">13 August 2026<", ">12 August 2026<")),
+            "is not the date it links to",
         ),
         (
             "fewer citations than the page prints",
