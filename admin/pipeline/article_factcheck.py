@@ -198,8 +198,28 @@ def check(
     """Fact-check one staged post. Writes the audit and the corrected body.
 
     Returns a summary: counts per verdict, and whether the post can now publish.
+
+    Refuses a published post. The gate is HERE rather than only in the route,
+    for the reason `blog.publish` and `blog.delete_draft` both state: a CLI call
+    or a later caller must not be able to route around it. This one had the
+    guard only in the route, so `--slug <published>` read the post out of
+    `_published`, wrote the corrected body to `_blog_staging`, and left the slug
+    in both directories at once.
     """
+    if blog.is_published(slug):
+        raise ValueError(
+            f"{slug} is published. A post is fact-checked before it publishes, "
+            f"not after (UX.md §6)."
+        )
+
     data, body = blog.load_post(slug)
+
+    # The audit is keyed by what the POST says its audit is called, which is what
+    # `publish_blocks`, check 22 and the resolve-claim route all read. Keying it
+    # by the slug instead was equal for every post the pipeline creates and would
+    # have diverged silently the first time the field was edited — writing an
+    # audit nobody reads, while the publish gate reported a missing one.
+    audit_name = str(data.get("factcheck") or slug)
 
     if FACTCHECK_IS_SELF_REVIEW:
         # Warned rather than refused. The cascade in `admin/config.py` can
@@ -235,7 +255,7 @@ def check(
     )
 
     audit = {
-        "post": slug,
+        "post": audit_name,
         "checked": date.today().isoformat(),
         "model": MODEL_FACTCHECK,
         "drafted_by": MODEL_ARTICLE,
@@ -258,7 +278,7 @@ def check(
             f"typed figure that should be a <Figure>: {hit!r}" for hit in typed
         )
 
-    blog.save_factcheck(slug, audit)
+    blog.save_factcheck(audit_name, audit)
     blog.write_post(blog.staged_path(slug), data, result["body"])
 
     counts = {
@@ -419,6 +439,33 @@ def _selftest() -> list[str]:
             missed = "missed" if should_fire else "false-positived on"
             errors.append(f"selftest: the typed-figure scan {missed} {body!r}")
 
+    # `check` must refuse a published post in the MODULE, not only in the route.
+    #
+    # The injected client makes the test safe to run on every `/validate`: if the
+    # guard were missing, the stage would reach the model, and a self-test that
+    # can spend money when it fails is a self-test nobody dares run. It raises
+    # instead, and the wrong exception type is what reports the missing guard.
+    class _NoCalls:
+        class messages:
+            @staticmethod
+            def create(**_kwargs: Any) -> Any:
+                raise AssertionError("the model was called")
+
+    published = [row["slug"] for row in blog.post_rows() if row["status"] == "published"]
+    if published:
+        try:
+            check(published[0], log=lambda _level, _message: None, client=_NoCalls())
+        except ValueError:
+            pass
+        except AssertionError:
+            errors.append(
+                "selftest: check() reached the model for a PUBLISHED post. The guard "
+                "belongs in the module, not only in the route — a CLI call must not "
+                "be able to route around it (UX.md §6)."
+            )
+        else:
+            errors.append("selftest: check() ACCEPTED a published post")
+
     return errors
 
 
@@ -444,7 +491,9 @@ def main() -> int:
 
     try:
         result = check(args.slug)
-    except (AgentError, MalformedOutput, FileNotFoundError) as exc:
+    except (AgentError, MalformedOutput, FileNotFoundError, ValueError) as exc:
+        # `ValueError` is the published-post refusal. A refusal is a result, not
+        # a crash, and a traceback would read as one.
         print(f"FACTCHECK FAIL — {exc}")
         return 1
 
