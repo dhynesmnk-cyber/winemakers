@@ -216,9 +216,32 @@ def save_post(slug: str, frontmatter: dict[str, Any], body: str) -> Path:
     which is the ONE sanctioned exception to CLAUDE.md rule 5's "only the approve
     action writes there" — that rule is about the producer collection, and this
     is the author editing their own live post through the screen built for it.
+
+    ── `updated` is stamped here, and nowhere else ───────────────────────────
+
+    SCHEMA.md §9.2 defines `updated` as "Set when a published post is edited in
+    place", and until 2026-08-13 nothing set it. The field was in both surfaces,
+    rendered as `Amended 14 August 2026` by the post page, emitted as
+    `dateModified` in the JSON-LD, and reachable only by hand-editing the MDX —
+    so a live post could be rewritten with no reader ever told, which is the one
+    thing the field exists to prevent.
+
+    A stamp rather than an editor input: an author who has to remember to tick
+    "this was an amendment" is an author who will forget on the edit that most
+    needed saying so. It is today's date, so autosave rewrites it to the same
+    value all day and the file does not churn.
+
+    Publishing does not come through here (`publish` writes directly), which is
+    correct: a post going up for the first time has not been amended.
     """
-    path = published_path(slug) if is_published(slug) else staged_path(slug)
-    write_post(path, coerce_dates(frontmatter), body)
+    published = is_published(slug)
+    path = published_path(slug) if published else staged_path(slug)
+
+    frontmatter = coerce_dates(frontmatter)
+    if published:
+        frontmatter["updated"] = date.today()
+
+    write_post(path, frontmatter, body)
     return path
 
 
@@ -710,6 +733,49 @@ def _selftest() -> list[str]:
         errors.append("selftest: restored_claims fired with no audit")
     if restored_claims("", audit):
         errors.append("selftest: an empty removed `text` matched an empty body")
+
+    # `save_post` stamps `updated` on a published post and never on a draft.
+    #
+    # The two directory constants are rebound to a temp tree for this, because
+    # the branch under test IS "which directory does this post live in", and a
+    # test that cannot exercise the published branch would be testing the half
+    # that already worked.
+    global BLOG_STAGING_DIR, BLOG_PUBLISHED_DIR
+    real_staging, real_published = BLOG_STAGING_DIR, BLOG_PUBLISHED_DIR
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            BLOG_STAGING_DIR = Path(tmp) / "staging"
+            BLOG_PUBLISHED_DIR = Path(tmp) / "published"
+            frontmatter = {
+                "title": "A post",
+                "summary": "A summary.",
+                "dateline": "Australia",
+                "published": "2026-08-01",
+                "sources": [{"title": "S", "url": "https://example.com/"}],
+                "factcheck": "a-post",
+            }
+
+            save_post("a-post", dict(frontmatter), "Body.")
+            data, _body = read_mdx(staged_path("a-post"))
+            if "updated" in data:
+                errors.append("selftest: save_post stamped `updated` on an unpublished draft")
+
+            # The same post, published. `updated` must appear, and must not be
+            # before `published` — zod refuses that and the build would fail.
+            write_post(published_path("a-post"), frontmatter, "Body.")
+            staged_path("a-post").unlink()
+            save_post("a-post", dict(frontmatter), "Body edited.")
+            data, _body = read_mdx(published_path("a-post"))
+            stamped = data.get("updated")
+            if stamped != date.today():
+                errors.append(
+                    f"selftest: save_post did not stamp today's `updated` on a "
+                    f"published post (got {stamped!r})"
+                )
+            elif stamped < data["published"]:
+                errors.append("selftest: the stamped `updated` is before `published`")
+        finally:
+            BLOG_STAGING_DIR, BLOG_PUBLISHED_DIR = real_staging, real_published
 
     return errors
 
