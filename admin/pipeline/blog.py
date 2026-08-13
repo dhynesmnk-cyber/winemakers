@@ -513,8 +513,8 @@ def publish(slug: str, log: Logger = _null_log) -> dict[str, Any]:
 
     data, body = load_post(slug)
 
-    moved = _publish_images(slug, body)
-    body = moved["body"]
+    moved = _publish_images(slug, data, body)
+    data, body = moved["data"], moved["body"]
 
     destination = published_path(slug)
     write_post(destination, data, body)
@@ -524,8 +524,8 @@ def publish(slug: str, log: Logger = _null_log) -> dict[str, Any]:
     return {"slug": slug, "path": str(destination), "images": moved["count"]}
 
 
-def _publish_images(slug: str, body: str) -> dict[str, Any]:
-    """Move this post's staged images into `site/public/blog-images/`.
+def _publish_images(slug: str, data: dict[str, Any], body: str) -> dict[str, Any]:
+    """Move this post's staged images into `site/public/blog-images/<slug>/`.
 
     UX.md §6: images convert "in the same action" as the publish, because a
     post's images are part of the authored draft rather than harvested
@@ -533,23 +533,43 @@ def _publish_images(slug: str, body: str) -> dict[str, Any]:
     producer image pipeline (UX.md §4), where publishing an image is its own
     considered step.
 
-    Body references are rewritten from the staging URL to the published one. A
-    published post pointing at `/blog-staging/…` would 404 on the live site while
-    rendering perfectly in the admin preview, which is the worst shape of defect
-    this project has: correct everywhere a person looks.
+    References are rewritten from the staging URL to the published one, in the
+    BODY and in `cover`. A published post pointing at `/blog-staging-images/…`
+    would 404 on the live site while rendering perfectly in the admin preview,
+    which is the worst shape of defect this project has: correct everywhere a
+    person looks.
+
+    ── The slug directory is preserved, and that is the fix ──────────────────
+
+    This used to copy `_images/<slug>/photo.webp` to `blog-images/photo.webp`,
+    dropping the slug. Two posts each carrying a `photo` silently overwrote one
+    another, and the rewritten URL — which kept the slug segment — pointed at a
+    path that no longer existed. `site/public/blog-images/` is a PREFIX on the
+    deploy allow-list, so the nested path needs no change there.
     """
     count = 0
     source_dir = BLOG_STAGING_IMAGES_DIR / slug
     if source_dir.is_dir():
-        BLOG_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+        target_dir = BLOG_IMAGES_DIR / slug
+        target_dir.mkdir(parents=True, exist_ok=True)
         for image in sorted(source_dir.iterdir()):
             if image.is_file():
-                shutil.copy2(image, BLOG_IMAGES_DIR / image.name)
+                shutil.copy2(image, target_dir / image.name)
                 count += 1
         shutil.rmtree(source_dir, ignore_errors=True)
 
-    body = body.replace("/blog-staging-images/", "/blog-images/")
-    return {"body": body, "count": count}
+    staged_root = f"/blog-staging-images/{slug}/"
+    published_root = f"/blog-images/{slug}/"
+
+    data = dict(data)
+    if data.get("cover"):
+        data["cover"] = str(data["cover"]).replace(staged_root, published_root)
+
+    return {
+        "data": data,
+        "body": body.replace(staged_root, published_root),
+        "count": count,
+    }
 
 
 # =============================================================================
@@ -776,6 +796,51 @@ def _selftest() -> list[str]:
                 errors.append("selftest: the stamped `updated` is before `published`")
         finally:
             BLOG_STAGING_DIR, BLOG_PUBLISHED_DIR = real_staging, real_published
+
+    # `_publish_images` keeps the slug directory, and rewrites BOTH the body and
+    # `cover`. It used to flatten `_images/<slug>/photo.webp` onto
+    # `blog-images/photo.webp`, so two posts each carrying a `photo` overwrote
+    # one another while the rewritten URL — which kept the slug — pointed at a
+    # path that no longer existed.
+    global BLOG_STAGING_IMAGES_DIR, BLOG_IMAGES_DIR
+    real_staged_images, real_images = BLOG_STAGING_IMAGES_DIR, BLOG_IMAGES_DIR
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            BLOG_STAGING_IMAGES_DIR = Path(tmp) / "staged"
+            BLOG_IMAGES_DIR = Path(tmp) / "public"
+
+            for slug in ("post-one", "post-two"):
+                directory = BLOG_STAGING_IMAGES_DIR / slug
+                directory.mkdir(parents=True)
+                (directory / "photo.webp").write_bytes(slug.encode())
+
+            moved = _publish_images(
+                "post-one",
+                {"cover": "/blog-staging-images/post-one/photo.webp"},
+                "Text.\n\n![A plate](/blog-staging-images/post-one/photo.webp)\n",
+            )
+
+            landed = BLOG_IMAGES_DIR / "post-one" / "photo.webp"
+            if not landed.is_file():
+                errors.append("selftest: the published image is not under its slug")
+            if moved["data"]["cover"] != "/blog-images/post-one/photo.webp":
+                errors.append(f"selftest: `cover` was not rewritten ({moved['data']['cover']})")
+            if "/blog-images/post-one/photo.webp" not in moved["body"]:
+                errors.append("selftest: the body URL was not rewritten")
+            if "/blog-staging-images/" in moved["body"]:
+                errors.append("selftest: a staging URL survived into a published body")
+
+            # The other post's image is untouched, which is the collision.
+            other = BLOG_STAGING_IMAGES_DIR / "post-two" / "photo.webp"
+            if not other.is_file() or other.read_bytes() != b"post-two":
+                errors.append(
+                    "selftest: publishing one post disturbed another post's image of "
+                    "the same name"
+                )
+            if landed.read_bytes() != b"post-one":
+                errors.append("selftest: the wrong post's image was published")
+        finally:
+            BLOG_STAGING_IMAGES_DIR, BLOG_IMAGES_DIR = real_staged_images, real_images
 
     return errors
 

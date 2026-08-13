@@ -145,7 +145,9 @@
         <summary>Cover image</summary>
         <div class="stack" data-field="cover">
           <label for="f-cover">Path under /blog-images/</label>
-          <input type="text" id="f-cover" placeholder="/blog-images/name.jpg" autocomplete="off" />
+          <input type="text" id="f-cover" placeholder="/blog-images/slug/name.webp" autocomplete="off" />
+          <button type="button" class="btn btn-quiet" id="cover-upload">Upload a cover</button>
+          <input type="file" id="cover-file" accept="image/*" hidden />
         </div>
         <div class="stack" data-field="cover_source">
           <label for="f-cover-source">Image source URL</label>
@@ -172,8 +174,15 @@
           <button type="button" data-link="1" title="Link">Link</button>
           <button type="button" data-block="pull" title="Pull quote">Pull</button>
           <button type="button" data-block="figure" title="A count from the data">Figure</button>
+          {#
+            UX.md §6: an in-body image uploads immediately on insert and returns
+            its URL. The file input is hidden and driven by the button, so the
+            toolbar reads as one row of controls.
+          #}
+          <button type="button" data-block="image" title="Insert an image">Image</button>
           <span class="toolbar__count mono" id="word-count"></span>
         </div>
+        <input type="file" id="body-image" accept="image/*" hidden />
         <textarea id="f-body" rows="20" spellcheck="true"></textarea>
       </div>
 

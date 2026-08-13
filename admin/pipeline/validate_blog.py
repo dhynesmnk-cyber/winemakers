@@ -276,7 +276,13 @@ def _selftest() -> list[str]:
     import copy
     import tempfile
 
-    errors: list[str] = []
+    from admin.pipeline import blog_images
+
+    # The image store rides along here rather than taking a check number of its
+    # own: it is blog integrity, this check is blog integrity, and a twenty-third
+    # check whose whole job is one module's self-test would be a number to read
+    # past. Its failures name `blog_images` so the source is never in doubt.
+    errors: list[str] = list(blog_images._selftest())
 
     def fixture(
         tmp: Path,

@@ -59,6 +59,22 @@ def _null_log(level: str, message: str) -> None:
     pass
 
 
+#: The webp encoder settings every published image in this project is written
+#: with. Named rather than left as literals at the one call site, because Gate 11
+#: added a second encoder (`blog_images.py`) and two photographs on one site
+#: compressed differently because two functions each picked a number would be a
+#: difference nobody could explain later.
+#:
+#: 76 rather than the 82 this was written with. Measured on a real 2500x1667
+#: producer photograph at the 1600px long edge: 82 gives 551 kB and 76 gives
+#: 444 kB, for a difference no reader sees on one inset plate.
+WEBP_QUALITY = 76
+
+#: The slowest, smallest encoder setting, which is the right trade when an image
+#: is encoded once and served forever.
+WEBP_METHOD = 6
+
+
 # =============================================================================
 # 1. Finding candidates in the fetched HTML
 # =============================================================================
@@ -399,12 +415,7 @@ def publish_image(
         opened.thumbnail(
             (PUBLISHED_IMAGE_MAX_PX, PUBLISHED_IMAGE_MAX_PX), Image.LANCZOS
         )
-        # 76 rather than the 82 this was written with. Measured on a real
-        # 2500x1667 producer photograph at the 1600px long edge: 82 gives 551 kB
-        # and 76 gives 444 kB, for a difference no reader sees on one inset
-        # plate. `method=6` is the slowest, smallest encoder setting, which is
-        # the right trade when an image is encoded once and served forever.
-        opened.save(target, "WEBP", quality=76, method=6)
+        opened.save(target, "WEBP", quality=WEBP_QUALITY, method=WEBP_METHOD)
 
     public_path = f"/images/{slug}.webp"
     data["image"] = public_path

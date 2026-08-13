@@ -264,6 +264,15 @@ not. Both fixtures assert the boundary.
 human makes in context; a missing audit, an unresolved claim and a stale typed
 count are each either true or not.
 
+**The image store's self-test rides along here** (added 2026-08-13 with the
+upload path). It is blog integrity, this is the blog integrity check, and a
+twenty-third check whose whole job is one module's self-test would be a number
+to read past. It covers the filename slugging, the slug-directory guard, the
+base64 ceiling, the webp encode, and the collision — two posts uploading one
+filename must not share a URL, and a repeated name within a post must not
+overwrite an image the published body may already point at. Failures name
+`blog_images`, so the source is never in doubt.
+
 A self-review audit — one whose `model` equalled its `drafted_by` — is reported
 as a **note**. The post is published and the audit says plainly that the drafting
 model checked itself; failing would demand a re-check nobody can do

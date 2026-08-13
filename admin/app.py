@@ -89,6 +89,7 @@ from admin.pipeline import (  # noqa: E402
     article_factcheck,
     article_pipeline,
     blog as blog_module,
+    blog_images,
     deploy as deploy_module,
     fetcher,
     harvest as harvest_module,
@@ -227,10 +228,33 @@ def require_auth(credentials: HTTPBasicCredentials | None = Depends(_basic)) -> 
         )
 
 
-for directory in (STAGING_DIR, CONTENT_STAGING_DIR):
+for directory in (
+    STAGING_DIR,
+    CONTENT_STAGING_DIR,
+    blog_module.BLOG_IMAGES_DIR,
+    blog_module.BLOG_STAGING_IMAGES_DIR,
+):
     directory.mkdir(parents=True, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# A post's images, at the SAME paths the live site serves them from.
+#
+# Spelled identically on both sides on purpose. The preview renders the post's
+# real MDX through the site's real CSS, and an image resolved by a different URL
+# there would look right to the reviewer and 404 for the reader — correct
+# everywhere a person looks, which is the defect shape this project treats as
+# the worst one. `blog_images` owns both roots.
+app.mount(
+    blog_images.PUBLISHED_URL_ROOT,
+    StaticFiles(directory=str(blog_module.BLOG_IMAGES_DIR)),
+    name="blog-images",
+)
+app.mount(
+    blog_images.STAGING_URL_ROOT,
+    StaticFiles(directory=str(blog_module.BLOG_STAGING_IMAGES_DIR)),
+    name="blog-staging-images",
+)
 
 # DESIGN.md §8: the hub inherits the palette, both modes. `tokens.css` is served
 # straight out of the site rather than copied, so the admin cannot drift from the
@@ -1283,6 +1307,43 @@ async def api_article_draft(request: Request, _: None = Depends(require_auth)) -
 
     asyncio.create_task(asyncio.to_thread(run))
     return JSONResponse({"started": True}, status_code=202)
+
+
+@app.post("/api/post/{slug}/image")
+async def api_post_image(
+    slug: str, request: Request, _: None = Depends(require_auth)
+) -> JSONResponse:
+    """UX.md §6: an image uploads on insert and returns its URL.
+
+    No separate publish-image step, deliberately unlike the producer path
+    (UX.md §4): a post's images are part of the authored draft rather than
+    harvested candidates needing a curation decision.
+
+    The destination is read off the post rather than passed in. UX.md §6: "New
+    images at this stage go straight to the published image directory, since the
+    post is already live."
+
+    Base64 in the JSON body rather than a multipart upload — TRD.md §2.2 does
+    not carry `python-multipart`, and a transport detail is not a reason to move
+    the dependency list. See `blog_images`.
+    """
+    if blog_module.path_for(slug) is None:
+        raise HTTPException(status_code=404, detail=f"no post at {slug}")
+
+    payload = await request.json()
+    try:
+        raw = blog_images.decode(str(payload.get("data") or ""))
+        result = blog_images.store(
+            slug,
+            str(payload.get("filename") or ""),
+            raw,
+            published=blog_module.is_published(slug),
+            log=log,
+        )
+    except blog_images.UploadError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return JSONResponse(result, status_code=201)
 
 
 @app.post("/api/post/{slug}/factcheck")

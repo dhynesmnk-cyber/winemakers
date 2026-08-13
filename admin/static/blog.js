@@ -175,7 +175,7 @@ async function open(slug) {
 const LOCKABLE =
   "#f-title, #f-summary, #f-dateline, #f-published, #f-cover, #f-cover-source," +
   " #f-cover-caption, #f-body, #source-title, #source-url, #source-add," +
-  " #factcheck, #publish, #delete, .toolbar button";
+  " #factcheck, #publish, #delete, #cover-upload, .toolbar button";
 
 function setLocked(locked, reason) {
   state.locked = locked;
@@ -283,8 +283,80 @@ $$(".toolbar button").forEach((button) => {
       // toolbar inserts the commonest query rather than offering a picker it
       // would have to keep in step with the register.
       surround('<Figure of="published" />', "");
+    } else if (button.dataset.block === "image") {
+      $("#body-image").click();
     }
   });
+});
+
+/* ── Images — upload on insert (UX.md §6) ─────────────────────────────────
+ *
+ * No separate publish-image step, deliberately unlike the producer path: a
+ * post's images are part of the authored draft rather than harvested candidates
+ * needing a curation decision. The server decides staged-or-published from the
+ * post itself, so this does not pass a preference.
+ *
+ * Base64 in the JSON body, because TRD.md §2.2 does not carry
+ * `python-multipart` and a transport detail is not a reason to move the
+ * dependency list.
+ */
+function readAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error("could not read the file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadImage(file) {
+  const data = await readAsBase64(file);
+  const response = await fetch(`/api/post/${state.slug}/image`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: file.name, data }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.detail || `upload failed (${response.status})`);
+  return payload;
+}
+
+$("#body-image").addEventListener("change", async (event) => {
+  const [file] = event.target.files || [];
+  event.target.value = "";
+  if (!file || !state.slug) return;
+  setSaveState(`uploading ${file.name}…`, false);
+  try {
+    const { url } = await uploadImage(file);
+    // Plain markdown, not <TippedPhoto>. DESIGN.md §505: in-body post images
+    // render at natural size with no framing, and the plate is the producer
+    // page's signature rather than a component to borrow.
+    const alt = window.prompt("Describe the image, for a reader who cannot see it") || "";
+    surround(`\n\n![${alt}](${url})\n\n`, "");
+    setSaveState("image inserted", false);
+  } catch (error) {
+    setSaveState(error.message, true);
+    window.alert(error.message);
+  }
+});
+
+$("#cover-upload").addEventListener("click", () => $("#cover-file").click());
+
+$("#cover-file").addEventListener("change", async (event) => {
+  const [file] = event.target.files || [];
+  event.target.value = "";
+  if (!file || !state.slug) return;
+  setSaveState(`uploading ${file.name}…`, false);
+  try {
+    const { url } = await uploadImage(file);
+    $("#f-cover").value = url;
+    state.frontmatter.cover = url;
+    queueSave();
+    setSaveState("cover uploaded", false);
+  } catch (error) {
+    setSaveState(error.message, true);
+    window.alert(error.message);
+  }
 });
 
 function countWords() {
