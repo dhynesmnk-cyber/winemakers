@@ -168,7 +168,7 @@ One repo, two clearly separated applications sharing a content directory. **No P
       /producers
         /_published              # approved MDX — the ONLY producer content Astro builds from
       /blog
-        /_published              # hand-authored posts (Gate 11)
+        /_published              # hand-authored posts (Gate 11) — shipped 2026-08-13
     /components                  # ProducerEntry, Pull, TippedPhoto, Icon, GrainOverlay,
                                  #   SiteLogo, Footer, ThemeToggle, SearchBox, FAQ,
                                  #   ComparisonTable  (DESIGN.md §164, §501)
@@ -206,7 +206,8 @@ One repo, two clearly separated applications sharing a content directory. **No P
     link_graph.py  jsonld_validator.py  validate_*.py
                                  # jsonld_validator.py = /validate 18 (Gate 10);
                                  #   validate_llms.py  = /validate 19 (Gate 10)
-    blog.py  article_pipeline.py  article_factcheck.py     # Gate 11
+    blog.py  article_pipeline.py  article_factcheck.py     # Gate 11 — shipped 2026-08-13
+    validate_blog.py             # /validate 22 (Gate 11)
   /templates                     # index.html, preview.html, partials/
   /static                        # admin.css, admin.js — hand-written, no build step, no CDN
 /PROMPTS                         # loaded at call time, never embedded (§7.2)
@@ -284,7 +285,7 @@ That is an acceptable trade only because the durable public record lives elsewhe
 | `MIN_COMPARISON_PRODUCERS`, `MIN_AGGREGATION_LINKS` | `config.ts` | Gate 9 thresholds; `MIN_AGGREGATION_LINKS` is 3 per `/validate` check 17. |
 | `ROOT`, `SITE_DIR`, `PUBLISHED_DIR`, `STAGING_DIR`, `REJECTED_DIR`, `DELETED_DIR`, `DB_PATH`, `PRODUCERS_JSON_PATH`, `FOREWORDS_JSON_PATH`, `OWNERSHIP_JSON_PATH`, `PROMPTS_DIR`, `TEMP_DATA_DIR`, `IMAGES_DIR`, `FAILED_DIR`, `HARVEST_QUEUE_PATH`, `GEOCODE_CACHE_PATH` | `config.py` | Every cross-cutting path, defined once, `pathlib`, safe from the repo root. |
 | `ANTHROPIC_API_KEY`, `MODEL_HARVESTER`, `MODEL_ARCHITECT`, `MODEL_GATEKEEPER`, `ADMIN_PORT`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `GEOCODER`, `GEOCODER_USER_AGENT`, `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID`, `INDEXNOW_KEY` | `config.py`, from `.env` | With cascading defaults (§2.3). Model IDs never hardcoded. |
-| `MODEL_ARTICLE`, `MODEL_FACTCHECK`, `MODEL_BRIEF`, `BLOG_PUBLISHED_DIR`, `BLOG_STAGING_DIR`, `ARTICLE_STAGING_DIR`, `FACTCHECKS_DIR` | `config.py` | Gate 11. Named now so the key set is stable; unused until then. |
+| `MODEL_ARTICLE`, `MODEL_FACTCHECK`, `MODEL_BRIEF`, `BLOG_PUBLISHED_DIR`, `BLOG_STAGING_DIR`, `ARTICLE_STAGING_DIR`, `FACTCHECKS_DIR` | `config.py` | Gate 11. ~~Named now so the key set is stable; unused until then.~~ **All live since 2026-08-13.** `MODEL_FACTCHECK` must differ from `MODEL_ARTICLE`: `FACTCHECK_IS_SELF_REVIEW` warns and stamps the audit when they collapse. |
 
 `.env.example` mirrors the `.env` key set exactly, with comments and no values, and is the one `.env*` file that is tracked.
 
@@ -326,7 +327,7 @@ Every other public route on this site slugifies a human name, and DESIGN.md §5'
    | `/glossary/`, `/glossary/[key]/` | one entry per enum value, every vocabulary | G6 |
    | `/compare/`, `/compare/[slug]/` | `comparisons.ts` above threshold | G9 |
    | `/methodology/` | hand-authored; drafted at G4, ~~ships at G10~~ **shipped 2026-08-13** | G10 |
-   | `/blog/`, `/blog/[slug]/` | blog collection | G11 |
+   | `/blog/`, `/blog/[slug]/` | blog collection; ~~ships at G11~~ **shipped 2026-08-13** | G11 |
    | `/sitemap.xml`, `/llms.txt`, `/rss.xml` | endpoints, not static files | G6/G10/G11 |
 
    `llms.txt` is **generated as an endpoint** rather than committed as a static file, so it cannot drift from the routes that exist.
