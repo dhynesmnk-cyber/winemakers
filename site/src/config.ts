@@ -59,8 +59,19 @@ export const SITE_TAGLINE = "A field guide to independent Australian winemakers"
  *
  * `admin/config.py` mirrors this, and `.env`'s `SITE_URL` overrides that
  * mirror at runtime, so the value has to match in all three.
+ *
+ * **Amended 2026-08-14.** Was `https://winemakers.netlify.app` until the
+ * Netlify site was renamed to `winelister`, matching the brand decided
+ * 2026-08-12. The rename landed five minutes after a deploy, so the site went
+ * on serving 331 pages whose canonical, sitemap, JSON-LD and `llms.txt` all
+ * named a host that had started returning 404. This constant is the half that
+ * matters for that: `.env` overrides the Python mirror only, and the Astro
+ * build reads THIS value through `astro.config.mjs`'s `site:`. Setting
+ * `SITE_URL` in `.env` and stopping there fixes the fetcher and the deploy
+ * strip while leaving every emitted URL wrong, which is the second time this
+ * constant has shipped a dead host into production.
  */
-export const SITE_URL = "https://winemakers.netlify.app";
+export const SITE_URL = "https://winelister.netlify.app";
 
 /**
  * The address a producer writes to when they think this guide has them wrong.

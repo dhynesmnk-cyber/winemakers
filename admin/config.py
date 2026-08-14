@@ -180,8 +180,12 @@ ADMIN_PASSWORD = env("ADMIN_PASSWORD")
 #: methodology page shown to every producer whose site is read.
 #:
 #: **`.env` overrides this default**, so changing it here is not enough on a
-#: machine whose `.env` sets `SITE_URL` to something else.
-SITE_URL = env("SITE_URL", "https://winemakers.netlify.app").rstrip("/")
+#: machine whose `.env` sets `SITE_URL` to something else. The converse bit
+#: people, on 2026-08-14: setting it in `.env` is not enough either, because
+#: the Astro build reads `site/src/config.ts` and never looks at `.env` at all.
+#: Amended the same day from `https://winemakers.netlify.app`, when the Netlify
+#: site was renamed to `winelister`.
+SITE_URL = env("SITE_URL", "https://winelister.netlify.app").rstrip("/")
 
 #: The brand name, mirroring `site/src/config.ts`. Chosen and signed off
 #: 2026-08-12, verbatim as given, lowercase included.
